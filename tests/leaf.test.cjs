@@ -5,7 +5,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 
-const html = fs.readFileSync(path.join(__dirname, '..', 'editor.html'), 'utf8');
+const html = fs.readFileSync(path.join(__dirname, '..', 'editor.html'), 'utf8').replace(/\r\n/g, '\n');
 const from = html.indexOf('<script>') + 8;
 const js = html.slice(from, html.indexOf('</script>', from));
 
@@ -439,7 +439,7 @@ test('GitHub Pages service worker prefers fresh HTML and keeps an offline fallba
 
 test('fork version matches README, changelog and visible About version', () => {
   const version='1.10.0-lgg.1';
-  const readme=fs.readFileSync(path.join(__dirname,'..','README.md'),'utf8');
+  const readme=fs.readFileSync(path.join(__dirname,'..','README.md'),'utf8').replace(/\r\n/g, '\n');
   const changelog=fs.readFileSync(path.join(__dirname,'..','CHANGELOG.md'),'utf8');
   assert.ok(html.includes('>v'+version+'</span>'));
   assert.ok(readme.includes('v'+version));
