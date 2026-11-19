@@ -502,6 +502,14 @@
     position: relative;
   }
   #statusbar.statusbar-empty { display: none; }
+  #workspace-warning {
+    position: fixed; bottom: 14px; right: 14px; z-index: 2200;
+    max-width: min(460px, 90vw); padding: 12px 16px;
+    background: var(--surface); color: var(--text); border: 1px solid var(--border);
+    border-radius: 8px; font: 12px 'JetBrains Mono', monospace;
+    box-shadow: 0 6px 22px rgba(0,0,0,.25);
+  }
+  #workspace-warning[hidden] { display: none; }
   #statusbar .stat-left  { display: flex; gap: 12px; }
   #statusbar .stat-right { display: flex; gap: 12px; }
   #statusbar .stat-centre {
@@ -1023,6 +1031,7 @@
     <span id="cursor-pos">ln 1, col 1</span>
   </div>
 </div>
+<div id="workspace-warning" role="alert" hidden></div>
 
 <!-- Cage Easter Egg -->
 <div id="cage-overlay"></div>
@@ -2900,37 +2909,88 @@ const AUTOSAVE_KEY = 'leaf-autosave';
 
 // Persist the entire workspace, not only the currently focused document.
 const WORKSPACE_KEY = 'leaf-workspace-v1';
+const WORKSPACE_CONFLICT_PREFIX = 'leaf-workspace-conflict-';
+const WORKSPACE_DEBOUNCE_MS = 350;
+const WORKSPACE_MAX_WAIT_MS = 2000;
+const workspaceWriterId = (typeof crypto !== 'undefined' && crypto.randomUUID)
+  ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2);
+const workspaceConflictKey = WORKSPACE_CONFLICT_PREFIX + workspaceWriterId;
 let workspaceSaveTimer = null;
+let workspaceFirstEditAt = 0;
+let workspaceLastPayload = null;
+let workspaceLastRaw = null;
+let workspaceConflictMode = false;
 let storageWarningShown = false;
+
+function workspaceSnapshot() {
+  saveActiveTabState();
+  return {
+    version: 2,
+    activeTabId,
+    tabs: tabs.map(({ id, name, label, browserTitle, content, dirty, readonly }) => ({
+      id, name, label: label || '', browserTitle: browserTitle || '',
+      content, dirty: Boolean(dirty), readonly: Boolean(readonly)
+    }))
+  };
+}
+
+function workspaceNotice(message) {
+  const notice = document.getElementById('workspace-warning');
+  notice.textContent = message;
+  notice.hidden = false;
+}
 
 function persistWorkspace() {
   clearTimeout(workspaceSaveTimer);
   workspaceSaveTimer = null;
-  saveActiveTabState();
+  workspaceFirstEditAt = 0;
+  const payload = JSON.stringify(workspaceSnapshot());
+  // Do not write on reload, pagehide, or idle if nothing actually changed.
+  if (payload === workspaceLastPayload && !workspaceConflictMode) return;
   try {
-    // File System Access handles are intentionally omitted: they cannot be serialized.
-    localStorage.setItem(WORKSPACE_KEY, JSON.stringify({
-      version: 1,
-      activeTabId,
-      tabs: tabs.map(({ id, name, content, dirty, readonly }) => ({
-        id, name, content, dirty: Boolean(dirty), readonly: Boolean(readonly)
-      })),
+    // A second browser tab must never silently overwrite this tab's changes.
+    const current = localStorage.getItem(WORKSPACE_KEY);
+    if (workspaceLastRaw !== null && current !== workspaceLastRaw) {
+      workspaceConflictMode = true;
+    }
+    const raw = JSON.stringify({
+      ...JSON.parse(payload), writerId: workspaceWriterId,
       savedAt: new Date().toISOString()
-    }));
-    // Do not keep a stale legacy single-tab backup once workspace storage succeeds.
-    localStorage.removeItem(AUTOSAVE_KEY);
+    });
+    const key = workspaceConflictMode ? workspaceConflictKey : WORKSPACE_KEY;
+    // Synchronous localStorage write: no overlapping writes within one page.
+    if (raw !== localStorage.getItem(key)) localStorage.setItem(key, raw);
+    workspaceLastPayload = payload;
+    if (workspaceConflictMode) {
+      workspaceNotice('Another Leaf window changed this workspace. Your edits are saved in a separate local recovery copy.');
+    } else {
+      workspaceLastRaw = raw;
+      localStorage.removeItem(AUTOSAVE_KEY);
+    }
   } catch (error) {
     if (!storageWarningShown) {
       storageWarningShown = true;
-      alert('Browser storage is unavailable or full. Download your files to avoid losing work.');
+      workspaceNotice('Browser storage is full or unavailable. Export your Markdown documents to avoid losing work.');
     }
   }
 }
 
 function scheduleWorkspaceSave() {
+  // Each text change schedules a save, without serializing or writing per keypress.
+  // A long uninterrupted typing session is flushed at least every 2 seconds.
+  const now = Date.now();
+  if (!workspaceFirstEditAt) workspaceFirstEditAt = now;
   clearTimeout(workspaceSaveTimer);
-  workspaceSaveTimer = setTimeout(persistWorkspace, 250);
+  const remaining = Math.max(0, WORKSPACE_MAX_WAIT_MS - (now - workspaceFirstEditAt));
+  workspaceSaveTimer = setTimeout(persistWorkspace, Math.min(WORKSPACE_DEBOUNCE_MS, remaining));
 }
+
+window.addEventListener('storage', event => {
+  if (event.key === WORKSPACE_KEY && event.newValue !== workspaceLastRaw) {
+    workspaceConflictMode = true;
+    // Pending unsaved edits go to the isolated recovery key at the next flush.
+  }
+});
 
 function restoreWorkspace() {
   try {
@@ -2948,7 +3008,8 @@ function restoreWorkspace() {
     });
     if (stored.length === 0) return false;
     tabs = stored.map(tab => ({
-      id: tab.id, name: tab.name, content: tab.content,
+      id: tab.id, name: tab.name, label: tab.label || '',
+      browserTitle: tab.browserTitle || '', content: tab.content,
       handle: null, dirty: Boolean(tab.dirty), readonly: Boolean(tab.readonly)
     }));
     activeTabId = tabs.some(tab => tab.id === data.activeTabId)
@@ -2965,6 +3026,9 @@ function restoreWorkspace() {
     updateStats();
     if (currentMode !== 'write') renderPreview();
     renderTabs();
+    workspaceLastRaw = raw;
+    workspaceLastPayload = JSON.stringify(workspaceSnapshot());
+    syncDocumentTitles();
     return true;
   } catch (error) {
     // A broken or blocked storage entry should not prevent the editor loading.
