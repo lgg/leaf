@@ -359,11 +359,16 @@
     if (target.startsWith('#')) return; // In-app About / help controls.
     event.preventDefault();
     event.stopImmediatePropagation();
-    if (!/^(https?:\/\/|mailto:)/i.test(target)) {
-      workspaceNotice('Only web and email links can be opened from Leaf desktop.');
+    const docs = new Set(['CHANGELOG.md', 'docs/DESKTOP.md', 'docs/SETTINGS_AUDIT.md']);
+    // Bundled README uses relative links. Route only known repository docs to
+    // their canonical online pages, never turn arbitrary relative files into URLs.
+    const safeTarget = docs.has(target)
+      ? 'https://github.com/lgg/leaf/blob/main/' + target : target;
+    if (!/^(https?:\/\/|mailto:)/i.test(safeTarget)) {
+      workspaceNotice('Only web, email and built-in documentation links can be opened.');
       return;
     }
-    invoke('desktop_open_external', {url:target}).catch(error => {
+    invoke('desktop_open_external', {url:safeTarget}).catch(error => {
       workspaceNotice('Could not open external link: ' + safeError(error));
     });
   }, true);
