@@ -10,6 +10,7 @@ test('web/PWA editor is self contained; desktop-only files stay separate', () =>
   assert.ok(!html.includes('desktop-bridge.js'));
   assert.ok(!sw.includes('desktop-bridge.js'));
   assert.ok(!html.includes('src-tauri'));
+  assert.ok(html.includes("if (!window.__TAURI__ && 'serviceWorker' in navigator"));
   assert.ok(!sw.includes('src-tauri'));
 });
 
