@@ -246,6 +246,186 @@ test('actual localStorage settings round-trip restores font, theme and hidden UI
   assert.equal(nodes['chk-show-cursor'].checked,false);
 });
 
+test('settings order, responsive layout and unobtrusive backup control', () => {
+  const modal = html.split('<!-- Settings Modal -->')[1].split('<!-- About Modal -->')[0];
+  const sections = [...modal.matchAll(/<h3>([^<]+)<\/h3>/g)].map(item => item[1]);
+  assert.equal(sections.join(','), 'Current document,Appearance,Status bar,Editor');
+  assert.ok(modal.includes('id="workspace-recovery-row" class="settings-recovery" hidden'));
+  assert.ok(modal.includes('aria-label="Restore latest recovery copy"'));
+  assert.ok(!modal.includes('title="Restore a separately saved workspace'));
+  assert.ok(html.includes('max-height: calc(100dvh - 24px)'));
+  assert.ok(html.includes('overflow-y: auto'));
+  assert.ok(html.includes('grid-template-columns: repeat(2, minmax(0, 1fr))'));
+  assert.ok(html.includes('#settings-modal .settings-recovery[hidden] { display: none; }'));
+  assert.ok(html.includes('overflow-wrap: anywhere'));
+});
+
+test('recovery button appears only for valid backups; invalid copies do not block others', () => {
+  const source = between('function availableWorkspaceRecoveries() {',
+    "document.getElementById('btn-recover-workspace').addEventListener('click'");
+  const entries = {};
+  const container = {
+    hidden:true, span:{textContent:''},
+    querySelector(){return this.span}
+  };
+  const storage = {
+    get length(){return Object.keys(entries).length},
+    key:index=>Object.keys(entries)[index],
+    getItem:key=>entries[key]||null
+  };
+  const code =
+    "const WORKSPACE_CONFLICT_PREFIX='leaf-workspace-conflict-',localStorage=deps.storage;" +
+    "const document={getElementById:()=>deps.container};" +
+    source + ';return {availableWorkspaceRecoveries,refreshRecoveryControl};';
+  const actions = new Function('deps', code)({storage,container});
+  actions.refreshRecoveryControl();
+  assert.equal(container.hidden,true);
+  entries['leaf-workspace-conflict-corrupt']='not JSON';
+  entries['leaf-workspace-conflict-valid']=JSON.stringify({
+    savedAt:'2026-11-19T09:00:00Z',
+    tabs:[{id:1,name:'draft.md',content:'safe'}]
+  });
+  actions.refreshRecoveryControl();
+  assert.equal(container.hidden,false);
+  assert.equal(actions.availableWorkspaceRecoveries().length,1);
+  assert.match(container.span.textContent,/backup/);
+  delete entries['leaf-workspace-conflict-valid'];
+  actions.refreshRecoveryControl();
+  assert.equal(container.hidden,true);
+});
+
+test('restoring a backup preserves the prior primary and writes recovered content to primary', () => {
+  const source = between(
+    "document.getElementById('btn-recover-workspace').addEventListener('click', () => {",
+    '\nfunction markDirty()'
+  );
+  const original = JSON.stringify({tabs:[{id:1,name:'old.md',content:'Old'}],savedAt:'2026-11-19T08:00:00Z'});
+  const backup = JSON.stringify({tabs:[{id:2,name:'new.md',content:'Recovered'}],savedAt:'2026-11-19T09:00:00Z'});
+  const data = {'leaf-workspace-v1':original};
+  const storage = {
+    getItem:k=>data[k]||null,
+    setItem:(k,v)=>{data[k]=v}
+  };
+  const modal = {style:{display:'flex'}};
+  const btn = {handle:null,addEventListener(type,fn){this.handle=fn}};
+  let state=JSON.parse(original),lastPayload=JSON.stringify(state);
+  const notices=[];
+  const code =
+    "const WORKSPACE_KEY='leaf-workspace-v1',WORKSPACE_CONFLICT_PREFIX='leaf-workspace-conflict-';" +
+    "const workspaceWriterId='session-123',localStorage=deps.storage;" +
+    "let workspaceConflictMode=false,workspaceLastConflictPayload=null,workspaceLastPayload='prior';" +
+    "const document={getElementById:id=>id==='btn-recover-workspace'?deps.btn:deps.modal};" +
+    "const confirm=()=>true;" +
+    "function availableWorkspaceRecoveries(){return [{raw:deps.backup,savedAt:'2026-11-19T09:00:00Z'}]}" +
+    "function persistWorkspace(){if(!workspaceConflictMode){localStorage.setItem(WORKSPACE_KEY,JSON.stringify(deps.state.value));workspaceLastPayload=JSON.stringify(deps.state.value)}}" +
+    "function restoreWorkspace(raw){deps.state.value=JSON.parse(raw);workspaceConflictMode=true;return true}" +
+    "function workspaceNotice(message){deps.notices.push(message)}" +
+    "function refreshRecoveryControl(){}" +
+    source + ';return deps.btn.handle;';
+  const holder={value:state};
+  const click=new Function('deps',code)({storage,btn,modal,backup,state:holder,notices});
+  click();
+  assert.equal(JSON.parse(data['leaf-workspace-v1']).tabs[0].content,'Recovered');
+  assert.equal(Object.keys(data).filter(k=>k.startsWith('leaf-workspace-conflict-before-restore-')).length,1);
+  assert.equal(modal.style.display,'none');
+  assert.ok(notices.some(x=>x.includes('Recovered draft restored')));
+});
+
+test('all persisted settings keys are included in a saved preferences record', () => {
+  const source=between('function saveSettings() {','function loadSettings() {');
+  const data={};
+  const nodes=new Proxy({}, {get:(obj,key) => obj[key] || (obj[key]={value:'22',checked:false})});
+  nodes['theme-select']={value:'black'};
+  nodes['settings-font-select']={value:'Arial, Helvetica, sans-serif'};
+  nodes['settings-font-size-select']={value:'22'};
+  nodes['color-bg']={value:'#010203'};
+  nodes['color-text']={value:'#aabbcc'};
+  nodes['color-accent']={value:'#334455'};
+  nodes['chk-show-words']={checked:false};
+  nodes['chk-show-placeholder']={checked:false};
+  nodes['chk-welcome']={checked:false};
+  nodes['chk-crt']={checked:true};
+  const document={
+    getElementById:id=>nodes[id],
+    body:{classList:{contains:()=>true}}
+  };
+  const storage={setItem:(key,value)=>{data[key]=value}};
+  const prefix=
+    "const SETTINGS_KEY='leaf-editor-settings',localStorage=deps.storage,document=deps.document;" +
+    "let autohideEnabled=true,tabBarPinned=true,scrollSynced=false,smartPunctEnabled=true;" +
+    "function workspaceNotice(){}";
+  new Function('deps',prefix+source+';saveSettings();')({storage,document});
+  const saved=JSON.parse(data['leaf-editor-settings']);
+  const required=[
+    'theme','font','fontSize','autohide','tabPinned','showWelcome','crtEnabled',
+    'scrollSynced','customBg','customText','customAccent','smartPunct',
+    'showWords','showPlaceholder','showChars','showLines','showReadtime','showCursor'
+  ];
+  assert.equal(required.every(key => Object.prototype.hasOwnProperty.call(saved,key)),true);
+  assert.equal(saved.theme,'black');
+  assert.equal(saved.font,'Arial, Helvetica, sans-serif');
+  assert.equal(saved.customBg,'#010203');
+  assert.equal(saved.autohide,true);
+  assert.equal(saved.tabPinned,true);
+  assert.equal(saved.scrollSynced,false);
+  assert.equal(saved.smartPunct,true);
+  assert.equal(saved.showWords,false);
+  assert.equal(saved.showPlaceholder,false);
+});
+
+test('valid custom HEX input saves the choice; invalid input does not', () => {
+  const source=between('// Sync color picker → hex input','// ── Font / Size');
+  const nodes={};
+  const fired={};
+  for(const kind of ['bg','text','accent']) {
+    for(const type of ['color-','hex-']) {
+      const id=type+kind;
+      nodes[id]={value:'#123456',addEventListener(event,cb){fired[id+':'+event]=cb}};
+    }
+  }
+  let saves=0,applied=0;
+  new Function('deps',
+    "const document={getElementById:id=>deps.nodes[id]};" +
+    "function saveSettings(){deps.saves.count++}" +
+    "function applyCustomColors(){deps.applied.count++}" +
+    source
+  )({nodes,saves:{count:0},applied:{count:0}});
+  // The registered listener must be present for each of the three colors.
+  for(const kind of ['bg','text','accent'])
+    assert.equal(typeof fired['hex-'+kind+':input'],'function');
+  const saveCounter={count:0};
+  const applyCounter={count:0};
+  const registered={};
+  for(const kind of ['bg','text','accent'])for(const type of ['color-','hex-']){
+    const id=type+kind;
+    nodes[id].addEventListener=(event,cb)=>{registered[id+':'+event]=cb};
+  }
+  new Function('deps',
+    "const document={getElementById:id=>deps.nodes[id]};" +
+    "function saveSettings(){deps.saved.count++}" +
+    "function applyCustomColors(){deps.updated.count++}" +
+    source
+  )({nodes,saved:saveCounter,updated:applyCounter});
+  nodes['hex-bg'].value='#aabbcc';
+  registered['hex-bg:input']();
+  assert.equal(nodes['color-bg'].value,'#aabbcc');
+  assert.equal(saveCounter.count,1);
+  assert.equal(applyCounter.count,1);
+  nodes['hex-bg'].value='not-a-color';
+  registered['hex-bg:input']();
+  assert.equal(saveCounter.count,1);
+  registered['hex-bg:blur']();
+  assert.equal(nodes['hex-bg'].value,'#aabbcc');
+});
+
+test('GitHub Pages service worker prefers fresh HTML and keeps an offline fallback', () => {
+  const sw=fs.readFileSync(path.join(__dirname,'..','sw.js'),'utf8');
+  assert.ok(sw.includes("const CACHE = 'leaf-lgg-v4'"));
+  assert.ok(sw.includes("request.mode === 'navigate'"));
+  assert.ok(sw.includes("fetch(request).then(response"));
+  assert.ok(sw.includes("caches.match('./editor.html')"));
+});
+
 test('preferences, independent tab names, input edits and recovery are wired', () => {
   assert.ok(html.includes('id="settings-tab-label"'));
   assert.ok(html.includes('id="settings-browser-title"'));

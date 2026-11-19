@@ -55,8 +55,8 @@ TOOLBAR (top strip)
   open                  Load an existing .txt or .md file
   write / split / prev  Switch between write, split, and preview modes
   Theme menu            Choose your color theme
-  Font menu             Choose your writing font
-  Size menu             Choose your font size
+  Font settings         Choose the writing font under Settings > Appearance
+  Size settings         Choose the font size under Settings > Appearance
   autohide              Hides toolbar while typing; hover top of screen to show
   focus                 Fullscreen focus mode (Esc or Ctrl+Shift+F to exit)
   ...                   About Leaf
@@ -65,8 +65,9 @@ TAB BAR (below toolbar)
   Shows open files below the toolbar. Click to switch, + to open new,
   x to close. In focus mode, the tab bar is hidden.
   Double-click a tab label to rename it without changing the Markdown filename.
-  In Settings > Current document, the in-app tab label and browser tab title
-  can be edited separately, and each document remembers both fields.
+  Settings > Current document is the first section of the settings dialog.
+  There, the in-app tab label and browser title are independent of the Markdown
+  filename. Each document remembers both fields.
 
   In autohide mode, the toolbar hides when you click into the editor.
   Move your mouse to the top of the screen to reveal it. The tab bar
@@ -83,7 +84,7 @@ STATUS BAR
   Displays a random welcome message on launch.
   Shows milestone messages at 100, 250, 500, 1000, 2000, and 5000 words.
   Shows a quiet idle nudge after 3 minutes of inactivity.
-  All status messages can be disabled via the toggle in the About modal.
+  All status messages can be disabled under Settings > Editor.
 
 
 ================================================================================
@@ -171,10 +172,15 @@ All open documents, their filenames, in-app labels, browser titles, content,
 dirty states and active tab are restored automatically on the same site/browser.
 Older single-document autosaves can still be restored.
 
-If multiple independent Leaf browser windows edit the same workspace, Leaf
-detects changes to shared localStorage and writes separate conflict recovery
-snapshots instead of silently overwriting another window's work. The Settings >
-Current document > restore recovery copy button restores the latest such backup.
+If independent Leaf browser windows edit the same workspace, Leaf detects
+external changes and writes separate recovery copies to avoid silently
+overwriting another window's work. Settings > Current document only shows the
+"restore backup" action when a valid recovery copy exists. Restoring it keeps
+the previous main workspace as a separate backup. The modal scrolls on small
+screens, and all controls are accessible.
+
+The page is served fresh online with a cached offline fallback. If an older
+PWA version is still open, reload the page to apply updated settings controls.
 LocalStorage is not a replacement for an exported file backup.
 
 The writing hint ("Start writing… markdown is supported.") can be disabled
@@ -198,6 +204,21 @@ colors. No hunting for the perfect font. No excuses.
 
 Write 500 words to earn your freedom early.
 
+
+================================================================================
+SETTINGS — FORK UPDATE
+================================================================================
+
+Settings open with Ctrl+, or the "settings" toolbar control. Section order:
+  1. Current document — in-app tab label, browser tab title and recovery
+     action (only when a backup exists)
+  2. Appearance — themes, custom colors, fonts and font size
+  3. Status bar — five independent visibility toggles
+  4. Editor — writing hint, status messages and smart punctuation
+
+Each setting is saved in the browser-local "leaf-editor-settings" localStorage
+entry. Draft workspaces use a separate key. Browser cleanup, incognito mode,
+storage quota failures, and other websites' storage cannot be controlled by Leaf.
 
 ================================================================================
 CHANGELOG

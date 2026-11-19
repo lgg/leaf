@@ -733,13 +733,21 @@
     background: var(--surface);
     border: 1px solid var(--border);
     border-radius: 12px;
-    padding: 36px 48px;
+    padding: 30px 28px 24px;
     font-family: 'JetBrains Mono', monospace;
     color: var(--text);
-    min-width: 280px;
+    width: min(440px, calc(100vw - 24px));
+    min-width: 0;
+    max-height: calc(100dvh - 24px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
     box-shadow: 0 8px 40px rgba(0,0,0,0.4);
     position: relative;
   }
+  #settings-modal::-webkit-scrollbar { display: block; width: 5px; }
+  #settings-modal::-webkit-scrollbar-thumb { background: var(--border); border-radius: 8px; }
   #settings-modal h3 {
     font-size: 11px;
     font-weight: 600;
@@ -784,6 +792,49 @@
     cursor: pointer;
     opacity: 0.8;
   }
+  #settings-modal .settings-document-row label {
+    width: 96px;
+    flex: 0 0 96px;
+  }
+  #settings-modal .settings-document-row { min-width: 0; }
+  #settings-modal .settings-recovery {
+    min-width: 0;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 10px;
+    margin-top: 12px;
+    padding: 10px 0 0;
+    border-top: 1px solid var(--border);
+  }
+  #settings-modal .settings-recovery[hidden] { display: none; }
+  #settings-modal .settings-recovery span {
+    flex: 1 1 170px;
+    min-width: 0;
+    overflow-wrap: anywhere;
+    color: var(--muted);
+    opacity: .85;
+    font-size: 10px;
+    line-height: 1.5;
+  }
+  #btn-recover-workspace {
+    flex: 0 0 auto;
+    max-width: 100%;
+    font: 10px 'JetBrains Mono', monospace;
+    color: var(--text);
+    border: 1px solid var(--border);
+    background: var(--bg);
+    border-radius: 5px;
+    padding: 7px 10px;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    text-align: center;
+  }
+  #btn-recover-workspace:hover, #btn-recover-workspace:focus-visible {
+    border-color: var(--accent);
+    background: var(--surface);
+    outline-offset: 2px;
+  }
   #settings-tab-label, #settings-browser-title {
     min-width: 0;
     flex: 1;
@@ -795,7 +846,18 @@
     color: var(--text);
     font: 11px 'JetBrains Mono', monospace;
   }
-  .settings-help { font-size: 10px; color: var(--muted); opacity: 0.8; }
+  .settings-help {
+    font-size: 10px;
+    line-height: 1.6;
+    color: var(--muted);
+    opacity: 0.8;
+    overflow-wrap: anywhere;
+    margin-top: 6px;
+  }
+  @media (max-width: 480px) {
+    #settings-modal { padding: 27px 16px 18px; }
+    #settings-modal .settings-document-row label { width: 86px; flex-basis: 86px; }
+  }
   .settings-divider {
     border: none;
     border-top: 1px solid var(--border);
@@ -852,9 +914,9 @@
 
   /* ── Settings theme list ── */
   .settings-theme-list {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 2px 8px;
   }
   .settings-theme-item {
     display: flex;
@@ -909,21 +971,6 @@
     opacity: 0.35;
     cursor: not-allowed;
   }
-
-  /* ── Amber CRT mode ── */
-  body[data-theme="terminal"].amber-crt { --text:#ffb000; --accent:#7a4a00; --muted:#a06a00; --border:#3a2200; }
-  body[data-theme="terminal"].amber-crt #editor,
-  body[data-theme="terminal"].amber-crt #preview {
-    text-shadow: 0 0 10px rgba(255,176,0,0.55), 0 0 3px rgba(255,176,0,0.7);
-    -webkit-font-smoothing: none;
-    -moz-osx-font-smoothing: unset;
-  }
-  body[data-theme="terminal"].amber-crt #statusbar { text-shadow: 0 0 6px rgba(255,176,0,0.4); }
-  body[data-theme="terminal"].amber-crt button,
-  body[data-theme="terminal"].amber-crt select,
-  body[data-theme="terminal"].amber-crt .custom-dropdown,
-  body[data-theme="terminal"].amber-crt #filename-input { color: var(--text); text-shadow: 0 0 6px rgba(255,176,0,0.3); }
-  body[data-theme="terminal"].amber-crt #editor { caret-color: #ffb000; }
 
   /* ── Amber CRT mode ── */
   body[data-theme="terminal"].amber-crt { --text:#ffb000; --accent:#7a4a00; --muted:#a06a00; --border:#3a2200; }
@@ -1040,7 +1087,24 @@
 <!-- Settings Modal -->
 <div id="settings-overlay" style="display:none">
   <div id="settings-modal">
-    <button id="btn-settings-close" title="Close">×</button>
+    <button id="btn-settings-close" title="Close" aria-label="Close settings">×</button>
+    <div class="settings-section">
+      <h3>Current document</h3>
+      <div class="settings-row settings-document-row">
+        <label for="settings-tab-label">tab label</label>
+        <input id="settings-tab-label" type="text" placeholder="Same as filename" autocomplete="off" spellcheck="false" title="Label of the tab inside Leaf">
+      </div>
+      <div class="settings-row settings-document-row">
+        <label for="settings-browser-title">browser title</label>
+        <input id="settings-browser-title" type="text" placeholder="Automatic title" autocomplete="off" spellcheck="false" title="Browser tab title when this document is active">
+      </div>
+      <p class="settings-help">These titles are independent of the filename in the toolbar.</p>
+      <div id="workspace-recovery-row" class="settings-recovery" hidden>
+        <span>Another browser window's draft was saved separately.</span>
+        <button id="btn-recover-workspace" type="button" aria-label="Restore latest recovery copy">restore backup</button>
+      </div>
+    </div>
+    <hr class="settings-divider">
     <div class="settings-section">
       <h3>Appearance</h3>
       <div class="settings-theme-list">
@@ -1146,20 +1210,7 @@
         <label for="chk-smart-punct">smart punctuation</label>
       </div>
     </div>
-    <hr class="settings-divider">
-    <div class="settings-section">
-      <h3>Current document</h3>
-      <div class="settings-row">
-        <label for="settings-tab-label">tab label</label>
-        <input id="settings-tab-label" type="text" placeholder="Same as filename" autocomplete="off" spellcheck="false" title="Label of the tab inside Leaf">
-      </div>
-      <div class="settings-row">
-        <label for="settings-browser-title">browser title</label>
-        <input id="settings-browser-title" type="text" placeholder="Automatic title" autocomplete="off" spellcheck="false" title="Browser tab title when this document is active">
-      </div>
-      <p class="settings-help">These are independent of the Markdown filename above.</p>
-      <button id="btn-recover-workspace" type="button" title="Restore a separately saved workspace from another Leaf window">restore recovery copy</button>
-    </div>
+
   </div>
 </div>
 
@@ -1180,9 +1231,8 @@
 
 <script>
 const README_CONTENT = `LEAF: A MARKDOWN EDITOR
-Vibe coded by Dan (c) 2026
-Original: https://github.com/uncle-jasper/leaf
-updated by lgg: https://github.com/lgg/leaf
+Vibe coded by Dan (c) 2026 — https://github.com/uncle-jasper/leaf
+updated by lgg — https://github.com/lgg/leaf
 Version 1.7 (lgg fork)
 
 ================================================================================
@@ -1218,7 +1268,8 @@ OPTION 1 - Open directly in a browser
 Double-click editor.html. Works in any modern browser.
 
 OPTION 2 - Install as a PWA (Chrome / Edge)
-Open https://uncle-jasper.github.io/leaf/editor.html in Chrome or Edge.
+Open https://lgg.github.io/leaf/editor.html (fork) in Chrome or Edge.
+Original author: https://uncle-jasper.github.io/leaf/editor.html
 An install button will appear in the address bar or browser menu.
 Click it to install Leaf as a standalone app with its own window and icon.
 Once installed, Leaf works fully offline.
@@ -1231,11 +1282,13 @@ THE INTERFACE
 TOOLBAR (top strip)
   Filename field        Set the name of your file before saving
   save                  Downloads your file (or saves in place in Chrome)
+  all .md               Exports all open, editable documents as one .zip of
+                        separate Markdown (.md) files
   open                  Load an existing .txt or .md file
   write / split / prev  Switch between write, split, and preview modes
   Theme menu            Choose your color theme
-  Font menu             Choose your writing font
-  Size menu             Choose your font size
+  Font settings         Choose the writing font under Settings > Appearance
+  Size settings         Choose the font size under Settings > Appearance
   autohide              Hides toolbar while typing; hover top of screen to show
   focus                 Fullscreen focus mode (Esc or Ctrl+Shift+F to exit)
   ...                   About Leaf
@@ -1243,6 +1296,10 @@ TOOLBAR (top strip)
 TAB BAR (below toolbar)
   Shows open files below the toolbar. Click to switch, + to open new,
   x to close. In focus mode, the tab bar is hidden.
+  Double-click a tab label to rename it without changing the Markdown filename.
+  Settings > Current document is the first section of the settings dialog.
+  There, the in-app tab label and browser title are independent of the Markdown
+  filename. Each document remembers both fields.
 
   In autohide mode, the toolbar hides when you click into the editor.
   Move your mouse to the top of the screen to reveal it. The tab bar
@@ -1253,11 +1310,13 @@ TAB BAR (below toolbar)
 STATUS BAR
   Shows live word count, character count, line count, and cursor position.
   When text is selected, shows the word and character count of the selection.
+  Each counter can be hidden independently under Settings > Status bar.
+  When all five counters are disabled, the entire status bar disappears.
   Fades out in focus mode and reappears on hover.
   Displays a random welcome message on launch.
   Shows milestone messages at 100, 250, 500, 1000, 2000, and 5000 words.
   Shows a quiet idle nudge after 3 minutes of inactivity.
-  All status messages can be disabled via the toggle in the About modal.
+  All status messages can be disabled under Settings > Editor.
 
 
 ================================================================================
@@ -1265,14 +1324,11 @@ THEMES
 ================================================================================
 
   parchment   Warm cream (default)
-  sepia       Rich warm brown — like an old photograph
   paper       Cool white with a slight blue-grey tint
-  ash         Neutral grey — overcast, focused, no colour cast
-  sage        Soft green — unmistakably a green environment
   dark        Near-black with cool grey text
+  black       Pure black (#000000) with a grey (#c8c8c8) caret and monospace font
   moss        Dark green
   slate       Dark blue-grey
-  dusk        Warm dark — deep brown-black with terracotta accents
   terminal    Black with dimmed green phosphor text. Includes an optional
               CRT mode ([CRT] in toolbar) — a fun retro nod to the monochrome
               green monitors of the 80s. Rumor has it there's another color
@@ -1288,7 +1344,9 @@ FONTS
 ================================================================================
 
 The iA Writer fonts are embedded in the HTML file and work offline.
-All other fonts require an internet connection.
+JetBrains Mono, Inconsolata, Share Tech Mono, Roboto Mono and Open Sans need
+an internet connection for their web fonts (with local fallback). System fonts
+Arial and Times New Roman work offline when installed on the device.
 
   iA Writer Mono      Classic monospaced typewriter feel (default)
   iA Writer Duo       Proportional with a monospace structure
@@ -1296,6 +1354,10 @@ All other fonts require an internet connection.
   JetBrains Mono      Clean developer monospace
   Inconsolata         Clean, neutral console font
   Share Tech Mono     Softer retro monospace
+  Roboto Mono         Clean, readable monospaced font
+  Open Sans           Modern proportional sans-serif
+  Times New Roman     Classic system serif font
+  Arial               Classic system sans-serif font
 
 
 ================================================================================
@@ -1304,13 +1366,8 @@ KEYBOARD SHORTCUTS
 
   Ctrl+S          Save file
   Ctrl+B          Bold selected text (**text**)
-  Ctrl+Shift+B    Bold+italic selected text (***text***)
   Ctrl+I          Italic selected text (*text*)
-  Ctrl+Shift+X    Strikethrough selected text (~~text~~)
-  Ctrl+\`         Inline code selected text (\`text\`)
   Ctrl+K          Wrap selection in link [text](url)
-  Ctrl+G          Jump to next heading (wraps around)
-  Ctrl+,          Open settings
   Ctrl+1          Heading 1 (toggle)
   Ctrl+2          Heading 2 (toggle)
   Ctrl+3          Heading 3 (toggle)
@@ -1338,9 +1395,33 @@ a saved confirmation.
 In Brave and other browsers, each save downloads the file. Name the file
 using the filename field before saving.
 
-Leaf also autosaves your work to browser storage every 30 seconds. If Leaf
-is closed unexpectedly and you reopen it, you will be offered the chance to
-restore your last autosaved draft.
+Each text change schedules a browser-local save, debounced for 350 ms of
+inactivity; uninterrupted typing is flushed at least once every 2 seconds.
+Identical snapshots are not written again. Hiding or closing the browser tab
+flushes outstanding edits synchronously. This avoids disk writes per keystroke.
+
+All open documents, their filenames, in-app labels, browser titles, content,
+dirty states and active tab are restored automatically on the same site/browser.
+Older single-document autosaves can still be restored.
+
+If independent Leaf browser windows edit the same workspace, Leaf detects
+external changes and writes separate recovery copies to avoid silently
+overwriting another window's work. Settings > Current document only shows the
+"restore backup" action when a valid recovery copy exists. Restoring it keeps
+the previous main workspace as a separate backup. The modal scrolls on small
+screens, and all controls are accessible.
+
+The page is served fresh online with a cached offline fallback. If an older
+PWA version is still open, reload the page to apply updated settings controls.
+LocalStorage is not a replacement for an exported file backup.
+
+The writing hint ("Start writing… markdown is supported.") can be disabled
+in Settings > Editor. Appearance and visibility preferences are saved as well.
+
+IMPORTANT: Browser data can be erased by the user, by private/incognito mode or
+by browser cleanup. Download important files as .md or .txt for durable backups.
+Storage is per browser + website origin: a local file, the upstream GitHub Pages
+site and your own fork's GitHub Pages site have separate localStorage.
 
 
 ================================================================================
@@ -1357,63 +1438,23 @@ Write 500 words to earn your freedom early.
 
 
 ================================================================================
-CHANGELOG
+SETTINGS — FORK UPDATE
 ================================================================================
 
-v1.7
-  - Theme selector moved from toolbar to settings modal — toolbar now shows
-    the current theme name as a quiet label that opens settings when clicked
-  - Font and font size moved to settings modal under Appearance
-  - CRT mode toggle moved to settings modal — appears only when terminal
-    theme is active
-  - Settings modal reorganised into Appearance, Status bar, and Editor
-    sections
-  - Theme list in settings shows a colour swatch next to each theme name
-  - Settings modal and Ctrl+, blocked during Just Write mode
+Settings open with Ctrl+, or the "settings" toolbar control. Section order:
+  1. Current document — in-app tab label, browser tab title and recovery
+     action (only when a backup exists)
+  2. Appearance — themes, custom colors, fonts and font size
+  3. Status bar — five independent visibility toggles
+  4. Editor — writing hint, status messages and smart punctuation
 
-v1.6
-  - New theme: sepia — rich warm brown, noticeably deeper than parchment
-  - New theme: ash — fully desaturated mid-grey, like an overcast sky
-  - New theme: sage — distinctly green light theme
-  - New theme: dusk — warm dark with deep brown-black background and
-    terracotta accents; the dark counterpart to parchment
+Each setting is saved in the browser-local "leaf-editor-settings" localStorage
+entry. Draft workspaces use a separate key. Browser cleanup, incognito mode,
+storage quota failures, and other websites' storage cannot be controlled by Leaf.
 
-v1.5.7
-  - Ctrl+Shift+X wraps selected text in strikethrough (~~text~~)
-  - Ctrl+Shift+B wraps selected text in bold+italic (***text***)
-  - Strikethrough now renders correctly in preview and split view
-  - Line count moved to left side of status bar with other document stats
-  - Milestone messages no longer lost if the status bar is busy when they
-    fire — they retry on the next keystroke instead
-  - Pasting text now seeds milestones like loading a file — milestones
-    already exceeded by pasted content are suppressed; the next milestone
-    you cross by writing will still fire
-  - Smart quotes detection made more robust across browsers
-  - Auto-close backticks option removed
-  - Settings button label changed to text to match toolbar style
-
-v1.5.8
-  - New theme: dusk — warm dark with deep brown-black background and
-    terracotta accents; the dark counterpart to parchment
-
-v1.5.6
-  - Settings modal added (Ctrl+,) — replaces the toggles that were in the
-    About modal, which is now credits-only
-  - Status bar customisation: character count, line count, reading time, and
-    cursor position can each be shown or hidden from settings
-  - Reading time moves to the centre of the status bar; fades out gracefully
-    when a status message fires and returns when the message clears
-  - autocorrect and autocapitalize attributes added to editor for mobile
-    Safari support
-
-v1.5.5
-  - Ctrl+\` wraps selected text in inline code backticks
-  - Ctrl+G jumps to the next heading in the document (wraps around)
-  - Smart punctuation option: -- converts to em dash, straight quotes
-    convert to curly quotes (off by default, toggle in About)
-  - Auto-close pairs option: typing * or \` inserts a matching closing
-    character and places the cursor between them (off by default, toggle
-    in About)
+================================================================================
+CHANGELOG
+================================================================================
 
 v1.5.4
   - Theme dropdown no longer collapses the toolbar when scrolling through
@@ -1486,7 +1527,7 @@ v1.2.2
   - Sync toggle button (⇅/↕) on the split divider — click to lock or free scrolling
   - Last pane scrolled determines sync position when re-enabling scroll lock
   - Scroll sync preference remembered between sessions
-  - Browser title bar shortened to "Leaf: A Markdown Editor" 
+  - Browser title bar shortened to "Leaf: A Markdown Editor"
 
 v1.2.1
   - Welcome message toggle persists correctly between sessions
@@ -1550,6 +1591,24 @@ v1.0
   - Windows Chrome launcher (Leaf.bat)
   - Mac Platypus launcher
 
+
+================================================================================
+FORK NOTES (lgg/leaf)
+================================================================================
+
+- Word count can now be hidden; hiding all counters removes the status bar.
+- Black theme, grey caret and monospaced writing font.
+- Optional writing hint, remembered after reload.
+- All open tabs and filenames are now restored after reopening the browser.
+- Settings are stored per website in localStorage.
+- ZIP export of multiple Markdown files (issue #1).
+- Independent internal/browser tab names per document (issue #2).
+- Additional fonts: Roboto Mono, Open Sans, Times New Roman and Arial.
+- Original: Dan / https://github.com/uncle-jasper/leaf
+- updated by lgg / https://github.com/lgg/leaf
+
+When GitHub Pages is enabled for the main branch of this fork, open:
+https://lgg.github.io/leaf/editor.html
 
 ================================================================================
 LEAF IS A SINGLE HTML FILE. NO DATA EVER LEAVES YOUR COMPUTER.
@@ -2344,6 +2403,7 @@ function setTheme(val) {
 // Theme label in toolbar opens settings
 document.getElementById('theme-label').addEventListener('click', () => {
   if (justWriteActive) return;
+  refreshRecoveryControl();
   document.getElementById('settings-overlay').style.display = 'flex';
 });
 
@@ -2416,6 +2476,7 @@ function blendHex(f,b,t){const[r1,g1,b1]=hexToRgb(f);const[r2,g2,b2]=hexToRgb(b)
     if (/^#[0-9a-fA-F]{6}$/.test(val)) {
       picker.value = val;
       applyCustomColors();
+      saveSettings();
     }
   });
   hex.addEventListener('blur', () => {
@@ -2777,7 +2838,10 @@ document.addEventListener('keydown', e => {
   }
   if ((e.ctrlKey||e.metaKey) && e.key === ',') {
     e.preventDefault();
-    if (!justWriteActive) document.getElementById('settings-overlay').style.display = 'flex';
+    if (!justWriteActive) {
+      refreshRecoveryControl();
+      document.getElementById('settings-overlay').style.display = 'flex';
+    }
   }
   if ((e.ctrlKey||e.metaKey) && e.shiftKey && e.key.toLowerCase()==='f') {
     e.preventDefault(); focusActive ? exitFocus() : enterFocus();
@@ -2927,7 +2991,9 @@ function loadSettings() {
     }
     applyStatusBarVisibility();
     syncThemeUI();
-  } catch(e) {}
+  } catch(error) {
+    workspaceNotice('Saved preferences could not be read. Default settings are being used.');
+  }
 }
 
 ['theme-select'].forEach(id => document.getElementById(id).addEventListener('change', saveSettings));
@@ -3157,6 +3223,7 @@ function persistWorkspace() {
     if (workspaceConflictMode) {
       workspaceLastConflictPayload = payload;
       workspaceNotice('Another Leaf window changed this workspace. Your edits are saved in a separate local recovery copy.');
+      refreshRecoveryControl();
     } else {
       workspaceLastRaw = raw;
       localStorage.removeItem(AUTOSAVE_KEY);
@@ -3239,14 +3306,31 @@ function availableWorkspaceRecoveries() {
     for (let index = 0; index < localStorage.length; index++) {
       const key = localStorage.key(index);
       if (!key || !key.startsWith(WORKSPACE_CONFLICT_PREFIX)) continue;
-      const raw = localStorage.getItem(key);
-      const data = JSON.parse(raw);
-      if (data && Array.isArray(data.tabs) && data.tabs.length) {
-        results.push({key, raw, savedAt: data.savedAt || ''});
+      try {
+        const raw = localStorage.getItem(key);
+        const data = JSON.parse(raw);
+        if (data && Array.isArray(data.tabs) && data.tabs.length) {
+          results.push({key, raw, savedAt: data.savedAt || ''});
+        }
+      } catch (error) {
+        // One damaged backup must not hide other valid recovery copies.
       }
     }
-  } catch (error) {}
+  } catch (error) {
+    // Storage can be blocked in private browsing or after a quota error.
+  }
   return results.sort((a, b) => b.savedAt.localeCompare(a.savedAt));
+}
+
+function refreshRecoveryControl() {
+  const container = document.getElementById('workspace-recovery-row');
+  const recoveries = availableWorkspaceRecoveries();
+  container.hidden = recoveries.length === 0;
+  if (recoveries.length) {
+    container.querySelector('span').textContent = recoveries.length === 1
+      ? 'A separate draft backup is available.'
+      : recoveries.length + ' separate draft backups are available.';
+  }
 }
 
 document.getElementById('btn-recover-workspace').addEventListener('click', () => {
@@ -3257,12 +3341,33 @@ document.getElementById('btn-recover-workspace').addEventListener('click', () =>
   }
   if (!confirm('Restore the most recent recovery copy from ' +
       new Date(backup.savedAt).toLocaleString() + '? Your current workspace will be preserved separately.')) return;
+  // Preserve the current primary state before replacing it with the selected backup.
+  // A restore should survive a full reload, not merely update the in-memory editor.
   persistWorkspace();
-  if (restoreWorkspace(backup.raw)) {
+  try {
+    const primaryRaw = localStorage.getItem(WORKSPACE_KEY);
+    if (primaryRaw) {
+      const previousKey = WORKSPACE_CONFLICT_PREFIX + 'before-restore-' +
+        Date.now().toString(36) + '-' + workspaceWriterId;
+      localStorage.setItem(previousKey, primaryRaw);
+    }
+    if (!restoreWorkspace(backup.raw)) {
+      workspaceNotice('Recovery data is invalid. Your current draft was left untouched.');
+      return;
+    }
+    workspaceConflictMode = false;
     workspaceLastConflictPayload = null;
+    workspaceLastPayload = null;
     persistWorkspace();
-    workspaceNotice('Recovery copy loaded. Export the restored documents as Markdown to keep a durable backup.');
+    if (workspaceConflictMode || workspaceLastPayload === null) {
+      workspaceNotice('The recovered draft is loaded, but could not be made primary. Export it as Markdown.');
+    } else {
+      workspaceNotice('Recovered draft restored. The previous workspace is stored as a separate backup.');
+    }
+    refreshRecoveryControl();
     document.getElementById('settings-overlay').style.display = 'none';
+  } catch (error) {
+    workspaceNotice('Could not complete recovery. Export your documents before closing this page.');
   }
 });
 
@@ -3359,6 +3464,7 @@ editor.focus();
 // ── Settings modal ───────────────────────────────────────
 document.getElementById('btn-settings').addEventListener('click', () => {
   if (justWriteActive) return;
+  refreshRecoveryControl();
   document.getElementById('settings-overlay').style.display = 'flex';
 });
 document.getElementById('btn-settings-close').addEventListener('click', () => {
