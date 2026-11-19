@@ -9,7 +9,8 @@ test('web/PWA editor is self contained; desktop-only files stay separate', () =>
   const sw = fs.readFileSync(path.join(root, 'sw.js'), 'utf8');
   assert.ok(!html.includes('desktop-bridge.js'));
   assert.ok(!sw.includes('desktop-bridge.js'));
-  assert.ok(!html.includes('src-tauri'));
+  // Documentation may mention Rust paths: only executable desktop imports are excluded.
+  assert.ok(!/<script[^>]+src=["'][^"']*(?:desktop-bridge|src-tauri)/i.test(html));
   assert.ok(html.includes("if (!window.__TAURI__ && 'serviceWorker' in navigator"));
   assert.ok(!sw.includes('src-tauri'));
 });
