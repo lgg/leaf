@@ -1,0 +1,9 @@
+# Generated desktop frontend, binaries and icons
+/desktop/dist/
+/src-tauri/target/
+/src-tauri/icons/icon.ico
+/src-tauri/.cargo/
+/src-tauri/gen/
+# Machine-specific settings and build diagnostics
+*.log
+*.local
