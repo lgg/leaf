@@ -131,3 +131,10 @@ test('native file saves preserve original CRLF style', () => {
   assert.ok(backend.includes('fn apply_line_ending('));
   assert.ok(backend.includes('fn source_line_endings_are_preserved_through_normalized_textarea_edits()'));
 });
+
+test('About distinguishes embedded README help from the actual changelog', () => {
+  const html = fs.readFileSync(path.join(root, 'editor.html'), 'utf8');
+  assert.ok(html.includes('>README</a>'));
+  assert.ok(html.includes('https://github.com/lgg/leaf/blob/main/CHANGELOG.md'));
+  assert.ok(html.includes('https://github.com/lgg/leaf/releases'));
+});
