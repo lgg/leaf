@@ -34,7 +34,7 @@
 - **Multiple Leaf windows:** detects external `localStorage` changes and stores divergent edits in a separate recovery entry.
 - **Backup restoration:** explicit restore safeguards previous primary data by archiving a copy before changing it.
 - **Markdown ZIP export:** exports each editable tab as its own UTF-8 Markdown file (one ZIP), with duplicate-safe filenames and CRC32.
-- **PWA cache:** `leaf-lgg-v4`, online network-first HTML plus cache fallback, to avoid serving stale editor JavaScript indefinitely.
+- **PWA cache:** `leaf-lgg-v5`, online network-first HTML plus cache fallback, to avoid serving stale editor JavaScript indefinitely.
 
 ## Regression checks
 
