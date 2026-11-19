@@ -75,7 +75,7 @@ test('ZIP export keeps Unicode text and avoids duplicate Markdown filenames', as
     {name:'idea.txt', content:'Привет, мир'},
     {name:'idea.md', content:'other'},
     {name:'draft', content:'# test'},
-    {name:'README.txt', content:'internal doc', readonly:true}
+    {name:'README.md', content:'internal doc', readonly:true}
   ]);
   assert.equal(files.length, 3);
   assert.equal(files[0].name, 'idea.md');
