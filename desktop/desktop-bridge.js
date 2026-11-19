@@ -150,7 +150,7 @@
     }
   }
 
-  function restoredTab(item, id) {
+  function restoredTab(item, id, recoveryCopies) {
     const saved = item.saved;
     const disk = item.disk;
     let content = disk ? disk.content : (saved.draft || '');
@@ -169,6 +169,21 @@
       if (answer) {
         content = saved.draft;
         dirty = true;
+      } else {
+        // Choosing the current disk version must NEVER destroy an unsaved draft.
+        // Keep it as a separate unbound document that can be saved with Save As.
+        recoveryCopies.push({
+          id: 0,
+          name: disk.name.replace(/\.(md|txt)$/i, '') + ' (recovery).md',
+          label: (saved.label || disk.name) + ' · recovery',
+          browserTitle: '',
+          content: saved.draft,
+          handle: null,
+          dirty: true,
+          readonly: false,
+          nativePath: null,
+          nativeRev: null
+        });
       }
     }
     if (!disk && saved.path) {
@@ -195,10 +210,15 @@
     try {
       const data = await invoke('desktop_restore');
       if (data.tabs && data.tabs.length) {
-        const restored = data.tabs.map((item, index) => restoredTab(item, index + 1));
+        const recoveryCopies = [];
+        const restored = data.tabs.map((item, index) => restoredTab(item, index + 1, recoveryCopies));
         const missing = data.tabs.filter(item => item.error);
+        for (const copy of recoveryCopies) {
+          copy.id = restored.length + 1;
+          restored.push(copy);
+        }
         tabs = restored;
-        const selected = Math.min(data.activeIndex || 0, restored.length - 1);
+        const selected = Math.min(data.activeIndex || 0, data.tabs.length - 1);
         activeTabId = restored[selected].id;
         nextTabId = restored.length + 1;
         const tab = current();
@@ -212,10 +232,12 @@
         updateStats();
         if (currentMode !== 'write') renderPreview();
         renderTabs();
-        if (missing.length) {
-          workspaceNotice(missing.length + ' previously open file(s) are unavailable. ' +
-            'Recovery drafts are preserved as untitled documents. Use Save As to choose new paths.');
-        }
+        const notices = [];
+        if (missing.length) notices.push(missing.length +
+          ' previously open file(s) are unavailable. Recovery drafts remain available.');
+        if (recoveryCopies.length) notices.push(recoveryCopies.length +
+          ' unsaved draft(s) were preserved as separate recovery tabs.');
+        if (notices.length) workspaceNotice(notices.join(' ') + ' Use Save As to choose new paths.');
       }
       for (const doc of data.launchFiles || []) showDocument(doc);
     } catch (error) {
