@@ -553,7 +553,7 @@
   body[data-theme="dark"]  { --bg:#0a0a0a; --surface:#141414; --text:#d8d8d8; --accent:#444444; --muted:#555555; --border:#222222; }
   body[data-theme="black"] { --bg:#000000; --surface:#000000; --text:#c8c8c8; --accent:#606060; --muted:#696969; --border:#181818; }
   body[data-theme="black"] #editor,
-  body[data-theme="black"] #preview { font-family: 'iAWriterMonoS', monospace; }
+  body[data-theme="black"] #preview { font-family: var(--editor-font); }
   body[data-theme="black"] #editor { caret-color: rgb(200, 200, 200); }
   body[data-theme="moss"]  { --bg:#1e2420; --surface:#242d28; --text:#d4ddd0; --accent:#82b890; --muted:#607860; --border:#2e3d30; }
   body[data-theme="slate"] { --bg:#1c2333; --surface:#232d40; --text:#d0d8e8; --accent:#7a9fd4; --muted:#5a7090; --border:#2e3d54; }
@@ -1158,6 +1158,7 @@
         <input id="settings-browser-title" type="text" placeholder="Automatic title" autocomplete="off" spellcheck="false" title="Browser tab title when this document is active">
       </div>
       <p class="settings-help">These are independent of the Markdown filename above.</p>
+      <button id="btn-recover-workspace" type="button" title="Restore a separately saved workspace from another Leaf window">restore recovery copy</button>
     </div>
   </div>
 </div>
@@ -2208,6 +2209,7 @@ function makeMarkdownZip(entries) {
     lh.setUint16(4, 20, true);              // ZIP 2.0
     lh.setUint16(6, 0x0800, true);          // UTF-8 filenames
     lh.setUint16(8, 0, true);               // Stored, no compression
+    lh.setUint16(12, 33, true);              // ZIP epoch: 1980-01-01
     lh.setUint32(14, crc, true);
     lh.setUint32(18, data.length, true);
     lh.setUint32(22, data.length, true);
@@ -2221,6 +2223,7 @@ function makeMarkdownZip(entries) {
     ch.setUint16(6, 20, true);
     ch.setUint16(8, 0x0800, true);
     ch.setUint16(10, 0, true);
+    ch.setUint16(14, 33, true);
     ch.setUint32(16, crc, true);
     ch.setUint32(20, data.length, true);
     ch.setUint32(24, data.length, true);
@@ -2352,6 +2355,16 @@ document.getElementById('theme-select').addEventListener('change', function() {
   document.body.dataset.theme = (val==='custom') ? '' : (val || 'parchment');
   if (val==='custom') applyCustomColors();
   else clearCustomColors();
+  // Entering the black preset starts with a monospaced font, but users may
+  // explicitly switch to any other font afterwards.
+  if (val === 'black' && document.documentElement.dataset.lastTheme !== 'black') {
+    const mono = "'iAWriterMonoS', monospace";
+    const select = document.getElementById('settings-font-select');
+    select.value = mono;
+    document.documentElement.style.setProperty('--editor-font', mono);
+    document.documentElement.style.setProperty('--editor-weight', '700');
+  }
+  document.documentElement.dataset.lastTheme = val;
   if (val !== 'terminal') document.body.classList.remove('amber-crt');
   syncThemeUI();
   saveSettings();
@@ -2805,7 +2818,8 @@ document.addEventListener('fullscreenchange', () => { if (!document.fullscreenEl
 const SETTINGS_KEY = 'leaf-editor-settings';
 
 function saveSettings() {
-  localStorage.setItem(SETTINGS_KEY, JSON.stringify({
+  try {
+    localStorage.setItem(SETTINGS_KEY, JSON.stringify({
     version:      2,
     theme:        document.getElementById('theme-select').value,
     font:         document.getElementById('settings-font-select').value,
@@ -2826,6 +2840,9 @@ function saveSettings() {
     showReadtime: document.getElementById('chk-show-readtime').checked,
     showCursor:   document.getElementById('chk-show-cursor').checked,
   }));
+  } catch (error) {
+    workspaceNotice('Browser storage is unavailable. These settings might not survive a reload.');
+  }
 }
 
 function loadSettings() {
@@ -2840,6 +2857,7 @@ function loadSettings() {
     }
     const s = JSON.parse(localStorage.getItem(SETTINGS_KEY));
     if (s.theme !== undefined) {
+      document.documentElement.dataset.lastTheme = s.theme;
       document.getElementById('theme-select').value = s.theme;
       document.body.dataset.theme = (s.theme==='custom') ? '' : (s.theme || 'parchment');
       // Always restore custom color picker values regardless of active theme
@@ -3167,9 +3185,9 @@ window.addEventListener('storage', event => {
   }
 });
 
-function restoreWorkspace() {
+function restoreWorkspace(backupRaw = null) {
   try {
-    const raw = localStorage.getItem(WORKSPACE_KEY);
+    const raw = backupRaw || localStorage.getItem(WORKSPACE_KEY);
     if (!raw) return false;
     const data = JSON.parse(raw);
     if (!data || !Array.isArray(data.tabs)) return false;
@@ -3201,8 +3219,10 @@ function restoreWorkspace() {
     updateStats();
     if (currentMode !== 'write') renderPreview();
     renderTabs();
-    workspaceLastRaw = raw;
+    workspaceLastRaw = localStorage.getItem(WORKSPACE_KEY);
     workspaceLastPayload = JSON.stringify(workspaceSnapshot());
+    workspaceConflictMode = Boolean(backupRaw);
+    if (backupRaw) workspaceLastConflictPayload = null;
     syncDocumentTitles();
     return true;
   } catch (error) {
@@ -3210,6 +3230,39 @@ function restoreWorkspace() {
     return false;
   }
 }
+
+function availableWorkspaceRecoveries() {
+  const results = [];
+  try {
+    for (let index = 0; index < localStorage.length; index++) {
+      const key = localStorage.key(index);
+      if (!key || !key.startsWith(WORKSPACE_CONFLICT_PREFIX)) continue;
+      const raw = localStorage.getItem(key);
+      const data = JSON.parse(raw);
+      if (data && Array.isArray(data.tabs) && data.tabs.length) {
+        results.push({key, raw, savedAt: data.savedAt || ''});
+      }
+    }
+  } catch (error) {}
+  return results.sort((a, b) => b.savedAt.localeCompare(a.savedAt));
+}
+
+document.getElementById('btn-recover-workspace').addEventListener('click', () => {
+  const backup = availableWorkspaceRecoveries()[0];
+  if (!backup) {
+    alert('There are no separate recovery copies in this browser.');
+    return;
+  }
+  if (!confirm('Restore the most recent recovery copy from ' +
+      new Date(backup.savedAt).toLocaleString() + '? Your current workspace will be preserved separately.')) return;
+  persistWorkspace();
+  if (restoreWorkspace(backup.raw)) {
+    workspaceLastConflictPayload = null;
+    persistWorkspace();
+    workspaceNotice('Recovery copy loaded. Export the restored documents as Markdown to keep a durable backup.');
+    document.getElementById('settings-overlay').style.display = 'none';
+  }
+});
 
 function markDirty() {
   isDirty = true;
@@ -3277,7 +3330,10 @@ applyStatusBarVisibility();
 applyPlaceholderVisibility();
 updateStats();
 renderTabs();
-if (!restoreWorkspace()) restoreAutosave();
+if (!restoreWorkspace()) {
+  const backups = availableWorkspaceRecoveries();
+  if (!backups.length || !restoreWorkspace(backups[0].raw)) restoreAutosave();
+}
 persistWorkspace();
 editor.focus();
 
