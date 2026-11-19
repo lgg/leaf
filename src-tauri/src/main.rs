@@ -207,17 +207,20 @@ fn desktop_show_releases() -> Result<(), String> {
         .map_err(|_| "Could not launch the default browser.".to_string())
 }
 
+fn consume_os_drop(state: &DesktopState, path: &Path) -> Result<bool, String> {
+    let canonical = fs::canonicalize(path).map_err(|_| "Dropped file is unavailable.".to_string())?;
+    let key = canonical.to_string_lossy().to_string();
+    let mut registry = state.dropped.lock().map_err(|_| "File drop registry unavailable.".to_string())?;
+    Ok(registry.remove(&key))
+}
+
 #[tauri::command]
 fn desktop_open_path(path: String, state: State<'_, DesktopState>) -> Result<Document, String> {
-    // A caller cannot just pass an arbitrary local path to read a file.
-    let canonical = fs::canonicalize(&path).map_err(|_| "Dropped file is unavailable.".to_string())?;
-    let key = canonical.to_string_lossy().to_string();
-    let approved = state.dropped.lock().map_err(|_| "File drop registry unavailable.".to_string())?
-        .remove(&key);
-    if !approved {
+    // One-shot authorization is granted only by an OS webview drop event.
+    if !consume_os_drop(&state, Path::new(&path))? {
         return Err("Only files actually dropped onto the Leaf window can be opened here.".into());
     }
-    let doc = read_document(&canonical)?;
+    let doc = read_document(Path::new(&path))?;
     remember(&state, &doc)?;
     Ok(doc)
 }
@@ -350,6 +353,23 @@ mod tests {
         let decoded: Session = serde_json::from_slice(&serde_json::to_vec(&source).unwrap()).unwrap();
         assert_eq!(decoded.tabs[0].label, "Draft");
         assert_eq!(decoded.tabs[0].draft.as_deref(), Some("hello"));
+    }
+    #[test]
+    fn os_dropped_file_access_is_one_shot() {
+        let state = DesktopState::default();
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("note.md");
+        fs::write(&path, b"allowed").unwrap();
+        assert!(!consume_os_drop(&state, &path).unwrap());
+        let canonical = fs::canonicalize(&path).unwrap();
+        state.dropped.lock().unwrap().insert(canonical.to_string_lossy().to_string());
+        assert!(consume_os_drop(&state, &path).unwrap());
+        assert!(!consume_os_drop(&state, &path).unwrap());
+    }
+    #[test]
+    fn arbitrary_file_extensions_cannot_be_opened_even_if_dropped() {
+        assert!(!is_text(Path::new("secrets.key")));
+        assert!(!is_text(Path::new("script.md.exe")));
     }
     #[test]
     fn atomic_write_replaces_document() {
