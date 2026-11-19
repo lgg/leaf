@@ -1,6 +1,7 @@
 LEAF: A MARKDOWN EDITOR
-Vibe coded by Dan (c) 2026
-Version 1.7
+Vibe coded by Dan (c) 2026 — https://github.com/uncle-jasper/leaf
+updated by lgg — https://github.com/lgg/leaf
+Version 1.7 (lgg fork)
 
 ================================================================================
 WHAT IS LEAF?
@@ -35,7 +36,8 @@ OPTION 1 - Open directly in a browser
 Double-click editor.html. Works in any modern browser.
 
 OPTION 2 - Install as a PWA (Chrome / Edge)
-Open https://uncle-jasper.github.io/leaf/editor.html in Chrome or Edge.
+Open https://lgg.github.io/leaf/editor.html (fork) in Chrome or Edge.
+Original author: https://uncle-jasper.github.io/leaf/editor.html
 An install button will appear in the address bar or browser menu.
 Click it to install Leaf as a standalone app with its own window and icon.
 Once installed, Leaf works fully offline.
@@ -48,6 +50,8 @@ THE INTERFACE
 TOOLBAR (top strip)
   Filename field        Set the name of your file before saving
   save                  Downloads your file (or saves in place in Chrome)
+  all .md               Exports all open, editable documents as one .zip of
+                        separate Markdown (.md) files
   open                  Load an existing .txt or .md file
   write / split / prev  Switch between write, split, and preview modes
   Theme menu            Choose your color theme
@@ -60,6 +64,9 @@ TOOLBAR (top strip)
 TAB BAR (below toolbar)
   Shows open files below the toolbar. Click to switch, + to open new,
   x to close. In focus mode, the tab bar is hidden.
+  Double-click a tab label to rename it without changing the Markdown filename.
+  In Settings > Current document, the in-app tab label and browser tab title
+  can be edited separately, and each document remembers both fields.
 
   In autohide mode, the toolbar hides when you click into the editor.
   Move your mouse to the top of the screen to reveal it. The tab bar
@@ -104,7 +111,9 @@ FONTS
 ================================================================================
 
 The iA Writer fonts are embedded in the HTML file and work offline.
-All other fonts require an internet connection.
+JetBrains Mono, Inconsolata, Share Tech Mono, Roboto Mono and Open Sans need
+an internet connection for their web fonts (with local fallback). System fonts
+Arial and Times New Roman work offline when installed on the device.
 
   iA Writer Mono      Classic monospaced typewriter feel (default)
   iA Writer Duo       Proportional with a monospace structure
@@ -112,6 +121,10 @@ All other fonts require an internet connection.
   JetBrains Mono      Clean developer monospace
   Inconsolata         Clean, neutral console font
   Share Tech Mono     Softer retro monospace
+  Roboto Mono         Clean, readable monospaced font
+  Open Sans           Modern proportional sans-serif
+  Times New Roman     Classic system serif font
+  Arial               Classic system sans-serif font
 
 
 ================================================================================
@@ -149,10 +162,20 @@ a saved confirmation.
 In Brave and other browsers, each save downloads the file. Name the file
 using the filename field before saving.
 
-Leaf autosaves the entire workspace in localStorage around 250 ms after edits,
-and also when the browser tab is hidden or closed. All open documents, their
-filenames, content and active tab are restored automatically on the same site
-and browser. Older single-document autosaves can still be restored.
+Each text change schedules a browser-local save, debounced for 350 ms of
+inactivity; uninterrupted typing is flushed at least once every 2 seconds.
+Identical snapshots are not written again. Hiding or closing the browser tab
+flushes outstanding edits synchronously. This avoids disk writes per keystroke.
+
+All open documents, their filenames, in-app labels, browser titles, content,
+dirty states and active tab are restored automatically on the same site/browser.
+Older single-document autosaves can still be restored.
+
+If multiple independent Leaf browser windows edit the same workspace, Leaf
+detects changes to shared localStorage and writes separate conflict recovery
+snapshots instead of silently overwriting another window's work. The Settings >
+Current document > restore recovery copy button restores the latest such backup.
+LocalStorage is not a replacement for an exported file backup.
 
 The writing hint ("Start writing… markdown is supported.") can be disabled
 in Settings > Editor. Appearance and visibility preferences are saved as well.
@@ -325,8 +348,11 @@ FORK NOTES (lgg/leaf)
 - Optional writing hint, remembered after reload.
 - All open tabs and filenames are now restored after reopening the browser.
 - Settings are stored per website in localStorage.
-- Multi-file Markdown export tracked in issue #1; separate internal/browser
-  tab names tracked in issue #2.
+- ZIP export of multiple Markdown files (issue #1).
+- Independent internal/browser tab names per document (issue #2).
+- Additional fonts: Roboto Mono, Open Sans, Times New Roman and Arial.
+- Original: Dan / https://github.com/uncle-jasper/leaf
+- updated by lgg / https://github.com/lgg/leaf
 
 When GitHub Pages is enabled for the main branch of this fork, open:
 https://lgg.github.io/leaf/editor.html
