@@ -74,19 +74,30 @@ jobs:
 
       - name: Test native Rust code using existing Cargo
         run: |
-          cargo test --manifest-path src-tauri/Cargo.toml *> "$env:RUNNER_TEMP/leaf-cargo-test.log"
-          if ($LASTEXITCODE -ne 0) {
-            Write-Output "::error::Native Rust tests failed. Diagnostics retained on runner, not published with local paths."
-            throw "Native Rust tests failed."
+          # Windows PowerShell 5.1 interprets Cargo's normal stderr as an error.
+          $run = Start-Process -FilePath (Get-Command cargo).Source -ArgumentList @('test','--manifest-path','src-tauri/Cargo.toml') -NoNewWindow -Wait -PassThru -RedirectStandardOutput "$env:RUNNER_TEMP/leaf-test-out.log" -RedirectStandardError "$env:RUNNER_TEMP/leaf-test-err.log"
+          if ($run.ExitCode -ne 0) {
+            Get-Content "$env:RUNNER_TEMP/leaf-test-err.log" |
+              Where-Object { $_ -match '^error(\[E[0-9]+\])?:' } |
+              ForEach-Object {
+                $message = $_ -replace '[A-Za-z]:\\[^\s]+', '[local-path]'
+                Write-Output "::error::$message"
+              }
+            throw "Native Rust tests failed. Full diagnostics remain on the runner."
           }
           Write-Output "Native Rust tests passed"
 
       - name: Compile Windows desktop executable
         run: |
-          cargo build --release --manifest-path src-tauri/Cargo.toml *> "$env:RUNNER_TEMP/leaf-cargo-build.log"
-          if ($LASTEXITCODE -ne 0) {
-            Write-Output "::error::Windows native build failed. Diagnostics retained on runner, not published with local paths."
-            throw "Windows native build failed."
+          $run = Start-Process -FilePath (Get-Command cargo).Source -ArgumentList @('build','--release','--manifest-path','src-tauri/Cargo.toml') -NoNewWindow -Wait -PassThru -RedirectStandardOutput "$env:RUNNER_TEMP/leaf-build-out.log" -RedirectStandardError "$env:RUNNER_TEMP/leaf-build-err.log"
+          if ($run.ExitCode -ne 0) {
+            Get-Content "$env:RUNNER_TEMP/leaf-build-err.log" |
+              Where-Object { $_ -match '^error(\[E[0-9]+\])?:' } |
+              ForEach-Object {
+                $message = $_ -replace '[A-Za-z]:\\[^\s]+', '[local-path]'
+                Write-Output "::error::$message"
+              }
+            throw "Windows native build failed. Full diagnostics remain on the runner."
           }
           if (-not (Test-Path 'src-tauri/target/release/leaf-desktop.exe')) {
             throw "Expected Windows binary is missing."
@@ -99,10 +110,15 @@ jobs:
             Write-Output "::warning::Missing preinstalled cargo-tauri CLI; installer skipped without installing tools."
             exit 0
           }
-          cargo tauri build --bundles nsis --ci *> "$env:RUNNER_TEMP/leaf-cargo-bundle.log"
-          if ($LASTEXITCODE -ne 0) {
-            Write-Output "::error::NSIS packaging failed. Diagnostics retained on runner."
-            throw "NSIS packaging failed."
+          $run = Start-Process -FilePath (Get-Command cargo).Source -ArgumentList @('tauri','build','--bundles','nsis','--ci') -NoNewWindow -Wait -PassThru -RedirectStandardOutput "$env:RUNNER_TEMP/leaf-bundle-out.log" -RedirectStandardError "$env:RUNNER_TEMP/leaf-bundle-err.log"
+          if ($run.ExitCode -ne 0) {
+            Get-Content "$env:RUNNER_TEMP/leaf-bundle-err.log" |
+              Where-Object { $_ -match '^error(\[E[0-9]+\])?:' } |
+              ForEach-Object {
+                $message = $_ -replace '[A-Za-z]:\\[^\s]+', '[local-path]'
+                Write-Output "::error::$message"
+              }
+            throw "NSIS packaging failed. Full diagnostics remain on runner."
           }
           Write-Output "NSIS packaged; no GitHub Release has been published."
 
