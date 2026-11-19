@@ -19,7 +19,7 @@ jobs:
     timeout-minutes: 90
     defaults:
       run:
-        shell: pwsh
+        shell: powershell
     steps:
       - name: Mask local directories before commands
         run: |
