@@ -123,6 +123,9 @@ jobs:
             }
           }
           $env:CARGO_ENCODED_RUSTFLAGS = $flags -join [char]31
+          # Strip the release symbol table so it cannot retain workstation
+          # source/PDB paths. Keep all diagnostics locally in Cargo test logs.
+          $env:CARGO_PROFILE_RELEASE_STRIP = 'symbols'
           $run = Start-Process -FilePath (Get-Command cargo).Source -ArgumentList @('build','--release','--manifest-path','src-tauri/Cargo.toml') -NoNewWindow -Wait -PassThru -RedirectStandardOutput "$env:RUNNER_TEMP/leaf-build-out.log" -RedirectStandardError "$env:RUNNER_TEMP/leaf-build-err.log"
           if ($run.ExitCode -ne 0) {
             Get-Content "$env:RUNNER_TEMP/leaf-build-err.log" |
