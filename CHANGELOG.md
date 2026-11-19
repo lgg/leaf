@@ -1,5 +1,17 @@
 # Leaf — fork changelog
 
+## v1.10.0-lgg.1 — 2026-11-19 (desktop integration branch; not released)
+
+- Added a separate Tauri v2 Windows desktop application with native Markdown/text file open, Save and Save As.
+- Added revision-aware saves, atomic temporary writes and explicit conflict protection for externally modified files.
+- Added persisted desktop sessions, real file reopening, missing-file recovery and unsaved draft prompts.
+- Added native-launch file handling, Windows file association metadata and GitHub Releases navigation.
+- Added desktop-only asset staging and self-hosted Windows build validation; no Rust/Tauri runtime in web/PWA.
+- Updated About/download links and documentation; removed the redundant README.txt.
+- Bumped fork version and PWA cache generation.
+
+# Leaf — fork changelog
+
 ## v1.9.0-lgg.1 — 2026-11-19
 
 - Added a minimal responsive writing interface for mobile phones and touch tablets.
@@ -13,7 +25,7 @@
 
 ## v1.8.0-lgg.1 — 2026-11-19
 
-Based on the original **[uncle-jasper/leaf](https://github.com/uncle-jasper/leaf) v1.7**. Fork updates are independently versioned; the upstream release history remains intact in [README.txt](README.txt).
+Based on the original **[uncle-jasper/leaf](https://github.com/uncle-jasper/leaf) v1.7**. Fork updates are independently versioned; the upstream release history remains intact in the upstream repository.
 
 - Fixed missing PWA service-worker registration. Offline startup works after successful installation/cache warm-up.
 - Added browser installation prompt handling on platforms supporting `beforeinstallprompt`; documented manual installation on iOS and Android.
@@ -22,6 +34,6 @@ Based on the original **[uncle-jasper/leaf](https://github.com/uncle-jasper/leaf
 
 ## Historical upstream releases
 
-Refer to [README.txt](README.txt) for the original recorded upstream changelog (v1.5.4 through v1.0). Its entries and numbering have not been rewritten.
+The full historical upstream changelog is preserved in [uncle-jasper/leaf](https://github.com/uncle-jasper/leaf), rather than duplicating an obsolete README.txt in this fork.
 
 **Original by Dan:** [uncle-jasper/leaf](https://github.com/uncle-jasper/leaf) · **updated by lgg:** [lgg/leaf](https://github.com/lgg/leaf).

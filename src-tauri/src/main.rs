@@ -171,7 +171,7 @@ async fn desktop_save(
             None => return Ok(None),
         }
     } else {
-        let selected = path.ok_or("Missing file path.")?;
+        let selected = path.as_ref().ok_or("Missing file path.")?.clone();
         let accepted = state.authorized.lock().map_err(|_| "File registry unavailable.".to_string())?
             .contains_key(&selected);
         if !accepted { return Err("File was not opened or selected through Leaf.".into()); }

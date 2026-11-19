@@ -431,27 +431,24 @@ test('valid custom HEX input saves the choice; invalid input does not', () => {
 
 test('GitHub Pages service worker prefers fresh HTML and keeps an offline fallback', () => {
   const sw=fs.readFileSync(path.join(__dirname,'..','sw.js'),'utf8');
-  assert.ok(sw.includes("const CACHE = 'leaf-lgg-v6'"));
+  assert.ok(sw.includes("const CACHE = 'leaf-lgg-v7'"));
   assert.ok(sw.includes("request.mode === 'navigate'"));
   assert.ok(sw.includes("fetch(request).then(response"));
   assert.ok(sw.includes("caches.match('./editor.html')"));
 });
 
 test('fork version matches README, changelog and visible About version', () => {
-  const version='1.9.0-lgg.1';
+  const version='1.10.0-lgg.1';
   const readme=fs.readFileSync(path.join(__dirname,'..','README.md'),'utf8');
-  const history=fs.readFileSync(path.join(__dirname,'..','README.txt'),'utf8');
   const changelog=fs.readFileSync(path.join(__dirname,'..','CHANGELOG.md'),'utf8');
   assert.ok(html.includes('>v'+version+'</span>'));
   assert.ok(readme.includes('v'+version));
-  assert.ok(history.includes('Version '+version));
-  assert.ok(history.includes('UPSTREAM BASELINE: v1.7'));
   assert.ok(changelog.includes('v'+version));
   assert.ok(changelog.includes('uncle-jasper/leaf'));
   const marker='const README_CONTENT = '+String.fromCharCode(96);
   const at=html.indexOf(marker)+marker.length;
   const end=html.indexOf(String.fromCharCode(96)+';',at);
-  assert.equal(html.slice(at,end),history);
+  assert.equal(html.slice(at,end).replace(/\\`/g, '`').replace(/\\\$\{/g, '${'), readme.trimEnd());
 });
 
 test('mobile markup is minimal, touch accessible and CSS overrides desktop', () => {
