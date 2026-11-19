@@ -6,6 +6,7 @@
   const invoke = tauri.core.invoke;
   let restoring = true;
   let sessionTimer = null;
+  let sessionFirstEditAt = 0;
   let pendingSession = Promise.resolve();
   let closing = false;
 
@@ -41,11 +42,20 @@
   }
   function scheduleSession() {
     if (restoring) return;
+    // Flush within two seconds even during continuous typing. A pure debounce
+    // can defer crash recovery forever while the user keeps writing.
+    const now = Date.now();
+    if (!sessionFirstEditAt) sessionFirstEditAt = now;
     clearTimeout(sessionTimer);
-    sessionTimer = setTimeout(storeSession, 450);
+    const remaining = Math.max(0, 2000 - (now - sessionFirstEditAt));
+    sessionTimer = setTimeout(() => {
+      sessionFirstEditAt = 0;
+      storeSession();
+    }, Math.min(350, remaining));
   }
   async function flushSession() {
     clearTimeout(sessionTimer);
+    sessionFirstEditAt = 0;
     await storeSession();
   }
 

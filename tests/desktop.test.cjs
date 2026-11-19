@@ -221,3 +221,30 @@ test('desktop intercepts legacy browser recovery UI without persisting native fi
   assert.ok(bridge.includes("nativePath: null, nativeRev: null, nativeEol: 'lf'"));
   assert.ok(!bridge.includes('browserSchedule()'));
 });
+
+test('native recovery snapshots cannot be postponed indefinitely by continuous typing', () => {
+  const source = fs.readFileSync(path.join(root,'desktop','desktop-bridge.js'), 'utf8')
+    .replace(/\r\n/g,'\n');
+  const start = source.indexOf('  function scheduleSession() {');
+  const end = source.indexOf('  // Reuse editor change notifications', start);
+  assert.ok(start >= 0 && end > start);
+  const delays = [];
+  let now = 1000;
+  const timer = new Function('Date','clearTimeout','setTimeout','storeSession',
+    'let restoring=false, sessionTimer=null, sessionFirstEditAt=0;\n' +
+    source.slice(start, end) + '\nreturn {scheduleSession,flushSession};')(
+      {now: () => now}, () => {}, (fn, delay) => {delays.push({fn, delay});return delays.length;},
+      () => Promise.resolve()
+    );
+  timer.scheduleSession();
+  assert.equal(delays.at(-1).delay, 350);
+  now = 2200;
+  timer.scheduleSession();
+  assert.equal(delays.at(-1).delay, 350);
+  now = 2990;
+  timer.scheduleSession();
+  assert.equal(delays.at(-1).delay, 10);
+  now = 3200;
+  timer.scheduleSession();
+  assert.equal(delays.at(-1).delay, 0);
+});
