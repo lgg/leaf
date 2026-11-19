@@ -2795,8 +2795,16 @@ function renderTabs() {
 
     const name = document.createElement('span');
     name.className   = 'tab-name' + (justWriteActive && tab.id === justWriteTabId ? ' just-write-tab' : '');
-    name.textContent = tab.name;
-    name.title       = tab.name;
+    name.textContent = tab.label || tab.name;
+    name.title       = tab.label || tab.name;
+    name.addEventListener('dblclick', event => {
+      event.stopPropagation();
+      const proposed = prompt('Label for this Leaf tab (leave empty to use filename):', tab.label || tab.name);
+      if (proposed === null) return;
+      tab.label = proposed.trim();
+      renderTabs();
+      scheduleWorkspaceSave();
+    });
 
     const close = document.createElement('span');
     close.className   = 'tab-close';
@@ -2808,6 +2816,27 @@ function renderTabs() {
     el.appendChild(close);
     el.addEventListener('click', () => switchTab(tab.id));
     list.appendChild(el);
+  });
+  syncDocumentTitles();
+}
+
+function syncDocumentTitles() {
+  const tab = getActiveTab();
+  if (!tab) return;
+  document.title = tab.browserTitle || tab.name + ' — Leaf';
+  const label = document.getElementById('settings-tab-label');
+  const browser = document.getElementById('settings-browser-title');
+  if (label.value !== (tab.label || '')) label.value = tab.label || '';
+  if (browser.value !== (tab.browserTitle || '')) browser.value = tab.browserTitle || '';
+}
+
+for (const [id, property] of [['settings-tab-label','label'],['settings-browser-title','browserTitle']]) {
+  document.getElementById(id).addEventListener('input', event => {
+    const tab = getActiveTab();
+    if (!tab) return;
+    tab[property] = event.target.value;
+    renderTabs();
+    scheduleWorkspaceSave();
   });
 }
 
@@ -2920,6 +2949,7 @@ let workspaceFirstEditAt = 0;
 let workspaceLastPayload = null;
 let workspaceLastRaw = null;
 let workspaceConflictMode = false;
+let workspaceLastConflictPayload = null;
 let storageWarningShown = false;
 
 function workspaceSnapshot() {
@@ -2946,7 +2976,8 @@ function persistWorkspace() {
   workspaceFirstEditAt = 0;
   const payload = JSON.stringify(workspaceSnapshot());
   // Do not write on reload, pagehide, or idle if nothing actually changed.
-  if (payload === workspaceLastPayload && !workspaceConflictMode) return;
+  if (payload === workspaceLastPayload &&
+      (!workspaceConflictMode || workspaceLastConflictPayload === payload)) return;
   try {
     // A second browser tab must never silently overwrite this tab's changes.
     const current = localStorage.getItem(WORKSPACE_KEY);
@@ -2962,6 +2993,7 @@ function persistWorkspace() {
     if (raw !== localStorage.getItem(key)) localStorage.setItem(key, raw);
     workspaceLastPayload = payload;
     if (workspaceConflictMode) {
+      workspaceLastConflictPayload = payload;
       workspaceNotice('Another Leaf window changed this workspace. Your edits are saved in a separate local recovery copy.');
     } else {
       workspaceLastRaw = raw;
@@ -2988,7 +3020,8 @@ function scheduleWorkspaceSave() {
 window.addEventListener('storage', event => {
   if (event.key === WORKSPACE_KEY && event.newValue !== workspaceLastRaw) {
     workspaceConflictMode = true;
-    // Pending unsaved edits go to the isolated recovery key at the next flush.
+    // Preserve our own full workspace immediately in the conflict recovery key.
+    persistWorkspace();
   }
 });
 
