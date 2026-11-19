@@ -34,7 +34,7 @@
 - **Multiple Leaf windows:** detects external `localStorage` changes and stores divergent edits in a separate recovery entry.
 - **Backup restoration:** explicit restore safeguards previous primary data by archiving a copy before changing it.
 - **Markdown ZIP export:** exports each editable tab as its own UTF-8 Markdown file (one ZIP), with duplicate-safe filenames and CRC32.
-- **PWA cache:** `leaf-lgg-v5`, online network-first HTML plus cache fallback, to avoid serving stale editor JavaScript indefinitely.
+- **PWA cache:** `leaf-lgg-v6`, online network-first HTML plus cache fallback, to avoid serving stale editor JavaScript indefinitely.
 
 ## Regression checks
 
@@ -55,3 +55,14 @@ This audit includes source inspection and JavaScript unit tests using browser AP
 The browser's storage may be cleared, quota-limited, or isolated by origin. Exported Markdown files are recommended as durable backups. Web fonts may need an internet connection; Arial and Times New Roman require system availability.
 
 **Separate GitHub repository metadata:** The repository's *About → Website* field was verified after merge and currently points to `https://lgg.github.io/leaf/editor.html`. GitHub Pages is enabled. The fork README and in-app credits link to both the original author/repository and `updated by lgg`. The GitHub connector did not change repository metadata in this work.
+
+## Mobile UI update (v1.9.0-lgg.1)
+
+- Mobile/tablet text-only default: top toolbar and document header hidden; status bar hidden by default
+- Tap bottom edge to reveal action dock, which auto-hides after 4200 ms unless disabled
+- Bottom sheets for document management and additional actions, text is inserted with DOM textContent
+- Mobile settings (heading, status bar, automatic toolbar hiding) use the same localStorage preferences
+- Filename editing is available through Settings > Current document, not dependent on the hidden desktop toolbar
+- Keyboard detection uses visualViewport and avoids dock overlap while editing; touch controls account for safe-area insets
+- Existing desktop toolbar, shortcuts and tab UI stay unchanged
+- Full physical-device visual, rotation, standalone PWA and offline keyboard testing is still required before claiming multi-device production certification
