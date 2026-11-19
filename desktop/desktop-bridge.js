@@ -160,16 +160,26 @@
     let nativeRev = disk ? disk.revision : null;
     if (disk && saved.dirty && typeof saved.draft === 'string' &&
         saved.draft !== disk.content) {
-      const externalChanged = !!saved.revision && saved.revision !== disk.revision;
+      // A missing saved revision is also unsafe: never silently bind such
+      // a draft to the latest disk contents as though the user approved them.
+      const externalChanged = !saved.revision || saved.revision !== disk.revision;
       const answer = confirm(
         '"' + disk.name + '" has an unsaved recovery draft.' +
-        (externalChanged ? '\nThe file also changed outside Leaf.' : '') +
+        (externalChanged ? '\nThe disk version has changed or cannot be verified.' : '') +
         '\n\nOK: recover the draft as unsaved edits.' +
-        '\nCancel: load the current file from disk.'
+        (externalChanged ? ' You must use Save As; the disk version will not be overwritten.' : '') +
+        '\nCancel: load the current file from disk (draft retained separately).'
       );
       if (answer) {
         content = saved.draft;
         dirty = true;
+        if (externalChanged) {
+          // Recovery drafts must NOT gain authorization for an externally
+          // modified document just because we reopened the disk version.
+          nativePath = null;
+          nativeRev = null;
+          workspaceNotice('Externally changed file: recovered draft is detached. Use Save As.');
+        }
       } else {
         // Choosing the current disk version must NEVER destroy an unsaved draft.
         // Keep it as a separate unbound document that can be saved with Save As.

@@ -80,7 +80,7 @@ test('desktop restart preserves a discarded dirty draft as a separate recovery t
   const start = source.indexOf('  function restoredTab(');
   const end = source.indexOf('\n  async function restore()', start);
   assert.ok(start >= 0 && end > start);
-  const create = result => new Function('confirm', source.slice(start, end) + ';return restoredTab;')(() => result);
+  const create = result => new Function('confirm', 'workspaceNotice', source.slice(start, end) + ';return restoredTab;')(() => result, () => {});
   const item = {
     saved: {name:'report.md',path:'example-path.md',dirty:true,draft:'my unsaved edit',
       revision:'before',label:'Journal',browserTitle:'Work'},
@@ -101,8 +101,19 @@ test('desktop restart preserves a discarded dirty draft as a separate recovery t
   const draft = create(true)(item, 1, recovered);
   assert.equal(draft.content, 'my unsaved edit');
   assert.equal(draft.dirty, true);
-  assert.equal(draft.nativePath, 'example-path.md');
+  assert.equal(draft.nativePath, null); // external change requires Save As
   assert.equal(recovered.length, 0);
+
+  const sameDisk = structuredClone(item);
+  sameDisk.saved.revision = 'after';
+  const ordinary = create(true)(sameDisk, 2, []);
+  assert.equal(ordinary.nativePath, 'example-path.md');
+  assert.equal(ordinary.dirty, true);
+
+  const unknownRevision = structuredClone(item);
+  unknownRevision.saved.revision = null;
+  const unverified = create(true)(unknownRevision, 3, []);
+  assert.equal(unverified.nativePath, null);
 });
 
 test('desktop restart never rebinds a removed file to an unsaved draft', () => {
