@@ -144,6 +144,7 @@ test('Windows release binaries are gated against real/embedded host paths', () =
   const synthetic = 'C:\\Users\\Example\\.cargo\\registry\\src\\crate.rs';
   assert.ok(countLeaks(Buffer.from(synthetic, 'utf8'), {}) > 0);
   assert.ok(countLeaks(Buffer.from(synthetic, 'utf16le'), {}) > 0);
+  assert.ok(countLeaks(Buffer.from('D:\\build\\.cargo\\registry\\src\\file.rs'), {}) > 0);
   assert.ok(countLeaks(Buffer.concat([Buffer.from('a'),Buffer.from(synthetic, 'utf16le')]), {}) > 0);
   assert.ok(countLeaks(Buffer.from('D:\\build\\repo\\src\\main.rs'), {GITHUB_WORKSPACE:'D:\\build\\repo'}) > 0);
   assert.equal(countLeaks(Buffer.from('Windows build. Source maps: /leaf-source/lib.rs'), {}), 0);

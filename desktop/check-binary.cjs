@@ -6,8 +6,8 @@ const fs = require('node:fs');
 const dangerous = [
   /[a-z]:[\\/](?:users|documents and settings)[\\/]/i,
   /[a-z]:[\\/]_work[\\/]/i,
-  /[\\/]\\.cargo[\\/](?:registry|git)[\\/]/i,
-  /[\\/]\\.rustup[\\/]toolchains[\\/]/i
+  /[\\/]\.cargo[\\/](?:registry|git)[\\/]/i,
+  /[\\/]\.rustup[\\/]toolchains[\\/]/i
 ];
 const environmentKeys = [
   'GITHUB_WORKSPACE','RUNNER_WORKSPACE','RUNNER_TEMP','USERPROFILE',
