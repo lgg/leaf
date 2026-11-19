@@ -2,7 +2,10 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Leaf">
+<meta name="mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#1a1a1e">
 <link rel="manifest" href="./leaf.webmanifest">
 <link rel="apple-touch-icon" href="./leaf-icon-192.png">
@@ -1224,7 +1227,7 @@
     <p class="about-credit">Vibe coded by <a href="https://github.com/uncle-jasper" target="_blank" rel="noopener noreferrer">Dan</a> · <a href="https://github.com/uncle-jasper/leaf" target="_blank" rel="noopener noreferrer">original repository</a></p>
     <p class="about-credit">updated by <a href="https://github.com/lgg" target="_blank" rel="noopener noreferrer">lgg</a> · <a href="https://github.com/lgg/leaf" target="_blank" rel="noopener noreferrer">fork repository</a></p>
     <p class="about-copy">© 2026</p>
-    <p class="about-version"><span style="font-size:13px;">v1.7</span> · <a href="#" onclick="openReadmeTab(); return false;" style="font-size:11px; color:var(--accent); opacity:0.7; text-decoration:none;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.7'">changelog</a></p>
+    <p class="about-version"><span style="font-size:13px;">v1.8.0-lgg.1</span> · <a href="#" onclick="openReadmeTab(); return false;" style="font-size:11px; color:var(--accent); opacity:0.7; text-decoration:none;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.7'">changelog</a></p>
     <p style="margin-top:4px; font-size:11px;"><a href="https://buymeacoffee.com/dandanmian" target="_blank" style="color:var(--accent); opacity:0.7; text-decoration:none;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.7'">☕ buy me a coffee</a></p>
   </div>
 </div>
@@ -1233,7 +1236,7 @@
 const README_CONTENT = `LEAF: A MARKDOWN EDITOR
 Vibe coded by Dan (c) 2026 — https://github.com/uncle-jasper/leaf
 updated by lgg — https://github.com/lgg/leaf
-Version 1.7 (lgg fork)
+Version 1.8.0-lgg.1 (lgg fork; based on upstream v1.7)
 
 ================================================================================
 WHAT IS LEAF?
@@ -1272,7 +1275,19 @@ Open https://lgg.github.io/leaf/editor.html (fork) in Chrome or Edge.
 Original author: https://uncle-jasper.github.io/leaf/editor.html
 An install button will appear in the address bar or browser menu.
 Click it to install Leaf as a standalone app with its own window and icon.
-Once installed, Leaf works fully offline.
+Once installed, Leaf can run offline after the first successful online visit
+has registered and populated the service worker cache. If you use external
+Google Fonts, an offline fallback font may be displayed instead.
+
+OPTION 3 - Install on iPhone / iPad
+In Safari, open https://lgg.github.io/leaf/editor.html, use Share >
+Add to Home Screen and enable Open as Web App where offered. Open the
+installed Leaf app once while online before relying on offline access.
+
+OPTION 4 - Install on Android
+Open the same page in Chrome, then use the browser's Install app or
+Add to Home Screen command. Open it once online to pre-cache the editor.
+Some browsers offer only a shortcut rather than a standalone install.
 
 
 ================================================================================
@@ -1456,6 +1471,20 @@ storage quota failures, and other websites' storage cannot be controlled by Leaf
 CHANGELOG
 ================================================================================
 
+v1.8.0-lgg.1 — lgg fork (2026-11-19)
+  - Fork version now displayed consistently in About, README and changelog
+  - Proper PWA service-worker registration and Android/desktop install prompt
+  - Existing cache-first assets available offline after first online visit
+  - iPhone / iPad home screen installation and offline use documented
+  - Previous fork features: responsive settings, independent tab titles,
+    350ms/2s bounded autosave, multi-document recovery, ZIP Markdown export,
+    hidden status counters, black theme and four added fonts
+  - Original upstream release history below is preserved as supplied
+
+UPSTREAM BASELINE: v1.7 (uncle-jasper/leaf)
+  - Historical upstream changelog entries continue below; no upstream versions
+    have been renumbered in this fork.
+
 v1.5.4
   - Theme dropdown no longer collapses the toolbar when scrolling through
     options in autohide mode
@@ -1607,7 +1636,7 @@ FORK NOTES (lgg/leaf)
 - Original: Dan / https://github.com/uncle-jasper/leaf
 - updated by lgg / https://github.com/lgg/leaf
 
-When GitHub Pages is enabled for the main branch of this fork, open:
+The fork is published through GitHub Pages at:
 https://lgg.github.io/leaf/editor.html
 
 ================================================================================
@@ -3607,6 +3636,56 @@ function triggerCage() {
     document.body.appendChild(final);
     setTimeout(() => { final.remove(); overlay.innerHTML = ''; cageActive = false; }, 2500);
   }, finaleAt);
+}
+
+
+// ── Progressive Web App installation and offline cache ────────────────
+// A manifest alone cannot cache the editor: the service worker must be
+// registered from a secure web origin (HTTPS/localhost).
+let deferredLeafInstallPrompt = null;
+const leafInstallButton = document.getElementById('btn-install');
+const leafInstallGroup = document.getElementById('install-group');
+
+function setLeafInstallVisible(visible) {
+  leafInstallButton.style.display = visible ? '' : 'none';
+  leafInstallGroup.style.display = visible ? '' : 'none';
+}
+
+window.addEventListener('beforeinstallprompt', event => {
+  event.preventDefault();
+  deferredLeafInstallPrompt = event;
+  setLeafInstallVisible(true);
+});
+
+window.addEventListener('appinstalled', () => {
+  deferredLeafInstallPrompt = null;
+  setLeafInstallVisible(false);
+});
+
+async function installPWA() {
+  if (!deferredLeafInstallPrompt) return;
+  const pending = deferredLeafInstallPrompt;
+  deferredLeafInstallPrompt = null;
+  setLeafInstallVisible(false);
+  try {
+    await pending.prompt();
+    await pending.userChoice;
+  } catch (error) {
+    // The user can always install from the browser's own menu later.
+  }
+}
+
+if ('serviceWorker' in navigator &&
+    (location.protocol === 'https:' || location.hostname === 'localhost')) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js', { scope: './' })
+      .then(registration => {
+        if (navigator.onLine) registration.update().catch(() => {});
+      })
+      .catch(error => {
+        console.warn('Leaf offline cache could not be installed:', error);
+      });
+  });
 }
 
 </script>

@@ -420,10 +420,83 @@ test('valid custom HEX input saves the choice; invalid input does not', () => {
 
 test('GitHub Pages service worker prefers fresh HTML and keeps an offline fallback', () => {
   const sw=fs.readFileSync(path.join(__dirname,'..','sw.js'),'utf8');
-  assert.ok(sw.includes("const CACHE = 'leaf-lgg-v4'"));
+  assert.ok(sw.includes("const CACHE = 'leaf-lgg-v5'"));
   assert.ok(sw.includes("request.mode === 'navigate'"));
   assert.ok(sw.includes("fetch(request).then(response"));
   assert.ok(sw.includes("caches.match('./editor.html')"));
+});
+
+test('fork version matches README, changelog and visible About version', () => {
+  const version='1.8.0-lgg.1';
+  const readme=fs.readFileSync(path.join(__dirname,'..','README.md'),'utf8');
+  const history=fs.readFileSync(path.join(__dirname,'..','README.txt'),'utf8');
+  const changelog=fs.readFileSync(path.join(__dirname,'..','CHANGELOG.md'),'utf8');
+  assert.ok(html.includes('>v'+version+'</span>'));
+  assert.ok(readme.includes('v'+version));
+  assert.ok(history.includes('Version '+version));
+  assert.ok(history.includes('UPSTREAM BASELINE: v1.7'));
+  assert.ok(changelog.includes('v'+version));
+  assert.ok(changelog.includes('uncle-jasper/leaf'));
+  const marker='const README_CONTENT = '+String.fromCharCode(96);
+  const at=html.indexOf(marker)+marker.length;
+  const end=html.indexOf(String.fromCharCode(96)+';',at);
+  assert.equal(html.slice(at,end),history);
+});
+
+test('PWA manifest exposes stable app identity, standalone scope and valid icons', () => {
+  const m=JSON.parse(fs.readFileSync(path.join(__dirname,'..','leaf.webmanifest'),'utf8'));
+  assert.equal(m.id,'./editor.html');
+  assert.equal(m.start_url,'./editor.html');
+  assert.equal(m.scope,'./');
+  assert.equal(m.display,'standalone');
+  assert.ok(m.icons.some(icon => icon.sizes==='192x192'));
+  assert.ok(m.icons.some(icon => icon.sizes==='512x512'));
+});
+
+test('PWA registration and browser install prompt are functional on HTTPS', async () => {
+  const marker='// ── Progressive Web App installation and offline cache';
+  const pos=js.indexOf(marker);
+  assert.ok(pos>0);
+  const installSource=js.slice(pos);
+  const group={style:{display:'none'}};
+  const button={style:{display:'none'}};
+  const events={};
+  const calls=[];
+  const ctx={
+    group,button,events,calls,
+    navigator:{
+      onLine:true,
+      serviceWorker:{register:(file,opts)=>{
+        calls.push({file,opts});
+        return Promise.resolve({update:()=>Promise.resolve()});
+      }}
+    }
+  };
+  const globals=
+    "const navigator=deps.navigator,location={protocol:'https:',hostname:'lgg.github.io'};" +
+    "const document={getElementById:id=>id==='btn-install'?deps.button:deps.group};" +
+    "const window={addEventListener:(event,fn)=>{deps.events[event]=fn}};" +
+    "const console={warn:()=>{}};";
+  const app=new Function('deps',globals+installSource+';return {installPWA};')(ctx);
+  assert.equal(typeof events.load,'function');
+  events.load();
+  await Promise.resolve();await Promise.resolve();
+  assert.equal(calls.length,1);
+  assert.equal(calls[0].file,'./sw.js');
+  assert.equal(calls[0].opts.scope,'./');
+  let prevented=false, prompted=false;
+  events.beforeinstallprompt({
+    preventDefault(){prevented=true},
+    async prompt(){prompted=true},
+    userChoice:Promise.resolve({outcome:'accepted'})
+  });
+  assert.equal(prevented,true);
+  assert.equal(button.style.display,'');
+  await app.installPWA();
+  assert.equal(prompted,true);
+  assert.equal(button.style.display,'none');
+  events.appinstalled();
+  assert.equal(group.style.display,'none');
 });
 
 test('preferences, independent tab names, input edits and recovery are wired', () => {

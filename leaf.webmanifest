@@ -1,7 +1,7 @@
 {
   "name": "Leaf: A Markdown Editor",
   "short_name": "Leaf",
-  "description": "A minimal distraction-free markdown editor. Vibe coded by Dan © 2026",
+  "description": "Lightweight distraction-free Markdown editor by Dan, updated by lgg. Works offline after installation.",
   "start_url": "./editor.html",
   "display": "standalone",
   "background_color": "#1a1a1e",
@@ -20,5 +20,12 @@
       "type": "image/png",
       "purpose": "any maskable"
     }
+  ],
+  "id": "./editor.html",
+  "scope": "./",
+  "lang": "en",
+  "categories": [
+    "productivity",
+    "utilities"
   ]
 }
