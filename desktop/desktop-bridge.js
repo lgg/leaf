@@ -74,6 +74,7 @@
     tab.content = doc.content;
     tab.nativePath = doc.path;
     tab.nativeRev = doc.revision;
+    tab.nativeEol = doc.lineEnding || 'lf';
     tab.dirty = false;
     tab.handle = null;
     editor.value = doc.content;
@@ -127,13 +128,15 @@
         expectedRevision: tab.nativeRev || null,
         content: contents,
         suggestedName: suggestedName,
-        saveAs: !!saveAs
+        saveAs: !!saveAs,
+        lineEnding: tab.nativeEol || 'lf'
       });
       if (!doc) return false; // cancelled OS dialog
       const updatedTab = tabs.find(item => item.id === tabId);
       if (!updatedTab) return false;
       updatedTab.nativePath = doc.path;
       updatedTab.nativeRev = doc.revision;
+      updatedTab.nativeEol = doc.lineEnding || 'lf';
       finishDocumentSave(tabId, contents, null, doc.name);
       // If the user kept typing during a save, mark the newer text dirty.
       if (tabId === activeTabId && editor.value !== contents) {
@@ -182,7 +185,8 @@
           dirty: true,
           readonly: false,
           nativePath: null,
-          nativeRev: null
+          nativeRev: null,
+          nativeEol: disk.lineEnding || 'lf'
         });
       }
     }
@@ -202,7 +206,8 @@
       dirty,
       readonly: false,
       nativePath,
-      nativeRev
+      nativeRev,
+      nativeEol: disk ? (disk.lineEnding || 'lf') : 'lf'
     };
   }
 

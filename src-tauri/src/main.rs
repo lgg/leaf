@@ -27,6 +27,7 @@ struct Document {
     name: String,
     content: String,
     revision: String,
+    line_ending: String,
 }
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -94,7 +95,9 @@ fn read_document(path: &Path) -> Result<Document, String> {
     let revision = digest(&bytes);
     let content = String::from_utf8(bytes).map_err(|_| "File is not UTF-8 text. Export it as UTF-8 before opening.".to_string())?;
     let name = canonical.file_name().map(|x| x.to_string_lossy().to_string()).unwrap_or_else(|| "untitled.md".into());
-    Ok(Document { path: canonical.to_string_lossy().to_string(), name, content, revision })
+    let line_ending = if content.contains("\r\n")
+        && !content.replace("\r\n", "").contains('\n') { "crlf" } else { "lf" }.to_string();
+    Ok(Document { path: canonical.to_string_lossy().to_string(), name, content, revision, line_ending })
 }
 
 fn remember(state: &DesktopState, doc: &Document) -> Result<(), String> {
@@ -128,6 +131,15 @@ fn atomic_write(path: &Path, bytes: &[u8]) -> Result<(), String> {
         .map_err(|_| "Could not fully write the temporary file.".to_string())?;
     temp.persist(path).map_err(|_| "Cannot replace the file. Check permissions, locks and available disk space.".to_string())?;
     Ok(())
+}
+
+// Textarea editing normalizes newlines. Preserve existing Windows CRLF files.
+fn apply_line_ending(source: &str, line_ending: &str) -> Result<String, String> {
+    match line_ending {
+        "lf" => Ok(source.replace("\r\n", "\n")),
+        "crlf" => Ok(source.replace("\r\n", "\n").replace('\n', "\r\n")),
+        _ => Err("Invalid line-ending format.".into()),
+    }
 }
 
 // Testable, disk-level write boundary shared by Save and Save As.
@@ -182,6 +194,7 @@ async fn desktop_save(
     content: String,
     suggested_name: String,
     save_as: bool,
+    line_ending: String,
 ) -> Result<Option<Document>, String> {
     if content.len() > 32 * 1024 * 1024 { return Err("Document exceeds the 32 MB safety limit.".into()); }
     let destination = if save_as || path.is_none() {
@@ -217,7 +230,8 @@ async fn desktop_save(
         None
     };
     let checked = revisions.as_ref().map(|(expected, approved)| (expected.as_str(), approved.as_str()));
-    let saved = write_checked(&destination, &content, checked)?;
+    let encoded = apply_line_ending(&content, &line_ending)?;
+    let saved = write_checked(&destination, &encoded, checked)?;
     remember(&state, &saved)?;
     Ok(Some(saved))
 }
@@ -375,6 +389,21 @@ fn main() {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn source_line_endings_are_preserved_through_normalized_textarea_edits() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("windows.md");
+        fs::write(&path, b"first\r\nsecond\r\n").unwrap();
+        let opened = read_document(&path).unwrap();
+        assert_eq!(opened.line_ending, "crlf");
+        let encoded = apply_line_ending("first\nchanged\n", &opened.line_ending).unwrap();
+        assert_eq!(encoded, "first\r\nchanged\r\n");
+        let saved = write_checked(&path, &encoded, Some((&opened.revision, &opened.revision))).unwrap();
+        assert_eq!(saved.line_ending, "crlf");
+        assert_eq!(fs::read(&path).unwrap(), b"first\r\nchanged\r\n");
+        assert!(apply_line_ending("text", "invalid").is_err());
+    }
+
     #[test]
     fn external_links_reject_local_files_custom_protocols_and_phishing_userinfo() {
         assert!(permitted_external_url("https://example.com/a"));

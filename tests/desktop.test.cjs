@@ -122,3 +122,12 @@ test('desktop routes safe external links through OS while rejecting unsupported 
   assert.ok(native.includes('parsed.username().is_empty()'));
   assert.ok(native.includes('"mailto"'));
 });
+
+test('native file saves preserve original CRLF style', () => {
+  const bridge = fs.readFileSync(path.join(root, 'desktop','desktop-bridge.js'), 'utf8');
+  const backend = fs.readFileSync(path.join(root, 'src-tauri','src','main.rs'), 'utf8');
+  assert.ok(bridge.includes("lineEnding: tab.nativeEol || 'lf'"));
+  assert.ok(bridge.includes("tab.nativeEol = doc.lineEnding || 'lf'"));
+  assert.ok(backend.includes('fn apply_line_ending('));
+  assert.ok(backend.includes('fn source_line_endings_are_preserved_through_normalized_textarea_edits()'));
+});

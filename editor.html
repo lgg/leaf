@@ -1516,6 +1516,7 @@ Leaf desktop uses the **same editor** with a small, separate Rust/Tauri layer. T
 - **Open** existing \`.md\` / \`.txt\` files through the native OS picker; \`Ctrl+O\` works too.
 - **Save** (\`Ctrl+S\`) writes **back to the original file** after checking that it has not changed outside Leaf.
 - **Save As** (\`Ctrl+Shift+S\`) chooses a new destination with the native OS dialog.
+- Native saves preserve standard Windows CRLF line endings when the original file used CRLF.
 - An interrupted or failed save retains the unsaved editor text; a disk-conflict warning never silently overwrites external changes.
 - File associations register Markdown and plain text with the Windows installer. File paths passed at launch can be opened on startup.
 - Tabs, order, custom labels and per-document titles persist in local app settings. On restart, Leaf reads real files again from disk. Unsaved drafts can be recovered explicitly; missing files become recovery drafts that must be saved to a new location.
