@@ -283,3 +283,11 @@ test('native session snapshots store dirty drafts and paths, but not clean file 
   assert.equal(snapshot.tabs[2].draft,'unsaved edit');
   assert.equal(snapshot.tabs[2].dirty,true);
 });
+
+test('native file save returns only metadata, keeping large document bodies out of the response', () => {
+  const native = fs.readFileSync(path.join(root,'src-tauri','src','main.rs'), 'utf8');
+  assert.ok(native.includes('struct SaveReceipt {'));
+  assert.ok(native.includes('Result<Option<SaveReceipt>, String>'));
+  assert.ok(native.includes('Ok(Some(saved.into()))'));
+  assert.ok(native.includes('save_receipt_does_not_retransmit_original_document_contents'));
+});

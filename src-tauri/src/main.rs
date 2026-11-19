@@ -30,6 +30,27 @@ struct Document {
     line_ending: String,
 }
 
+// Saving does not need to send the entire document back over WebView IPC.
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct SaveReceipt {
+    path: String,
+    name: String,
+    revision: String,
+    line_ending: String,
+}
+
+impl From<Document> for SaveReceipt {
+    fn from(doc: Document) -> Self {
+        Self {
+            path: doc.path,
+            name: doc.name,
+            revision: doc.revision,
+            line_ending: doc.line_ending,
+        }
+    }
+}
+
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct SessionTab {
@@ -195,7 +216,7 @@ async fn desktop_save(
     suggested_name: String,
     save_as: bool,
     line_ending: String,
-) -> Result<Option<Document>, String> {
+) -> Result<Option<SaveReceipt>, String> {
     if content.len() > 32 * 1024 * 1024 { return Err("Document exceeds the 32 MB safety limit.".into()); }
     let destination = if save_as || path.is_none() {
         // The OS Save dialog is the only way to authorize a new destination.
@@ -233,7 +254,7 @@ async fn desktop_save(
     let encoded = apply_line_ending(&content, &line_ending)?;
     let saved = write_checked(&destination, &encoded, checked)?;
     remember(&state, &saved)?;
-    Ok(Some(saved))
+    Ok(Some(saved.into()))
 }
 
 fn permitted_external_url(target: &str) -> bool {
@@ -389,6 +410,19 @@ fn main() {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn save_receipt_does_not_retransmit_original_document_contents() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("note.md");
+        fs::write(&path, b"private text should not be returned on save").unwrap();
+        let document = read_document(&path).unwrap();
+        let metadata = serde_json::to_value(SaveReceipt::from(document)).unwrap();
+        assert_eq!(metadata.get("name").and_then(|v| v.as_str()), Some("note.md"));
+        assert!(metadata.get("revision").is_some());
+        assert!(metadata.get("lineEnding").is_some());
+        assert!(metadata.get("content").is_none());
+    }
+
     #[test]
     fn source_line_endings_are_preserved_through_normalized_textarea_edits() {
         let dir = tempfile::tempdir().unwrap();
