@@ -10,8 +10,6 @@
 - Updated About/download links and documentation; removed the redundant README.txt.
 - Bumped fork version and PWA cache generation.
 
-# Leaf — fork changelog
-
 ## v1.9.0-lgg.1 — 2026-11-19
 
 - Added a minimal responsive writing interface for mobile phones and touch tablets.
