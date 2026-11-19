@@ -87,6 +87,14 @@ jobs:
           }
           Write-Output "Native Rust tests passed"
 
+      - name: Retain generated Cargo lockfile for reproducibility review
+        uses: actions/upload-artifact@v4
+        with:
+          name: leaf-cargo-lock-review
+          path: src-tauri/Cargo.lock
+          if-no-files-found: error
+          retention-days: 1
+
       - name: Compile Windows desktop executable with private paths remapped
         run: |
           # Cargo unit-separator flags support paths containing spaces.
