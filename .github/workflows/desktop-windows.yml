@@ -52,10 +52,17 @@ jobs:
 
       - name: Run JavaScript regression tests and stage desktop
         run: |
-          node --test tests/leaf.test.cjs tests/desktop.test.cjs *> "$env:RUNNER_TEMP/leaf-node-tests.log"
+          node --test --test-reporter=tap tests/leaf.test.cjs tests/desktop.test.cjs *> "$env:RUNNER_TEMP/leaf-node-tests.log"
           if ($LASTEXITCODE -ne 0) {
-            Write-Output "::error::JavaScript regression tests failed. Local diagnostics were not published."
-            throw "JavaScript tests failed."
+            # Expose only test names (not assertions, machine paths or stack traces).
+            Get-Content "$env:RUNNER_TEMP/leaf-node-tests.log" |
+              Where-Object { $_ -match '^not ok [0-9]+ - ' } |
+              ForEach-Object {
+                $testName = $_ -replace '^not ok [0-9]+ - ', ''
+                $testName = $testName -replace '[^a-zA-Z0-9 .,()_:/-]', ''
+                Write-Output "::error::Failed test: $testName"
+              }
+            throw "JavaScript regression tests failed. Full diagnostics remain on the runner."
           }
           Write-Output "JavaScript regression tests passed"
           node desktop/stage.cjs *> "$env:RUNNER_TEMP/leaf-desktop-stage.log"
