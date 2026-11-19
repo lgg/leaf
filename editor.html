@@ -667,7 +667,7 @@
   .mobile-sheet-button { text-align: left; }
   .mobile-sheet-button[disabled] { opacity: .35; }
 
-  @media (max-width: 780px), (pointer: coarse) and (max-width: 1200px) {
+  @media (max-width: 780px), (pointer: coarse) and (max-width: 1366px) {
     body { height: 100dvh; min-height: 0; }
     #header { display: none !important; }
     #mobile-document-heading {
@@ -3353,9 +3353,12 @@ function syncDocumentTitles() {
 document.getElementById('settings-filename').addEventListener('input', event => {
   const tab = getActiveTab();
   if (!tab) return;
-  tab.name = event.target.value || 'untitled.md';
+  const typedName = event.target.value;
+  tab.name = typedName || 'untitled.md';
   document.getElementById('filename-input').value = tab.name;
   renderTabs();
+  // Keep an empty field editable until blur; it still saves as untitled.md.
+  event.target.value = typedName;
   scheduleWorkspaceSave();
 });
 
@@ -3744,7 +3747,7 @@ if (!restoreWorkspace()) {
   if (!backups.length || !restoreWorkspace(backups[0].raw)) restoreAutosave();
 }
 persistWorkspace();
-editor.focus();
+if (!isLeafMobile()) editor.focus();
 
 // ── Welcome message ───────────────────────────────────────
 (function() {
@@ -3917,7 +3920,7 @@ function triggerCage() {
 // This media query matches compact windows and touch tablets. The desktop
 // editor's toolbar, focus mode, settings and keyboard shortcuts remain intact.
 function isLeafMobile() {
-  return window.matchMedia('(max-width: 780px), (pointer: coarse) and (max-width: 1200px)').matches;
+  return window.matchMedia('(max-width: 780px), (pointer: coarse) and (max-width: 1366px)').matches;
 }
 
 function updateMobileModeButton() {
@@ -3943,6 +3946,10 @@ function setMobileDockVisible(visible) {
 
 function hideMobileDock() {
   setMobileDockVisible(false);
+}
+function finishMobileAction() {
+  if (document.getElementById('chk-mobile-autohide').checked) hideMobileDock();
+  else setMobileDockVisible(true);
 }
 
 function applyMobilePreferences() {
@@ -3998,7 +4005,7 @@ function renderMobileDocuments() {
   const add = makeMobileSheetButton('＋  New document', () => {
     closeMobileSheet();
     newTab();
-    hideMobileDock();
+    finishMobileAction();
   });
   content.appendChild(add);
   tabs.forEach(tab => {
@@ -4016,7 +4023,7 @@ function renderMobileDocuments() {
       closeMobileSheet();
       if (id !== activeTabId) switchTab(id);
       else editor.focus();
-      hideMobileDock();
+      finishMobileAction();
     });
     const close = document.createElement('button');
     close.type = 'button';
@@ -4073,11 +4080,11 @@ document.getElementById('mobile-action-documents').addEventListener('click', () 
 document.getElementById('mobile-action-view').addEventListener('click', () => {
   setMode(currentMode === 'preview' ? 'write' : 'preview');
   if (currentMode === 'write') editor.focus();
-  hideMobileDock();
+  finishMobileAction();
 });
 document.getElementById('mobile-action-save').addEventListener('click', () => {
   saveFile();
-  hideMobileDock();
+  finishMobileAction();
 });
 document.getElementById('mobile-action-more').addEventListener('click', () => showMobileSheet('more'));
 document.getElementById('mobile-sheet-close').addEventListener('click', closeMobileSheet);
