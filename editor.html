@@ -2845,7 +2845,10 @@ document.addEventListener('keydown', e => {
   }
   if ((e.ctrlKey||e.metaKey) && e.key === ',') {
     e.preventDefault();
-    if (!justWriteActive) document.getElementById('settings-overlay').style.display = 'flex';
+    if (!justWriteActive) {
+      refreshRecoveryControl();
+      document.getElementById('settings-overlay').style.display = 'flex';
+    }
   }
   if ((e.ctrlKey||e.metaKey) && e.shiftKey && e.key.toLowerCase()==='f') {
     e.preventDefault(); focusActive ? exitFocus() : enterFocus();
