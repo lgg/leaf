@@ -52,10 +52,18 @@ jobs:
 
       - name: Run JavaScript regression tests and stage desktop
         run: |
-          node --test tests/leaf.test.cjs tests/desktop.test.cjs
-          if ($LASTEXITCODE -ne 0) { throw "JavaScript tests failed." }
-          node desktop/stage.cjs
-          if ($LASTEXITCODE -ne 0) { throw "Desktop staging failed." }
+          node --test tests/leaf.test.cjs tests/desktop.test.cjs *> "$env:RUNNER_TEMP/leaf-node-tests.log"
+          if ($LASTEXITCODE -ne 0) {
+            Write-Output "::error::JavaScript regression tests failed. Local diagnostics were not published."
+            throw "JavaScript tests failed."
+          }
+          Write-Output "JavaScript regression tests passed"
+          node desktop/stage.cjs *> "$env:RUNNER_TEMP/leaf-desktop-stage.log"
+          if ($LASTEXITCODE -ne 0) {
+            Write-Output "::error::Desktop staging failed. Local diagnostics were not published."
+            throw "Desktop staging failed."
+          }
+          Write-Output "Desktop staging passed"
 
       - name: Test native Rust code using existing Cargo
         run: |
