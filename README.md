@@ -51,7 +51,7 @@ cargo test --manifest-path src-tauri/Cargo.toml
 cargo build --release --manifest-path src-tauri/Cargo.toml
 ```
 
-The resulting application executable is under the Rust target output (not committed). If **Tauri CLI is already installed**, `cargo tauri build --bundles nsis` can create a Windows installer from the same staged frontend; the CI skips installer packaging when the CLI is missing rather than installing tools. The desktop staging directory and generated Windows icon are ignored by Git.
+The Windows executable is produced under the Rust target output (not committed). CI uses built-in Windows PowerShell to produce an additional portable ZIP — no installer dependencies are downloaded. NSIS installer creation is intentionally disabled until the complete existing NSIS/Tauri toolchain is verified, because Tauri may download missing bundler components. The desktop staging directory and generated Windows icon are ignored by Git.
 
 Builds can download normal Cargo dependency crates during compilation; the workflow never installs or upgrades system software or toolchains. Cargo may need network access for a first build.
 
