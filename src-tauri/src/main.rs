@@ -130,6 +130,32 @@ fn atomic_write(path: &Path, bytes: &[u8]) -> Result<(), String> {
     Ok(())
 }
 
+// Testable, disk-level write boundary shared by Save and Save As.
+// No file is replaced if a previous revision is missing or diverges.
+fn write_checked(
+    destination: &Path,
+    contents: &str,
+    revisions: Option<(&str, &str)>, // expected by tab, most recently authorized
+) -> Result<Document, String> {
+    if !is_text(destination) {
+        return Err("Choose a .md or .txt filename.".into());
+    }
+    if contents.len() > 32 * 1024 * 1024 {
+        return Err("Document exceeds the 32 MB safety limit.".into());
+    }
+    if let Some((expected, authorized)) = revisions {
+        if authorized != expected {
+            return Err("The active file revision changed. Reopen or use Save As.".into());
+        }
+        let disk = read_document(destination)?;
+        if disk.revision != expected {
+            return Err("The file changed outside Leaf. Your edits are intact. Use Save As.".into());
+        }
+    }
+    atomic_write(destination, contents.as_bytes())?;
+    read_document(destination)
+}
+
 #[tauri::command]
 async fn desktop_open_dialog(app: tauri::AppHandle, state: State<'_, DesktopState>) -> Result<Option<Document>, String> {
     let handle = app.clone();
@@ -180,22 +206,18 @@ async fn desktop_save(
         PathBuf::from(selected)
     };
 
-    if !is_text(&destination) { return Err("Choose a .md or .txt filename.".into()); }
-    if !save_as && path.is_some() {
-        let old = read_document(&destination)?;
+    let revisions = if !save_as && path.is_some() {
         let expected = expected_revision.ok_or("Document revision is missing. Use Save As.".to_string())?;
         let approved_revision = state.authorized.lock()
             .map_err(|_| "File registry unavailable.".to_string())?
-            .get(&old.path).cloned().ok_or("File is no longer authorized for saving.")?;
-        if approved_revision != expected {
-            return Err("The active file revision changed. Reopen the file or use Save As.".into());
-        }
-        if old.revision != expected {
-            return Err("The file changed outside Leaf. Your edits are intact. Use Save As or reopen the external changes.".into());
-        }
-    }
-    atomic_write(&destination, content.as_bytes())?;
-    let saved = read_document(&destination)?;
+            .get(&path.clone().unwrap_or_default()).cloned()
+            .ok_or("File is no longer authorized for saving.")?;
+        Some((expected, approved_revision))
+    } else {
+        None
+    };
+    let checked = revisions.as_ref().map(|(expected, approved)| (expected.as_str(), approved.as_str()));
+    let saved = write_checked(&destination, &content, checked)?;
     remember(&state, &saved)?;
     Ok(Some(saved))
 }
@@ -371,6 +393,71 @@ mod tests {
         assert!(!is_text(Path::new("secrets.key")));
         assert!(!is_text(Path::new("script.md.exe")));
     }
+    #[test]
+    fn save_existing_document_preserves_file_identity_and_content() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("draft.md");
+        fs::write(&path, b"first").unwrap();
+        let original = read_document(&path).unwrap();
+        let saved = write_checked(&path, "second", Some((&original.revision, &original.revision))).unwrap();
+        assert_eq!(saved.path, original.path);
+        assert_eq!(saved.content, "second");
+        assert_ne!(saved.revision, original.revision);
+    }
+
+    #[test]
+    fn concurrent_external_changes_are_not_overwritten() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("draft.md");
+        fs::write(&path, b"first").unwrap();
+        let original = read_document(&path).unwrap();
+        fs::write(&path, b"external").unwrap();
+        let result = write_checked(&path, "my edit", Some((&original.revision, &original.revision)));
+        assert!(result.is_err());
+        assert_eq!(fs::read_to_string(&path).unwrap(), "external");
+    }
+
+    #[test]
+    fn stale_tab_revision_is_rejected_even_if_disk_matches_current_tab() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("draft.txt");
+        fs::write(&path, b"unchanged").unwrap();
+        let revision = read_document(&path).unwrap().revision;
+        let result = write_checked(&path, "my edit", Some((&revision, "outdated-tab")));
+        assert!(result.is_err());
+        assert_eq!(fs::read_to_string(&path).unwrap(), "unchanged");
+    }
+
+    #[test]
+    fn deleted_file_is_not_silently_recreated_on_save() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("draft.md");
+        fs::write(&path, b"first").unwrap();
+        let revision = read_document(&path).unwrap().revision;
+        fs::remove_file(&path).unwrap();
+        assert!(write_checked(&path, "new", Some((&revision, &revision))).is_err());
+        assert!(!path.exists());
+    }
+
+    #[test]
+    fn save_as_does_not_modify_original_file() {
+        let dir = tempfile::tempdir().unwrap();
+        let original = dir.path().join("original.md");
+        let destination = dir.path().join("copy.md");
+        fs::write(&original, b"original").unwrap();
+        write_checked(&destination, "new copy", None).unwrap();
+        assert_eq!(fs::read_to_string(&original).unwrap(), "original");
+        assert_eq!(fs::read_to_string(&destination).unwrap(), "new copy");
+    }
+
+    #[test]
+    fn native_save_rejects_non_text_targets() {
+        let dir = tempfile::tempdir().unwrap();
+        let forbidden = dir.path().join("installer.exe");
+        assert!(write_checked(&forbidden, "danger", None).is_err());
+        assert!(!forbidden.exists());
+    }
+
     #[test]
     fn atomic_write_replaces_document() {
         let dir = tempfile::tempdir().unwrap();
