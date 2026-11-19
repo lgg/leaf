@@ -2020,60 +2020,76 @@ function updateCursor() {
 // File System Access API handle — persists for the session
 let fileHandle = null;
 
-async function saveFile() {
-  const filename = document.getElementById('filename-input').value || 'untitled.txt';
-  const blob = new Blob([editor.value], { type: 'text/plain' });
+// File writes can await a picker. Complete the save for the ORIGINAL document,
+// not whichever tab happens to be active when the promise resolves.
+function finishDocumentSave(tabId, savedText, handle, filename) {
+  const tab = tabs.find(item => item.id === tabId);
+  if (!tab) return;
+  tab.handle = handle;
+  tab.name = filename;
+  if (tabId === activeTabId) {
+    fileHandle = handle;
+    document.getElementById('filename-input').value = filename;
+    if (editor.value === savedText) {
+      markClean();
+      tab.dirty = false;
+    } else {
+      markDirty();
+      tab.dirty = true;
+    }
+    flashSaved();
+  } else {
+    tab.dirty = tab.content !== savedText;
+  }
+  renderTabs();
+  scheduleWorkspaceSave();
+}
 
-  // If we have a file handle, write directly to it
-  if (fileHandle) {
+async function saveFile() {
+  const tabId = activeTabId;
+  const filename = document.getElementById('filename-input').value || 'untitled.txt';
+  const contents = editor.value;
+  const blob = new Blob([contents], {type:'text/plain;charset=utf-8'});
+  const previousHandle = fileHandle;
+
+  if (previousHandle) {
     try {
-      const writable = await fileHandle.createWritable();
+      const writable = await previousHandle.createWritable();
       await writable.write(blob);
       await writable.close();
-      markClean();
-      localStorage.removeItem(AUTOSAVE_KEY);
-      flashSaved();
-      syncTabName();
-      return;
-    } catch(e) {
-      // Handle lost — fall through to save dialog
-      fileHandle = null;
+      finishDocumentSave(tabId, contents, previousHandle, previousHandle.name || filename);
+      return true;
+    } catch (error) {
+      // Lost file permission; fall back to Save As.
+      if (tabId === activeTabId) fileHandle = null;
     }
   }
 
-  // If File System Access API is available, use Save As dialog and remember the handle
   if ('showSaveFilePicker' in window) {
     try {
-      fileHandle = await window.showSaveFilePicker({
+      const handle = await window.showSaveFilePicker({
         suggestedName: filename,
-        types: [{ description: 'Text files', accept: { 'text/plain': ['.txt', '.md'] } }]
+        types: [{description:'Text files',accept:{'text/plain':['.txt','.md']}}]
       });
-      document.getElementById('filename-input').value = fileHandle.name;
-      const writable = await fileHandle.createWritable();
+      const writable = await handle.createWritable();
       await writable.write(blob);
       await writable.close();
-      markClean();
-      localStorage.removeItem(AUTOSAVE_KEY);
-      flashSaved();
-      syncTabName();
-      return;
-    } catch(e) {
-      // User cancelled — do nothing
-      if (e.name === 'AbortError') return;
-      fileHandle = null;
+      finishDocumentSave(tabId, contents, handle, handle.name || filename);
+      return true;
+    } catch (error) {
+      // Cancelling Save As is not equivalent to saving the document.
+      if (error.name === 'AbortError') return false;
     }
   }
 
-  // Fallback — standard download
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = filename;
-  a.click();
-  URL.revokeObjectURL(a.href);
-  markClean();
-  localStorage.removeItem(AUTOSAVE_KEY);
-  flashSaved();
-  syncTabName();
+  const link = document.createElement('a');
+  const objectUrl = URL.createObjectURL(blob);
+  link.href = objectUrl;
+  link.download = filename;
+  link.click();
+  setTimeout(() => URL.revokeObjectURL(objectUrl), 3000);
+  finishDocumentSave(tabId, contents, null, filename);
+  return true;
 }
 
 // When opening a file, try to get a file handle so we can save back to it
@@ -2412,6 +2428,7 @@ function wrapSelection(before, after) {
   const end   = editor.selectionEnd;
   const sel   = editor.value.substring(start, end);
   editor.setRangeText(before + sel + after, start, end, 'select');
+  noteEditorEdit();
   editor.focus();
   if (!sel) editor.selectionStart = editor.selectionEnd = start + before.length;
   updateStats();
@@ -2439,6 +2456,7 @@ editor.addEventListener('input', e => {
         ? (isOpen ? '\u201c' : '\u201d')
         : (isOpen ? '\u2018' : '\u2019');
       editor.setRangeText(curly, pos - 1, pos, 'end');
+  noteEditorEdit();
     }
   }
   updateStats();
@@ -2496,6 +2514,7 @@ editor.addEventListener('keydown', e => {
     const sel   = editor.value.substring(pos, end);
     const replacement = sel ? `[${sel}](url)` : `[](url)`;
     editor.setRangeText(replacement, pos, end, 'end');
+  noteEditorEdit();
     // Place cursor inside the url() part
     const urlStart = pos + replacement.indexOf('(url)') + 1;
     editor.setSelectionRange(urlStart, urlStart + 3);
@@ -2518,6 +2537,7 @@ editor.addEventListener('keydown', e => {
     // If line already has this exact heading level, remove it (toggle off)
     const newLine   = line.startsWith(hashes) ? stripped : hashes + stripped;
     editor.setRangeText(newLine, lineStart, lineEnd === -1 ? text.length : lineEnd, 'end');
+  noteEditorEdit();
     updateStats();
     if (currentMode !== 'write') renderPreview();
     return;
@@ -2536,8 +2556,10 @@ editor.addEventListener('keydown', e => {
       if (bulletMatch[2].trim() === '') {
         // Empty bullet — remove the "- " on this line, stay on same line
         editor.setRangeText('', lineStart, pos, 'end');
+  noteEditorEdit();
       } else {
         editor.setRangeText('\n- ', pos, pos, 'end');
+  noteEditorEdit();
       }
       updateStats();
       if (currentMode !== 'write') renderPreview();
@@ -2551,9 +2573,11 @@ editor.addEventListener('keydown', e => {
       if (numMatch[2].trim() === '') {
         // Empty numbered line — remove the "N. " on this line, stay on same line
         editor.setRangeText('', lineStart, pos, 'end');
+  noteEditorEdit();
       } else {
         const next = parseInt(numMatch[1], 10) + 1;
         editor.setRangeText('\n' + next + '. ', pos, pos, 'end');
+  noteEditorEdit();
       }
       updateStats();
       if (currentMode !== 'write') renderPreview();
@@ -2568,6 +2592,7 @@ editor.addEventListener('keydown', e => {
     if (prevChar === '-') {
       e.preventDefault();
       editor.setRangeText('—', pos - 1, pos, 'end');
+  noteEditorEdit();
       updateStats();
       if (currentMode !== 'write') renderPreview();
       return;
@@ -2578,6 +2603,7 @@ editor.addEventListener('keydown', e => {
     e.preventDefault();
     const s = editor.selectionStart;
     editor.setRangeText('  ', s, s, 'end');
+  noteEditorEdit();
   }
 });
 
@@ -3015,7 +3041,7 @@ async function closeTab(id) {
     if (answer) {
       // Switch to it and save
       switchTab(id);
-      await saveFile();
+      if (!await saveFile()) return;
     }
   }
 
@@ -3189,6 +3215,15 @@ function markDirty() {
   isDirty = true;
   scheduleWorkspaceSave();
 }
+
+function noteEditorEdit() {
+  markDirty();
+  const tab = getActiveTab();
+  if (tab && !tab.dirty) {
+    tab.dirty = true;
+    renderTabs();
+  }
+}
 function markClean() {
   isDirty = false;
   lastSavedContent = editor.value;
@@ -3201,11 +3236,7 @@ document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'hidden') persistWorkspace();
 });
 
-editor.addEventListener('input', () => {
-  markDirty();
-  const tab = getActiveTab();
-  if (tab && !tab.dirty) { tab.dirty = true; renderTabs(); }
-});
+editor.addEventListener('input', noteEditorEdit);
 
 function restoreAutosave() {
   try {
