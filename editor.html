@@ -501,6 +501,7 @@
     transition: background 0.3s, border-color 0.3s;
     position: relative;
   }
+  #statusbar.statusbar-empty { display: none; }
   #statusbar .stat-left  { display: flex; gap: 12px; }
   #statusbar .stat-right { display: flex; gap: 12px; }
   #statusbar .stat-centre {
@@ -542,6 +543,10 @@
 
   /* ── Themes ── */
   body[data-theme="dark"]  { --bg:#0a0a0a; --surface:#141414; --text:#d8d8d8; --accent:#444444; --muted:#555555; --border:#222222; }
+  body[data-theme="black"] { --bg:#000000; --surface:#000000; --text:#c8c8c8; --accent:#606060; --muted:#696969; --border:#181818; }
+  body[data-theme="black"] #editor,
+  body[data-theme="black"] #preview { font-family: 'iAWriterMonoS', monospace; }
+  body[data-theme="black"] #editor { caret-color: rgb(200, 200, 200); }
   body[data-theme="moss"]  { --bg:#1e2420; --surface:#242d28; --text:#d4ddd0; --accent:#82b890; --muted:#607860; --border:#2e3d30; }
   body[data-theme="slate"] { --bg:#1c2333; --surface:#232d40; --text:#d0d8e8; --accent:#7a9fd4; --muted:#5a7090; --border:#2e3d54; }
   body[data-theme="dusk"]  { --bg:#1e1714; --surface:#261d1a; --text:#e8ddd4; --accent:#b87355; --muted:#7a5c4e; --border:#332520; }
@@ -951,6 +956,7 @@
       <option value="ash">ash</option>
       <option value="sage">sage</option>
       <option value="dark">dark</option>
+      <option value="black">black</option>
       <option value="moss">moss</option>
       <option value="slate">slate</option>
       <option value="dusk">dusk</option>
@@ -1022,6 +1028,7 @@
         <div class="settings-theme-item" data-value="ash"><span class="theme-swatch" style="background:#b0b0b0"></span>ash</div>
         <div class="settings-theme-item" data-value="sage"><span class="theme-swatch" style="background:#c4d9c4"></span>sage</div>
         <div class="settings-theme-item" data-value="dark"><span class="theme-swatch" style="background:#0a0a0a"></span>dark</div>
+        <div class="settings-theme-item" data-value="black"><span class="theme-swatch" style="background:#000000;outline:1px solid #353535"></span>black</div>
         <div class="settings-theme-item" data-value="moss"><span class="theme-swatch" style="background:#1e2420"></span>moss</div>
         <div class="settings-theme-item" data-value="slate"><span class="theme-swatch" style="background:#1c2333"></span>slate</div>
         <div class="settings-theme-item" data-value="dusk"><span class="theme-swatch" style="background:#1e1714"></span>dusk</div>
@@ -1077,6 +1084,10 @@
     <div class="settings-section">
       <h3>Status bar</h3>
       <div class="settings-row">
+        <input type="checkbox" id="chk-show-words" checked>
+        <label for="chk-show-words">word count</label>
+      </div>
+      <div class="settings-row">
         <input type="checkbox" id="chk-show-chars" checked>
         <label for="chk-show-chars">character count</label>
       </div>
@@ -1096,6 +1107,10 @@
     <hr class="settings-divider">
     <div class="settings-section">
       <h3>Editor</h3>
+      <div class="settings-row">
+        <input type="checkbox" id="chk-show-placeholder" checked>
+        <label for="chk-show-placeholder">show writing hint on empty page</label>
+      </div>
       <div class="settings-row">
         <input type="checkbox" id="chk-welcome" checked>
         <label for="chk-welcome">show status messages</label>
@@ -2614,6 +2629,8 @@ function saveSettings() {
     customText:   document.getElementById('color-text').value,
     customAccent: document.getElementById('color-accent').value,
     smartPunct:   smartPunctEnabled,
+    showWords:    document.getElementById('chk-show-words').checked,
+    showPlaceholder: document.getElementById('chk-show-placeholder').checked,
     showChars:    document.getElementById('chk-show-chars').checked,
     showLines:    document.getElementById('chk-show-lines').checked,
     showReadtime: document.getElementById('chk-show-readtime').checked,
@@ -2679,6 +2696,12 @@ function loadSettings() {
     if (s.smartPunct) {
       smartPunctEnabled = true;
       document.getElementById('chk-smart-punct').checked = true;
+    }
+    if (s.showWords === false) {
+      document.getElementById('chk-show-words').checked = false;
+    }
+    if (s.showPlaceholder === false) {
+      document.getElementById('chk-show-placeholder').checked = false;
     }
     if (s.showChars === false) {
       document.getElementById('chk-show-chars').checked = false;
@@ -2887,6 +2910,8 @@ window.addEventListener('beforeunload', e => {
 // ── Init ──────────────────────────────────────────────────
 loadSettings();
 syncThemeUI();
+applyStatusBarVisibility();
+applyPlaceholderVisibility();
 updateStats();
 renderTabs();
 restoreAutosave();
@@ -2924,18 +2949,34 @@ document.getElementById('settings-overlay').addEventListener('click', e => {
 
 // Status bar visibility toggles
 function applyStatusBarVisibility() {
+  document.getElementById('word-count').style.display = document.getElementById('chk-show-words').checked ? '' : 'none';
   document.getElementById('char-count').style.display   = document.getElementById('chk-show-chars').checked   ? '' : 'none';
   document.getElementById('line-count').style.display   = document.getElementById('chk-show-lines').checked   ? '' : 'none';
   document.getElementById('cursor-pos').style.display   = document.getElementById('chk-show-cursor').checked  ? '' : 'none';
-  // Reading time: updateStats handles content + visibility
+  // Hide the entire bar when every configurable metric is disabled.
+  const metrics = ['chk-show-words', 'chk-show-chars', 'chk-show-lines', 'chk-show-readtime', 'chk-show-cursor'];
+  document.getElementById('statusbar').classList.toggle(
+    'statusbar-empty', !metrics.some(id => document.getElementById(id).checked)
+  );
+  // Reading time: updateStats handles content + visibility.
   updateStats();
 }
 
-['chk-show-chars','chk-show-lines','chk-show-readtime','chk-show-cursor'].forEach(id => {
+['chk-show-words','chk-show-chars','chk-show-lines','chk-show-readtime','chk-show-cursor'].forEach(id => {
   document.getElementById(id).addEventListener('change', () => {
     applyStatusBarVisibility();
     saveSettings();
   });
+});
+
+// A disabled hint leaves an entirely empty editor.
+function applyPlaceholderVisibility() {
+  editor.placeholder = document.getElementById('chk-show-placeholder').checked
+    ? 'Start writing… markdown is supported.' : '';
+}
+document.getElementById('chk-show-placeholder').addEventListener('change', () => {
+  applyPlaceholderVisibility();
+  saveSettings();
 });
 
 // ── About modal ──────────────────────────────────────────────────────
