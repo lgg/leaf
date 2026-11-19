@@ -186,3 +186,16 @@ test('desktop dirty tabs offer Save, Discard and Cancel without affecting web be
   assert.ok(html.includes("!confirm('Discard unsaved changes in"));
   assert.ok(html.includes("if (answer) {\n      // Switch to it and save"));
 });
+
+test('Windows CI blocks public binaries until private-path scanning passes', () => {
+  const yaml = fs.readFileSync(path.join(root, '.github/workflows/desktop-windows.yml'), 'utf8');
+  const scan = yaml.indexOf('Verify compiled EXE contains no private workstation paths');
+  const binaryUpload = yaml.indexOf('Retain Windows binary for smoke testing');
+  const portableUpload = yaml.indexOf('Retain portable ZIP for smoke testing');
+  assert.ok(scan > 0 && binaryUpload > scan && portableUpload > scan);
+  assert.ok(yaml.includes('CARGO_ENCODED_RUSTFLAGS'));
+  assert.ok(yaml.includes('node desktop/check-binary.cjs src-tauri/target/release/leaf-desktop.exe'));
+  assert.ok(yaml.includes('retention-days: 1'));
+  assert.ok(!yaml.includes('pull_request:'));
+  assert.ok(yaml.includes('leaf-runner-ci'));
+});
