@@ -447,7 +447,7 @@ test('fork version matches README, changelog and visible About version', () => {
   assert.ok(changelog.includes('uncle-jasper/leaf'));
   const marker='const README_CONTENT = '+String.fromCharCode(96);
   const at=html.indexOf(marker)+marker.length;
-  const end=html.indexOf(String.fromCharCode(96)+';',at);
+  const end=html.indexOf(String.fromCharCode(96)+';\n\n// ── Just Write mode',at);
   assert.equal(html.slice(at,end).replace(/\\`/g, '`').replace(/\\\$\{/g, '${'), readme.trimEnd());
 });
 
