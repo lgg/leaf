@@ -199,3 +199,15 @@ test('Windows CI blocks public binaries until private-path scanning passes', () 
   assert.ok(!yaml.includes('pull_request:'));
   assert.ok(yaml.includes('leaf-runner-ci'));
 });
+
+test('binary privacy diagnostic labels reveal no raw host folders', () => {
+  const {privatePathCategories} = require('../desktop/check-binary.cjs');
+  const fake = Buffer.from('D:\\Users\\SampleUser\\.cargo\\registry\\src\\x.rs');
+  const categories = privatePathCategories(fake, {USERPROFILE:'D:\\Users\\SampleUser', CARGO_HOME:'D:\\Users\\SampleUser\\.cargo'});
+  assert.ok(categories.includes('profile-directory'));
+  assert.ok(categories.includes('cargo-cache'));
+  assert.ok(categories.includes('environment:USERPROFILE'));
+  assert.ok(categories.includes('environment:CARGO_HOME'));
+  assert.ok(!categories.join(',').includes('SampleUser'));
+  assert.ok(!categories.join(',').includes('D:'));
+});
