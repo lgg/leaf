@@ -582,6 +582,39 @@ test('mobile dock reveals by bottom tap, auto-hides and pauses in a sheet', () =
   assert.equal(getNode('mobile-dock').classList.contains('mobile-visible'),true);
 });
 
+test('mobile filename can be edited without desktop filename field visible', () => {
+  const listenerMarker="document.getElementById('settings-filename').addEventListener('input', event => {";
+  const source=between(listenerMarker,
+    "for (const [id, property] of [['settings-tab-label','label']");
+  const input={value:'',listener:null,addEventListener(event,fn){this.listener=fn}};
+  const desktop={value:'untitled.txt'};
+  const tab={id:1,name:'untitled.txt'};
+  const elements={'settings-filename':input,'filename-input':desktop};
+  let renders=0, saves=0;
+  const prefix=
+    "const document={getElementById:id=>deps.elements[id]};" +
+    "function getActiveTab(){return deps.tab}" +
+    "function renderTabs(){deps.renders.count++;deps.elements['settings-filename'].value=deps.tab.name}" +
+    "function scheduleWorkspaceSave(){deps.saves.count++}";
+  const renderCount={count:0}, saveCount={count:0};
+  new Function('deps',prefix+listenerMarker+source)(
+    {elements,tab,renders:renderCount,saves:saveCount});
+  input.value='my-notes.md';
+  input.listener({target:input});
+  assert.equal(tab.name,'my-notes.md');
+  assert.equal(desktop.value,'my-notes.md');
+  assert.equal(saveCount.count,1);
+  input.value='';
+  input.listener({target:input});
+  assert.equal(tab.name,'untitled.md');
+  assert.equal(input.value,''); // Do not trap users by replacing the field while typing.
+  input.value='work.md';
+  input.listener({target:input});
+  assert.equal(tab.name,'work.md');
+  assert.equal(desktop.value,'work.md');
+  assert.equal(renderCount.count,3);
+});
+
 test('PWA manifest exposes stable app identity, standalone scope and valid icons', () => {
   const m=JSON.parse(fs.readFileSync(path.join(__dirname,'..','leaf.webmanifest'),'utf8'));
   assert.equal(m.id,'./editor.html');
