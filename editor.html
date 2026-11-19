@@ -2077,8 +2077,16 @@ function syncTabName() {
     tab.dirty  = false;
     tab.handle = fileHandle;
     renderTabs();
+    scheduleWorkspaceSave();
   }
 }
+
+document.getElementById('filename-input').addEventListener('input', function() {
+  const tab = getActiveTab();
+  if (tab) tab.name = this.value || 'untitled.txt';
+  renderTabs();
+  scheduleWorkspaceSave();
+});
 
 function flashSaved() {
   const el = document.getElementById('save-indicator');
@@ -2787,6 +2795,7 @@ function switchTab(id) {
   updateStats();
   if (currentMode !== 'write') renderPreview();
   renderTabs();
+  scheduleWorkspaceSave();
   editor.focus();
 }
 
@@ -2848,6 +2857,7 @@ async function closeTab(id) {
     if (currentMode !== 'write') renderPreview();
   }
   renderTabs();
+  scheduleWorkspaceSave();
 }
 
 document.getElementById('btn-new-tab').addEventListener('click', newTab);
@@ -2857,19 +2867,95 @@ let isDirty = false;
 let lastSavedContent = '';
 const AUTOSAVE_KEY = 'leaf-autosave';
 
-function markDirty() { isDirty = true; }
-function markClean() { isDirty = false; lastSavedContent = editor.value; }
+// Persist the entire workspace, not only the currently focused document.
+const WORKSPACE_KEY = 'leaf-workspace-v1';
+let workspaceSaveTimer = null;
+let storageWarningShown = false;
 
-// Autosave to localStorage every 30 seconds
-setInterval(() => {
-  if (isDirty) {
-    localStorage.setItem(AUTOSAVE_KEY, JSON.stringify({
-      content:  editor.value,
-      filename: document.getElementById('filename-input').value,
-      savedAt:  new Date().toISOString()
+function persistWorkspace() {
+  clearTimeout(workspaceSaveTimer);
+  workspaceSaveTimer = null;
+  saveActiveTabState();
+  try {
+    // File System Access handles are intentionally omitted: they cannot be serialized.
+    localStorage.setItem(WORKSPACE_KEY, JSON.stringify({
+      version: 1,
+      activeTabId,
+      tabs: tabs.map(({ id, name, content, dirty, readonly }) => ({
+        id, name, content, dirty: Boolean(dirty), readonly: Boolean(readonly)
+      })),
+      savedAt: new Date().toISOString()
     }));
+    // Do not keep a stale legacy single-tab backup once workspace storage succeeds.
+    localStorage.removeItem(AUTOSAVE_KEY);
+  } catch (error) {
+    if (!storageWarningShown) {
+      storageWarningShown = true;
+      alert('Browser storage is unavailable or full. Download your files to avoid losing work.');
+    }
   }
-}, 30000);
+}
+
+function scheduleWorkspaceSave() {
+  clearTimeout(workspaceSaveTimer);
+  workspaceSaveTimer = setTimeout(persistWorkspace, 250);
+}
+
+function restoreWorkspace() {
+  try {
+    const raw = localStorage.getItem(WORKSPACE_KEY);
+    if (!raw) return false;
+    const data = JSON.parse(raw);
+    if (!data || !Array.isArray(data.tabs)) return false;
+    const seen = new Set();
+    const stored = data.tabs.filter(tab => {
+      if (!tab || !Number.isSafeInteger(tab.id) || tab.id < 1 ||
+          typeof tab.name !== 'string' || typeof tab.content !== 'string' ||
+          seen.has(tab.id)) return false;
+      seen.add(tab.id);
+      return true;
+    });
+    if (stored.length === 0) return false;
+    tabs = stored.map(tab => ({
+      id: tab.id, name: tab.name, content: tab.content,
+      handle: null, dirty: Boolean(tab.dirty), readonly: Boolean(tab.readonly)
+    }));
+    activeTabId = tabs.some(tab => tab.id === data.activeTabId)
+      ? data.activeTabId : tabs[0].id;
+    nextTabId = Math.max(...tabs.map(tab => tab.id)) + 1;
+    const active = getActiveTab();
+    editor.value = active.content;
+    editor.readOnly = active.readonly;
+    document.getElementById('filename-input').value = active.name;
+    fileHandle = null;
+    isDirty = active.dirty;
+    lastSavedContent = active.dirty ? '' : active.content;
+    seedMilestones(active.content.trim() === '' ? 0 : active.content.trim().split(/\s+/).length);
+    updateStats();
+    if (currentMode !== 'write') renderPreview();
+    renderTabs();
+    return true;
+  } catch (error) {
+    // A broken or blocked storage entry should not prevent the editor loading.
+    return false;
+  }
+}
+
+function markDirty() {
+  isDirty = true;
+  scheduleWorkspaceSave();
+}
+function markClean() {
+  isDirty = false;
+  lastSavedContent = editor.value;
+  scheduleWorkspaceSave();
+}
+
+// Debounced saves during typing, plus a synchronous save before the page is discarded.
+window.addEventListener('pagehide', persistWorkspace);
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden') persistWorkspace();
+});
 
 editor.addEventListener('input', () => {
   markDirty();
@@ -2899,7 +2985,9 @@ function restoreAutosave() {
 }
 
 window.addEventListener('beforeunload', e => {
-  if (isDirty && editor.value !== lastSavedContent) {
+  // All tabs are recoverable, but still warn when files have unsaved changes.
+  saveActiveTabState();
+  if (tabs.some(tab => tab.dirty)) {
     const filename = document.getElementById('filename-input').value || 'untitled';
     e.preventDefault();
     e.returnValue = 'Are you sure you want to close "' + filename + '" without saving?';
@@ -2914,7 +3002,8 @@ applyStatusBarVisibility();
 applyPlaceholderVisibility();
 updateStats();
 renderTabs();
-restoreAutosave();
+if (!restoreWorkspace()) restoreAutosave();
+persistWorkspace();
 editor.focus();
 
 // ── Welcome message ───────────────────────────────────────
