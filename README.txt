@@ -1,7 +1,7 @@
 LEAF: A MARKDOWN EDITOR
 Vibe coded by Dan (c) 2026 — https://github.com/uncle-jasper/leaf
 updated by lgg — https://github.com/lgg/leaf
-Version 1.7 (lgg fork)
+Version 1.8.0-lgg.1 (lgg fork; based on upstream v1.7)
 
 ================================================================================
 WHAT IS LEAF?
@@ -40,7 +40,19 @@ Open https://lgg.github.io/leaf/editor.html (fork) in Chrome or Edge.
 Original author: https://uncle-jasper.github.io/leaf/editor.html
 An install button will appear in the address bar or browser menu.
 Click it to install Leaf as a standalone app with its own window and icon.
-Once installed, Leaf works fully offline.
+Once installed, Leaf can run offline after the first successful online visit
+has registered and populated the service worker cache. If you use external
+Google Fonts, an offline fallback font may be displayed instead.
+
+OPTION 3 - Install on iPhone / iPad
+In Safari, open https://lgg.github.io/leaf/editor.html, use Share >
+Add to Home Screen and enable Open as Web App where offered. Open the
+installed Leaf app once while online before relying on offline access.
+
+OPTION 4 - Install on Android
+Open the same page in Chrome, then use the browser's Install app or
+Add to Home Screen command. Open it once online to pre-cache the editor.
+Some browsers offer only a shortcut rather than a standalone install.
 
 
 ================================================================================
@@ -224,6 +236,20 @@ storage quota failures, and other websites' storage cannot be controlled by Leaf
 CHANGELOG
 ================================================================================
 
+v1.8.0-lgg.1 — lgg fork (2026-11-19)
+  - Fork version now displayed consistently in About, README and changelog
+  - Proper PWA service-worker registration and Android/desktop install prompt
+  - Existing cache-first assets available offline after first online visit
+  - iPhone / iPad home screen installation and offline use documented
+  - Previous fork features: responsive settings, independent tab titles,
+    350ms/2s bounded autosave, multi-document recovery, ZIP Markdown export,
+    hidden status counters, black theme and four added fonts
+  - Original upstream release history below is preserved as supplied
+
+UPSTREAM BASELINE: v1.7 (uncle-jasper/leaf)
+  - Historical upstream changelog entries continue below; no upstream versions
+    have been renumbered in this fork.
+
 v1.5.4
   - Theme dropdown no longer collapses the toolbar when scrolling through
     options in autohide mode
@@ -375,7 +401,7 @@ FORK NOTES (lgg/leaf)
 - Original: Dan / https://github.com/uncle-jasper/leaf
 - updated by lgg / https://github.com/lgg/leaf
 
-When GitHub Pages is enabled for the main branch of this fork, open:
+The fork is published through GitHub Pages at:
 https://lgg.github.io/leaf/editor.html
 
 ================================================================================
