@@ -202,7 +202,8 @@ test('actual localStorage settings round-trip restores font, theme and hidden UI
     'hex-bg','hex-text','hex-accent',
     'chk-show-words','chk-show-placeholder','chk-show-chars',
     'chk-show-lines','chk-show-readtime','chk-show-cursor',
-    'btn-pin-tabs','btn-autohide','chk-crt','custom-colors','chk-smart-punct'
+    'btn-pin-tabs','btn-autohide','chk-crt','custom-colors','chk-smart-punct',
+    'chk-mobile-heading','chk-mobile-status','chk-mobile-autohide'
   ];
   const nodes = Object.fromEntries(ids.map(id => [id, {
     value:'', checked:true, style:{}, classList:{
@@ -217,7 +218,7 @@ test('actual localStorage settings round-trip restores font, theme and hidden UI
     "let autohideEnabled=false,tabBarPinned=false,scrollSynced=true,smartPunctEnabled=false;" +
     "function workspaceNotice(){} function applyCustomColors(){}" +
     "function updatePinIcon(){} function updateSyncIcon(){}" +
-    "function applyStatusBarVisibility(){} function syncThemeUI(){}";
+    "function applyStatusBarVisibility(){} function syncThemeUI(){} function applyMobilePreferences(){}";
   const settings = new Function('deps',init+source+';return {saveSettings,loadSettings};')({storage,document});
   nodes['theme-select'].value='black';
   nodes['settings-font-select'].value="'Open Sans', Arial, sans-serif";
@@ -228,6 +229,9 @@ test('actual localStorage settings round-trip restores font, theme and hidden UI
   nodes['chk-show-lines'].checked=false;
   nodes['chk-show-readtime'].checked=false;
   nodes['chk-show-cursor'].checked=false;
+  nodes['chk-mobile-heading'].checked=true;
+  nodes['chk-mobile-status'].checked=true;
+  nodes['chk-mobile-autohide'].checked=false;
   settings.saveSettings();
   assert.ok(data['leaf-editor-settings']);
   nodes['theme-select'].value='paper';
@@ -235,6 +239,9 @@ test('actual localStorage settings round-trip restores font, theme and hidden UI
   nodes['settings-font-size-select'].value='14';
   for (const id of ['chk-show-words','chk-show-placeholder','chk-show-chars',
     'chk-show-lines','chk-show-readtime','chk-show-cursor']) nodes[id].checked=true;
+  nodes['chk-mobile-heading'].checked=false;
+  nodes['chk-mobile-status'].checked=false;
+  nodes['chk-mobile-autohide'].checked=true;
   settings.loadSettings();
   assert.equal(nodes['theme-select'].value,'black');
   assert.equal(body.dataset.theme,'black');
@@ -244,6 +251,9 @@ test('actual localStorage settings round-trip restores font, theme and hidden UI
   assert.equal(nodes['chk-show-words'].checked,false);
   assert.equal(nodes['chk-show-placeholder'].checked,false);
   assert.equal(nodes['chk-show-cursor'].checked,false);
+  assert.equal(nodes['chk-mobile-heading'].checked,true);
+  assert.equal(nodes['chk-mobile-status'].checked,true);
+  assert.equal(nodes['chk-mobile-autohide'].checked,false);
 });
 
 test('settings order, responsive layout and unobtrusive backup control', () => {
@@ -359,7 +369,8 @@ test('all persisted settings keys are included in a saved preferences record', (
   const required=[
     'theme','font','fontSize','autohide','tabPinned','showWelcome','crtEnabled',
     'scrollSynced','customBg','customText','customAccent','smartPunct',
-    'showWords','showPlaceholder','showChars','showLines','showReadtime','showCursor'
+    'showWords','showPlaceholder','showChars','showLines','showReadtime','showCursor',
+    'mobileHeading','mobileStatus','mobileAutohide'
   ];
   assert.equal(required.every(key => Object.prototype.hasOwnProperty.call(saved,key)),true);
   assert.equal(saved.theme,'black');
@@ -420,14 +431,14 @@ test('valid custom HEX input saves the choice; invalid input does not', () => {
 
 test('GitHub Pages service worker prefers fresh HTML and keeps an offline fallback', () => {
   const sw=fs.readFileSync(path.join(__dirname,'..','sw.js'),'utf8');
-  assert.ok(sw.includes("const CACHE = 'leaf-lgg-v5'"));
+  assert.ok(sw.includes("const CACHE = 'leaf-lgg-v6'"));
   assert.ok(sw.includes("request.mode === 'navigate'"));
   assert.ok(sw.includes("fetch(request).then(response"));
   assert.ok(sw.includes("caches.match('./editor.html')"));
 });
 
 test('fork version matches README, changelog and visible About version', () => {
-  const version='1.8.0-lgg.1';
+  const version='1.9.0-lgg.1';
   const readme=fs.readFileSync(path.join(__dirname,'..','README.md'),'utf8');
   const history=fs.readFileSync(path.join(__dirname,'..','README.txt'),'utf8');
   const changelog=fs.readFileSync(path.join(__dirname,'..','CHANGELOG.md'),'utf8');
@@ -441,6 +452,167 @@ test('fork version matches README, changelog and visible About version', () => {
   const at=html.indexOf(marker)+marker.length;
   const end=html.indexOf(String.fromCharCode(96)+';',at);
   assert.equal(html.slice(at,end),history);
+});
+
+test('mobile markup is minimal, touch accessible and CSS overrides desktop', () => {
+  const mobileHtml=html.slice(html.indexOf('<div id="mobile-dock"'),
+    html.indexOf('<div id="workspace-warning"'));
+  assert.ok(mobileHtml.includes('id="mobile-dock-trigger"'));
+  assert.ok(mobileHtml.includes('aria-label="Show editing controls"'));
+  for(const id of ['mobile-action-documents','mobile-action-view','mobile-action-save',
+    'mobile-action-more','mobile-sheet-overlay','mobile-sheet-close']) {
+    assert.ok(mobileHtml.includes('id="'+id+'"'),id);
+  }
+  for(const id of ['chk-mobile-heading','chk-mobile-status','chk-mobile-autohide','settings-filename'])
+    assert.ok(html.includes('id="'+id+'"'),id);
+  const css=html.slice(html.indexOf('<style>'),html.indexOf('</style>'));
+  const mobileAt=css.indexOf('/* Mobile: the writing surface is the interface.');
+  const desktopSettingsAt=css.indexOf('#settings-modal {');
+  assert.ok(mobileAt > desktopSettingsAt, 'mobile CSS must override desktop settings');
+  assert.ok(css.includes('#header { display: none !important; }'));
+  assert.ok(css.includes('#mobile-dock.mobile-visible #mobile-controls'));
+  assert.ok(css.includes('body.mobile-show-heading #mobile-document-heading { display: block; }'));
+  assert.ok(css.includes('body.mobile-show-status #statusbar:not(.statusbar-empty)'));
+  assert.ok(css.includes('env(safe-area-inset-bottom'));
+  assert.ok(css.includes('max-width: 1366px'));
+  assert.ok(css.includes('min-height: 48px'));
+});
+
+test('mobile dock reveals by bottom tap, auto-hides and pauses in a sheet', () => {
+  const code=between('// ── Mobile writing mode: no permanent chrome',
+    '// ── Progressive Web App installation and offline cache');
+  const timers=new Map(), nodes={}, onWindow={}, onDoc={}, onVisual={};
+  const makeNode=(id='') => {
+    const classes=new Set(), listeners={};
+    const node={
+      id, style:{setProperty(k,v){this[k]=v}},hidden:false,value:'',textContent:'',checked:false,children:[],
+      classList:{
+        add:k=>classes.add(k),remove:k=>classes.delete(k),contains:k=>classes.has(k),
+        toggle:(k,on)=>{if(on===undefined ? !classes.has(k) : on) classes.add(k);else classes.delete(k)}
+      },
+      setAttribute(k,v){this[k]=v},
+      addEventListener(k,fn){listeners[k]=fn},
+      dispatch(k,event={}){return listeners[k]?.(event)},
+      appendChild(child){this.children.push(child);return child},
+      append(...children){this.children.push(...children)},
+      replaceChildren(...children){this.children=children},
+      querySelector(sel){return makeNode(sel)},
+      focus(){},
+      blur(){if(id==='editor') doc.activeElement=null;},
+    };
+    return node;
+  };
+  const getNode=id => nodes[id]||(nodes[id]=makeNode(id));
+  const body=makeNode('body');
+  const editor=makeNode('editor');
+  const doc={
+    body,activeElement:null,
+    getElementById:getNode,
+    createElement:tag=>makeNode(tag),
+    addEventListener:(name,fn)=>{onDoc[name]=fn},
+  };
+  const win={
+    innerHeight:750,
+    matchMedia:()=>({matches:true}),
+    visualViewport:{height:750,addEventListener:(name,fn)=>{onVisual[name]=fn}},
+    addEventListener:(name,fn)=>{onWindow[name]=fn}
+  };
+  getNode('chk-mobile-autohide').checked=true;
+  getNode('mobile-sheet-overlay').hidden=true;
+  getNode('mobile-action-view').querySelector=()=>getNode('mobile-view-label');
+  getNode('mobile-dock').classList.remove('mobile-visible');
+  let pendingId=0;
+  const setTimer=(fn,ms)=>{const id=++pendingId;timers.set(id,{fn,ms});return id};
+  const clearTimer=id=>timers.delete(id);
+  const setup=
+    "const window=deps.win,document=deps.doc,editor=deps.editor;" +
+    "let mobileSheetState=null,mobileDockTimer=null,mobileFullViewportHeight=0,mobileKeyboardVisible=false;" +
+    "let currentMode='write',activeTabId=1,focusActive=false,justWriteActive=false;" +
+    "let tabs=[{id:1,name:'first.md',content:'Hello',dirty:false},{id:2,name:'second.md',content:'Second',dirty:false}];" +
+    "const setTimeout=deps.setTimer,clearTimeout=deps.clearTimer;" +
+    "function saveSettings(){} function closeTab(){} function saveFile(){}" +
+    "function getActiveTab(){return tabs.find(t=>t.id===activeTabId)}" +
+    "function switchTab(id){activeTabId=id;} function newTab(){}" +
+    "function setMode(mode){currentMode=mode;updateMobileModeButton()}" +
+    "function exportAllMarkdown(){} function enterFocus(){} function exitFocus(){}";
+  const api=new Function('deps',setup+code+
+    ';return {setMobileDockVisible,showMobileSheet,closeMobileSheet,applyMobilePreferences,updateMobileKeyboardVisibility};')({
+      win,doc,editor,setTimer,clearTimer
+    });
+  assert.equal(getNode('mobile-dock').classList.contains('mobile-visible'),false);
+  getNode('mobile-dock-trigger').dispatch('click');
+  assert.equal(getNode('mobile-dock').classList.contains('mobile-visible'),true);
+  assert.equal(getNode('mobile-dock-trigger')['aria-expanded'],'true');
+  const job=[...timers.values()].find(x=>x.ms===4200);
+  assert.ok(job,'dock should close after idle delay');
+  job.fn();
+  assert.equal(getNode('mobile-dock').classList.contains('mobile-visible'),false);
+
+  getNode('mobile-dock-trigger').dispatch('click');
+  getNode('mobile-action-documents').dispatch('click');
+  assert.equal(getNode('mobile-sheet-overlay').hidden,false);
+  assert.equal(getNode('mobile-sheet-title').textContent,'Documents');
+  assert.equal(getNode('mobile-dock').classList.contains('mobile-visible'),false);
+  assert.ok(getNode('mobile-sheet-content').children.length>=3);
+  getNode('mobile-sheet-close').dispatch('click');
+  assert.equal(getNode('mobile-sheet-overlay').hidden,true);
+  getNode('mobile-action-more').dispatch('click');
+  assert.equal(getNode('mobile-sheet-title').textContent,'Actions');
+  assert.equal(getNode('mobile-sheet-content').children.length,5);
+  getNode('mobile-sheet-close').dispatch('click');
+  getNode('chk-mobile-autohide').checked=false;
+  api.applyMobilePreferences();
+  assert.equal(getNode('mobile-dock').classList.contains('mobile-visible'),true);
+  assert.equal([...timers.values()].some(x=>x.ms===4200),false);
+  doc.activeElement=editor;
+  win.visualViewport.height=400;
+  onVisual.resize();
+  assert.equal(body.classList.contains('mobile-keyboard-open'),true);
+  assert.equal(getNode('mobile-dock').classList.contains('mobile-visible'),false);
+  assert.equal(getNode('mobile-dock').style['--leaf-keyboard-bottom'],'350px');
+  getNode('mobile-dock-trigger').dispatch('click');
+  assert.equal(body.classList.contains('mobile-keyboard-open'),false);
+  const reveal=[...timers.values()].find(x=>x.ms===180);
+  assert.ok(reveal,'tap-to-dismiss should reveal the dock');
+  reveal.fn();
+  assert.equal(getNode('mobile-dock').classList.contains('mobile-visible'),true);
+  win.visualViewport.height=750;
+  onVisual.resize();
+  assert.equal(body.classList.contains('mobile-keyboard-open'),false);
+  assert.equal(getNode('mobile-dock').classList.contains('mobile-visible'),true);
+});
+
+test('mobile filename can be edited without desktop filename field visible', () => {
+  const listenerMarker="document.getElementById('settings-filename').addEventListener('input', event => {";
+  const source=between(listenerMarker,
+    "for (const [id, property] of [['settings-tab-label','label']");
+  const input={value:'',listener:null,addEventListener(event,fn){this.listener=fn}};
+  const desktop={value:'untitled.txt'};
+  const tab={id:1,name:'untitled.txt'};
+  const elements={'settings-filename':input,'filename-input':desktop};
+  let renders=0, saves=0;
+  const prefix=
+    "const document={getElementById:id=>deps.elements[id]};" +
+    "function getActiveTab(){return deps.tab}" +
+    "function renderTabs(){deps.renders.count++;deps.elements['settings-filename'].value=deps.tab.name}" +
+    "function scheduleWorkspaceSave(){deps.saves.count++}";
+  const renderCount={count:0}, saveCount={count:0};
+  new Function('deps',prefix+source)(
+    {elements,tab,renders:renderCount,saves:saveCount});
+  input.value='my-notes.md';
+  input.listener({target:input});
+  assert.equal(tab.name,'my-notes.md');
+  assert.equal(desktop.value,'my-notes.md');
+  assert.equal(saveCount.count,1);
+  input.value='';
+  input.listener({target:input});
+  assert.equal(tab.name,'untitled.md');
+  assert.equal(input.value,''); // Do not trap users by replacing the field while typing.
+  input.value='work.md';
+  input.listener({target:input});
+  assert.equal(tab.name,'work.md');
+  assert.equal(desktop.value,'work.md');
+  assert.equal(renderCount.count,3);
 });
 
 test('PWA manifest exposes stable app identity, standalone scope and valid icons', () => {

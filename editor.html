@@ -642,6 +642,7 @@
     .color-pair span { display: none; }
   }
 
+
   /* ── Cage easter egg ── */
   #cage-overlay {
     position: fixed;
@@ -838,7 +839,7 @@
     background: var(--surface);
     outline-offset: 2px;
   }
-  #settings-tab-label, #settings-browser-title {
+  #settings-filename, #settings-tab-label, #settings-browser-title {
     min-width: 0;
     flex: 1;
     width: 160px;
@@ -997,6 +998,214 @@
     border-radius: 5px;
     color: var(--muted);
   }
+  .mobile-settings-label {
+    margin: 16px 0 10px;
+    font-size: 10px; font-weight: 600;
+    color: var(--muted);
+    opacity: .8;
+    text-transform: uppercase;
+    letter-spacing: .07em;
+  }
+
+  /* Mobile: the writing surface is the interface. All controls appear on demand
+     at the bottom and disappear again. Desktop styles remain unchanged. */
+  #mobile-document-heading, #mobile-dock, #mobile-sheet-overlay { display: none; }
+  #mobile-document-heading { flex-shrink: 0; }
+  #mobile-document-heading span { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #mobile-dock { z-index: 1500; }
+  #mobile-sheet-overlay[hidden] { display: none !important; }
+  #mobile-dock-trigger { touch-action: manipulation; }
+  #mobile-controls { display: flex; }
+  .mobile-control-button { display: flex; flex-direction: column; justify-content: center; align-items: center; }
+  .mobile-control-button .mobile-icon { font-size: 19px; font-weight: 400; line-height: 1.15; }
+  .mobile-control-button .mobile-control-text { font-size: 10px; letter-spacing: 0.01em; }
+  .mobile-sheet-button { text-align: left; }
+  .mobile-sheet-button[disabled] { opacity: .35; }
+
+  @media (max-width: 780px), (pointer: coarse) and (max-width: 1366px) {
+    body { height: 100dvh; min-height: 0; }
+    #header { display: none !important; }
+    #mobile-document-heading {
+      display: none;
+      width: 100%;
+      min-width: 0;
+      padding: calc(10px + env(safe-area-inset-top, 0px))
+               calc(18px + env(safe-area-inset-right, 0px)) 9px
+               calc(18px + env(safe-area-inset-left, 0px));
+      background: var(--bg);
+      font-family: 'JetBrains Mono', monospace;
+      pointer-events: none;
+      border-bottom: 1px solid var(--border);
+    }
+    body.mobile-show-heading #mobile-document-heading { display: block; }
+    #mobile-heading-label { font-size: 12px; color: var(--text); opacity: .78; }
+    #mobile-heading-file { font-size: 10px; color: var(--muted); margin-top: 3px; }
+    #main { min-height: 0; }
+    #editor-scroll {
+      padding: 0 calc(16px + env(safe-area-inset-right, 0px))
+               calc(62px + env(safe-area-inset-bottom, 0px))
+               calc(16px + env(safe-area-inset-left, 0px));
+      min-width: 0;
+      overscroll-behavior: contain;
+    }
+    #editor {
+      padding-top: 16px;
+      font-size: max(16px, var(--font-size));
+      width: 100%;
+      min-width: 0;
+      line-height: 1.65;
+    }
+    #preview {
+      min-width: 0;
+      padding: 16px calc(16px + env(safe-area-inset-right, 0px))
+               calc(72px + env(safe-area-inset-bottom, 0px))
+               calc(16px + env(safe-area-inset-left, 0px));
+      overflow-wrap: anywhere;
+    }
+    body.split-mode #split-divider { display: none !important; }
+    #statusbar { display: none !important; }
+    body.mobile-show-status #statusbar:not(.statusbar-empty) {
+      display: flex !important;
+      padding-bottom: calc(5px + env(safe-area-inset-bottom, 0px));
+      flex-wrap: wrap;
+      gap: 4px;
+    }
+    body.mobile-show-status #welcome-msg { display: none; }
+    #mobile-dock {
+      display: block;
+      position: fixed;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      padding: 0 12px calc(8px + env(safe-area-inset-bottom, 0px));
+      pointer-events: none;
+      z-index: 1500;
+    }
+    #mobile-dock-trigger {
+      display: block;
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      height: calc(44px + env(safe-area-inset-bottom, 0px));
+      border: 0;
+      padding: 0;
+      opacity: 0;
+      pointer-events: auto;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+    }
+    #mobile-dock.mobile-visible #mobile-dock-trigger { display: none; }
+    #mobile-controls {
+      width: max-content;
+      max-width: 100%;
+      margin: 0 auto;
+      gap: 3px;
+      padding: 6px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      border-radius: 17px;
+      box-shadow: 0 6px 26px rgba(0,0,0,.18);
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+      transform: translateY(calc(100% + 26px));
+      transition: opacity .18s ease, transform .18s ease, visibility .18s;
+    }
+    #mobile-dock.mobile-visible #mobile-controls {
+      opacity: 1;
+      visibility: visible;
+      pointer-events: auto;
+      transform: translateY(0);
+    }
+    .mobile-control-button {
+      min-height: 48px;
+      min-width: 60px;
+      flex: 1 1 0;
+      gap: 1px;
+      padding: 5px 7px;
+      color: var(--text);
+      font: 12px 'JetBrains Mono', monospace;
+      border: none;
+      border-radius: 11px;
+      background: transparent;
+      touch-action: manipulation;
+    }
+    .mobile-control-button:active, .mobile-control-button:focus-visible { background: var(--border); }
+    /* While typing the dock itself stays hidden. The invisible bottom
+       tap zone remains reachable just ABOVE the software keyboard. */
+    body.mobile-keyboard-open #mobile-dock {
+      display: block;
+      bottom: var(--leaf-keyboard-bottom, 0px);
+    }
+    body.mobile-keyboard-open #mobile-controls { display: none !important; }
+    body.mobile-keyboard-open #mobile-dock-trigger { display: block; }
+    #mobile-sheet-overlay {
+      position: fixed;
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+      inset: 0;
+      z-index: 1800;
+      background: rgba(0,0,0,.38);
+      padding: 0;
+    }
+    #mobile-sheet {
+      width: 100%;
+      max-width: 580px;
+      max-height: min(82dvh, 740px);
+      display: flex;
+      flex-direction: column;
+      padding: 16px 18px calc(14px + env(safe-area-inset-bottom, 0px));
+      border: 1px solid var(--border);
+      border-bottom: 0;
+      border-radius: 18px 18px 0 0;
+      background: var(--surface);
+      color: var(--text);
+      box-shadow: 0 -10px 28px rgba(0,0,0,.14);
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .mobile-sheet-heading {
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 12px; min-height: 40px; margin-bottom: 10px;
+    }
+    #mobile-sheet-title { font-size: 13px; font-weight: 600; }
+    #mobile-sheet-close { font-size: 21px; padding: 6px 12px; min-width: 44px; min-height: 44px; }
+    #mobile-sheet-content { overflow-y: auto; overscroll-behavior: contain; min-height: 0; }
+    .mobile-doc-row {
+      display: flex; align-items: center; min-height: 58px;
+      gap: 6px; border-bottom: 1px solid var(--border);
+    }
+    .mobile-doc-open {
+      min-width: 0; flex: 1; text-align: left; padding: 9px 6px;
+      white-space: normal; font-size: 13px;
+      overflow-wrap: anywhere;
+    }
+    .mobile-doc-open span { display: block; color: var(--muted); font-size: 10px; margin-top: 4px; }
+    .mobile-doc-row.active .mobile-doc-open { font-weight: 600; }
+    .mobile-doc-close {
+      width: 44px; height: 44px; flex-shrink: 0;
+      font-size: 19px; color: var(--muted);
+    }
+    .mobile-sheet-button {
+      display: block; width: 100%; min-height: 48px;
+      border-bottom: 1px solid var(--border); padding: 10px 8px;
+      border-radius: 0; font: 12px 'JetBrains Mono', monospace;
+      white-space: normal;
+    }
+    .mobile-sheet-button:last-child { border-bottom: 0; }
+    #settings-overlay, #about-overlay { align-items: flex-end !important; }
+    #settings-modal, #about-modal {
+      width: 100%; max-width: 580px; min-width: 0;
+      max-height: 88dvh; overflow-y: auto;
+      border-radius: 17px 17px 0 0;
+      padding: 30px 18px calc(20px + env(safe-area-inset-bottom, 0px));
+      overscroll-behavior: contain;
+    }
+    #settings-modal input[type="checkbox"] { min-width: 17px; min-height: 17px; }
+    #settings-modal .settings-row { min-height: 31px; }
+  }
+
 </style>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Inconsolata:wght@400;500&family=Share+Tech+Mono&family=Roboto+Mono:wght@400;500&family=Open+Sans:wght@400;500&display=swap" rel="stylesheet">
 </head>
@@ -1056,6 +1265,11 @@
 </div>
 </div><!-- /#header -->
 
+<div id="mobile-document-heading" aria-live="polite">
+  <span id="mobile-heading-label"></span>
+  <span id="mobile-heading-file"></span>
+</div>
+
 <div id="main">
   <div id="editor-scroll">
     <textarea id="editor" spellcheck="true" autocorrect="on" autocapitalize="sentences" placeholder="Start writing… markdown is supported."></textarea>
@@ -1081,6 +1295,26 @@
     <span id="cursor-pos">ln 1, col 1</span>
   </div>
 </div>
+<!-- Touch-only controls: invisible bottom hit area reveals an auto-hiding dock. -->
+<div id="mobile-dock" aria-label="Mobile editor toolbar">
+  <button type="button" id="mobile-dock-trigger" aria-label="Show editing controls" aria-expanded="false"></button>
+  <nav id="mobile-controls" aria-label="Editor actions">
+    <button type="button" id="mobile-action-documents" class="mobile-control-button" aria-label="Documents"><span class="mobile-icon" aria-hidden="true">▤</span><span class="mobile-control-text">docs</span></button>
+    <button type="button" id="mobile-action-view" class="mobile-control-button" aria-label="Show preview"><span class="mobile-icon" aria-hidden="true">◧</span><span class="mobile-control-text">view</span></button>
+    <button type="button" id="mobile-action-save" class="mobile-control-button" aria-label="Save document"><span class="mobile-icon" aria-hidden="true">↓</span><span class="mobile-control-text">save</span></button>
+    <button type="button" id="mobile-action-more" class="mobile-control-button" aria-label="More editor actions"><span class="mobile-icon" aria-hidden="true">···</span><span class="mobile-control-text">more</span></button>
+  </nav>
+</div>
+<div id="mobile-sheet-overlay" hidden>
+  <section id="mobile-sheet" role="dialog" aria-modal="true" aria-labelledby="mobile-sheet-title">
+    <div class="mobile-sheet-heading">
+      <h2 id="mobile-sheet-title">Documents</h2>
+      <button type="button" id="mobile-sheet-close" aria-label="Close menu">×</button>
+    </div>
+    <div id="mobile-sheet-content"></div>
+  </section>
+</div>
+
 <div id="workspace-warning" role="alert" hidden></div>
 
 <!-- Cage Easter Egg -->
@@ -1093,6 +1327,10 @@
     <button id="btn-settings-close" title="Close" aria-label="Close settings">×</button>
     <div class="settings-section">
       <h3>Current document</h3>
+      <div class="settings-row settings-document-row">
+        <label for="settings-filename">file name</label>
+        <input id="settings-filename" type="text" placeholder="untitled.md" autocomplete="off" spellcheck="false" title="Markdown filename for save and export">
+      </div>
       <div class="settings-row settings-document-row">
         <label for="settings-tab-label">tab label</label>
         <input id="settings-tab-label" type="text" placeholder="Same as filename" autocomplete="off" spellcheck="false" title="Label of the tab inside Leaf">
@@ -1212,6 +1450,19 @@
         <input type="checkbox" id="chk-smart-punct">
         <label for="chk-smart-punct">smart punctuation</label>
       </div>
+      <h4 class="mobile-settings-label">Mobile display</h4>
+      <div class="settings-row">
+        <input type="checkbox" id="chk-mobile-heading">
+        <label for="chk-mobile-heading">show document title at top</label>
+      </div>
+      <div class="settings-row">
+        <input type="checkbox" id="chk-mobile-status">
+        <label for="chk-mobile-status">show status bar on phone</label>
+      </div>
+      <div class="settings-row">
+        <input type="checkbox" id="chk-mobile-autohide" checked>
+        <label for="chk-mobile-autohide">auto-hide bottom controls</label>
+      </div>
     </div>
 
   </div>
@@ -1227,7 +1478,7 @@
     <p class="about-credit">Vibe coded by <a href="https://github.com/uncle-jasper" target="_blank" rel="noopener noreferrer">Dan</a> · <a href="https://github.com/uncle-jasper/leaf" target="_blank" rel="noopener noreferrer">original repository</a></p>
     <p class="about-credit">updated by <a href="https://github.com/lgg" target="_blank" rel="noopener noreferrer">lgg</a> · <a href="https://github.com/lgg/leaf" target="_blank" rel="noopener noreferrer">fork repository</a></p>
     <p class="about-copy">© 2026</p>
-    <p class="about-version"><span style="font-size:13px;">v1.8.0-lgg.1</span> · <a href="#" onclick="openReadmeTab(); return false;" style="font-size:11px; color:var(--accent); opacity:0.7; text-decoration:none;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.7'">changelog</a></p>
+    <p class="about-version"><span style="font-size:13px;">v1.9.0-lgg.1</span> · <a href="#" onclick="openReadmeTab(); return false;" style="font-size:11px; color:var(--accent); opacity:0.7; text-decoration:none;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.7'">changelog</a></p>
     <p style="margin-top:4px; font-size:11px;"><a href="https://buymeacoffee.com/dandanmian" target="_blank" style="color:var(--accent); opacity:0.7; text-decoration:none;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.7'">☕ buy me a coffee</a></p>
   </div>
 </div>
@@ -1236,7 +1487,7 @@
 const README_CONTENT = `LEAF: A MARKDOWN EDITOR
 Vibe coded by Dan (c) 2026 — https://github.com/uncle-jasper/leaf
 updated by lgg — https://github.com/lgg/leaf
-Version 1.8.0-lgg.1 (lgg fork; based on upstream v1.7)
+Version 1.9.0-lgg.1 (lgg fork; based on upstream v1.7)
 
 ================================================================================
 WHAT IS LEAF?
@@ -1288,6 +1539,26 @@ OPTION 4 - Install on Android
 Open the same page in Chrome, then use the browser's Install app or
 Add to Home Screen command. Open it once online to pre-cache the editor.
 Some browsers offer only a shortcut rather than a standalone install.
+
+MOBILE WRITING MODE
+On phones and touch tablets (up to 1366 CSS px wide), Leaf hides the desktop
+toolbar and tabs automatically. By default, only the writing surface is shown.
+
+  - Tap the invisible area at the BOTTOM of the screen to reveal the dock.
+  - The dock provides: Documents, Write/Preview, Save, and More actions.
+  - After about 4 seconds with no action, the dock automatically hides.
+  - Documents opens a bottom sheet for switching, creating or closing tabs.
+  - More includes opening a file, exporting Markdown ZIP, settings, and About.
+  - The dock stays clear of the on-screen keyboard while typing.
+  - The optional top document title and mobile status bar are OFF by default.
+  - Settings > Editor > Mobile display can show either of them and disable
+    automatic dock hiding to keep the bottom controls visible all the time.
+  - Settings > Current document includes a filename field so mobile users
+    can edit the saved Markdown filename independently from document labels.
+
+There is no account, cloud synchronization or automatic transfer between
+mobile, web and desktop. Use Markdown export for durable copies of drafts.
+Remote fonts can fall back to bundled/system fonts when completely offline.
 
 
 ================================================================================
@@ -1456,12 +1727,15 @@ Write 500 words to earn your freedom early.
 SETTINGS — FORK UPDATE
 ================================================================================
 
-Settings open with Ctrl+, or the "settings" toolbar control. Section order:
+On desktop, settings open with Ctrl+, or the "settings" toolbar control.
+On phones/tablets, tap the bottom edge > More > Settings.
+Section order:
   1. Current document — in-app tab label, browser tab title and recovery
      action (only when a backup exists)
   2. Appearance — themes, custom colors, fonts and font size
   3. Status bar — five independent visibility toggles
-  4. Editor — writing hint, status messages and smart punctuation
+  4. Editor — writing hint, status messages, smart punctuation and three
+     mobile display toggles (heading, status bar, auto-hide dock)
 
 Each setting is saved in the browser-local "leaf-editor-settings" localStorage
 entry. Draft workspaces use a separate key. Browser cleanup, incognito mode,
@@ -1470,6 +1744,15 @@ storage quota failures, and other websites' storage cannot be controlled by Leaf
 ================================================================================
 CHANGELOG
 ================================================================================
+
+v1.9.0-lgg.1 — lgg fork (2026-11-19)
+  - Minimal phone and touch-tablet editor with no permanent top toolbar or tabs
+  - Invisible bottom tap area to reveal a one-handed action dock; auto-hide
+  - Touch-friendly bottom sheets for documents and additional actions
+  - Keyboard-aware bottom controls and safe-area padding for iOS/Android
+  - Optional document heading, status bar and auto-hide mode, all persisted
+  - Editable filename in settings for mobile file export
+  - Kept full desktop interface unchanged
 
 v1.8.0-lgg.1 — lgg fork (2026-11-19)
   - Fork version now displayed consistently in About, README and changelog
@@ -1633,6 +1916,7 @@ FORK NOTES (lgg/leaf)
 - ZIP export of multiple Markdown files (issue #1).
 - Independent internal/browser tab names per document (issue #2).
 - Additional fonts: Roboto Mono, Open Sans, Times New Roman and Arial.
+- Mobile full-screen writing and touch-accessible bottom controls (v1.9.0-lgg.1).
 - Original: Dan / https://github.com/uncle-jasper/leaf
 - updated by lgg / https://github.com/lgg/leaf
 
@@ -1856,6 +2140,8 @@ function applyScrollPct(el, pct) {
 }
 
 function setMode(mode) {
+  // A narrow touch viewport cannot support side-by-side editing.
+  if (isLeafMobile() && mode === 'split') mode = 'preview';
   const scroll = document.getElementById('editor-scroll');
   const editorEl = document.getElementById('editor');
 
@@ -1892,6 +2178,7 @@ function setMode(mode) {
     renderPreview();
     setTimeout(() => applyScrollPct(preview, globalScrollPct), 30);
   }
+  updateMobileModeButton();
 }
 
 document.getElementById('mode-select').addEventListener('change', function() {
@@ -2934,6 +3221,9 @@ function saveSettings() {
     showLines:    document.getElementById('chk-show-lines').checked,
     showReadtime: document.getElementById('chk-show-readtime').checked,
     showCursor:   document.getElementById('chk-show-cursor').checked,
+    mobileHeading: document.getElementById('chk-mobile-heading').checked,
+    mobileStatus: document.getElementById('chk-mobile-status').checked,
+    mobileAutohide: document.getElementById('chk-mobile-autohide').checked,
   }));
   } catch (error) {
     workspaceNotice('Browser storage is unavailable. These settings might not survive a reload.');
@@ -3018,6 +3308,10 @@ function loadSettings() {
     if (s.showCursor === false) {
       document.getElementById('chk-show-cursor').checked = false;
     }
+    if (s.mobileHeading === true) document.getElementById('chk-mobile-heading').checked = true;
+    if (s.mobileStatus === true) document.getElementById('chk-mobile-status').checked = true;
+    if (s.mobileAutohide === false) document.getElementById('chk-mobile-autohide').checked = false;
+    applyMobilePreferences();
     applyStatusBarVisibility();
     syncThemeUI();
   } catch(error) {
@@ -3034,6 +3328,10 @@ document.getElementById('chk-smart-punct').addEventListener('change', function()
 });
 
 // ── Tab management ───────────────────────────────────────────────────
+let mobileSheetState = null;
+let mobileDockTimer = null;
+let mobileFullViewportHeight = 0;
+let mobileKeyboardVisible = false;
 let tabs = [
   { id: 1, name: 'untitled.txt', content: '', handle: null, dirty: false }
 ];
@@ -3075,6 +3373,7 @@ function renderTabs() {
     list.appendChild(el);
   });
   syncDocumentTitles();
+  renderMobileDocuments();
 }
 
 function syncDocumentTitles() {
@@ -3083,9 +3382,25 @@ function syncDocumentTitles() {
   document.title = tab.browserTitle || tab.name + ' — Leaf';
   const label = document.getElementById('settings-tab-label');
   const browser = document.getElementById('settings-browser-title');
+  const filename = document.getElementById('settings-filename');
   if (label.value !== (tab.label || '')) label.value = tab.label || '';
   if (browser.value !== (tab.browserTitle || '')) browser.value = tab.browserTitle || '';
+  if (filename.value !== tab.name) filename.value = tab.name;
+  document.getElementById('mobile-heading-label').textContent = tab.label || tab.name;
+  document.getElementById('mobile-heading-file').textContent = tab.name;
 }
+
+document.getElementById('settings-filename').addEventListener('input', event => {
+  const tab = getActiveTab();
+  if (!tab) return;
+  const typedName = event.target.value;
+  tab.name = typedName || 'untitled.md';
+  document.getElementById('filename-input').value = tab.name;
+  renderTabs();
+  // Keep an empty field editable until blur; it still saves as untitled.md.
+  event.target.value = typedName;
+  scheduleWorkspaceSave();
+});
 
 for (const [id, property] of [['settings-tab-label','label'],['settings-browser-title','browserTitle']]) {
   document.getElementById(id).addEventListener('input', event => {
@@ -3461,6 +3776,7 @@ window.addEventListener('beforeunload', e => {
 
 // ── Init ──────────────────────────────────────────────────
 loadSettings();
+applyMobilePreferences();
 syncThemeUI();
 applyStatusBarVisibility();
 applyPlaceholderVisibility();
@@ -3471,7 +3787,7 @@ if (!restoreWorkspace()) {
   if (!backups.length || !restoreWorkspace(backups[0].raw)) restoreAutosave();
 }
 persistWorkspace();
-editor.focus();
+if (!isLeafMobile()) editor.focus();
 
 // ── Welcome message ───────────────────────────────────────
 (function() {
@@ -3638,6 +3954,248 @@ function triggerCage() {
   }, finaleAt);
 }
 
+
+
+// ── Mobile writing mode: no permanent chrome, one-handed controls ─────
+// This media query matches compact windows and touch tablets. The desktop
+// editor's toolbar, focus mode, settings and keyboard shortcuts remain intact.
+function isLeafMobile() {
+  return window.matchMedia('(max-width: 780px), (pointer: coarse) and (max-width: 1366px)').matches;
+}
+
+function updateMobileModeButton() {
+  const button = document.getElementById('mobile-action-view');
+  if (!button) return;
+  const editing = currentMode !== 'preview';
+  button.querySelector('.mobile-control-text').textContent = editing ? 'preview' : 'write';
+  button.setAttribute('aria-label', editing ? 'Preview Markdown' : 'Return to writing');
+}
+
+function setMobileDockVisible(visible) {
+  const dock = document.getElementById('mobile-dock');
+  const trigger = document.getElementById('mobile-dock-trigger');
+  const show = Boolean(visible && isLeafMobile() && !mobileKeyboardVisible);
+  dock.classList.toggle('mobile-visible', show);
+  trigger.setAttribute('aria-expanded', String(show));
+  clearTimeout(mobileDockTimer);
+  mobileDockTimer = null;
+  if (show && !mobileSheetState && document.getElementById('chk-mobile-autohide').checked) {
+    mobileDockTimer = setTimeout(() => setMobileDockVisible(false), 4200);
+  }
+}
+
+function hideMobileDock() {
+  setMobileDockVisible(false);
+}
+function finishMobileAction() {
+  if (document.getElementById('chk-mobile-autohide').checked) hideMobileDock();
+  else setMobileDockVisible(true);
+}
+
+function applyMobilePreferences() {
+  const body = document.body;
+  body.classList.toggle('mobile-show-heading', document.getElementById('chk-mobile-heading').checked);
+  body.classList.toggle('mobile-show-status', document.getElementById('chk-mobile-status').checked);
+  const alwaysShow = !document.getElementById('chk-mobile-autohide').checked;
+  if (isLeafMobile() && alwaysShow && !mobileKeyboardVisible && !mobileSheetState) {
+    setMobileDockVisible(true);
+  } else if (document.getElementById('chk-mobile-autohide').checked || !isLeafMobile()) {
+    hideMobileDock();
+  }
+}
+
+['chk-mobile-heading', 'chk-mobile-status', 'chk-mobile-autohide'].forEach(id => {
+  document.getElementById(id).addEventListener('change', () => {
+    applyMobilePreferences();
+    saveSettings();
+  });
+});
+
+// No CSS pseudo-button is necessary: the transparent 44px tap target exposes
+// real, keyboard-accessible buttons, without a permanent handle on the page.
+document.getElementById('mobile-dock-trigger').addEventListener('click', () => {
+  if (mobileKeyboardVisible) {
+    // One tap above the keyboard exits typing and reveals the dock, so an
+    // iPhone user never needs a hardware Escape/Back key to reach menus.
+    editor.blur();
+    mobileKeyboardVisible = false;
+    document.body.classList.remove('mobile-keyboard-open');
+    setTimeout(() => setMobileDockVisible(true), 180);
+    return;
+  }
+  setMobileDockVisible(true);
+});
+
+function closeMobileSheet() {
+  mobileSheetState = null;
+  document.getElementById('mobile-sheet-overlay').hidden = true;
+  document.getElementById('mobile-sheet-content').replaceChildren();
+  if (!document.getElementById('chk-mobile-autohide').checked) {
+    setMobileDockVisible(true);
+  } else {
+    hideMobileDock();
+  }
+}
+
+function makeMobileSheetButton(text, onClick, disabled = false) {
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = 'mobile-sheet-button';
+  button.textContent = text;
+  button.disabled = disabled;
+  button.addEventListener('click', onClick);
+  return button;
+}
+
+function renderMobileDocuments() {
+  if (mobileSheetState !== 'docs') return;
+  const content = document.getElementById('mobile-sheet-content');
+  content.replaceChildren();
+  const add = makeMobileSheetButton('＋  New document', () => {
+    closeMobileSheet();
+    newTab();
+    finishMobileAction();
+  });
+  content.appendChild(add);
+  tabs.forEach(tab => {
+    const row = document.createElement('div');
+    row.className = 'mobile-doc-row' + (tab.id === activeTabId ? ' active' : '');
+    const select = document.createElement('button');
+    select.type = 'button';
+    select.className = 'mobile-doc-open';
+    select.textContent = (tab.label || tab.name) + (tab.dirty ? '  ·' : '');
+    const filename = document.createElement('span');
+    filename.textContent = tab.name;
+    select.appendChild(filename);
+    select.addEventListener('click', () => {
+      const id = tab.id;
+      closeMobileSheet();
+      if (id !== activeTabId) switchTab(id);
+      else editor.focus();
+      finishMobileAction();
+    });
+    const close = document.createElement('button');
+    close.type = 'button';
+    close.className = 'mobile-doc-close';
+    close.textContent = '×';
+    close.title = 'Close ' + (tab.label || tab.name);
+    close.setAttribute('aria-label', 'Close ' + (tab.label || tab.name));
+    close.addEventListener('click', async () => {
+      await closeTab(tab.id);
+      renderMobileDocuments();
+    });
+    row.append(select, close);
+    content.appendChild(row);
+  });
+}
+
+function showMobileSheet(which) {
+  if (!isLeafMobile()) return;
+  mobileSheetState = which;
+  hideMobileDock();
+  document.getElementById('mobile-sheet-overlay').hidden = false;
+  document.getElementById('mobile-sheet-title').textContent =
+    which === 'docs' ? 'Documents' : 'Actions';
+  const content = document.getElementById('mobile-sheet-content');
+  if (which === 'docs') {
+    renderMobileDocuments();
+  } else {
+    content.replaceChildren();
+    content.appendChild(makeMobileSheetButton('Open Markdown file', () => {
+      closeMobileSheet();
+      document.getElementById('file-open').click();
+    }));
+    content.appendChild(makeMobileSheetButton('Export all as Markdown ZIP', () => {
+      closeMobileSheet();
+      exportAllMarkdown();
+    }));
+    content.appendChild(makeMobileSheetButton('Settings and document names', () => {
+      closeMobileSheet();
+      document.getElementById('btn-settings').click();
+    }, justWriteActive));
+    content.appendChild(makeMobileSheetButton(
+      focusActive ? 'Exit focus mode' : 'Enter focus mode',
+      () => { closeMobileSheet(); focusActive ? exitFocus() : enterFocus(); }
+    ));
+    content.appendChild(makeMobileSheetButton('About Leaf', () => {
+      closeMobileSheet();
+      document.getElementById('btn-about').click();
+    }));
+  }
+  document.getElementById('mobile-sheet-close').focus();
+}
+
+document.getElementById('mobile-action-documents').addEventListener('click', () => showMobileSheet('docs'));
+document.getElementById('mobile-action-view').addEventListener('click', () => {
+  setMode(currentMode === 'preview' ? 'write' : 'preview');
+  if (currentMode === 'write') editor.focus();
+  finishMobileAction();
+});
+document.getElementById('mobile-action-save').addEventListener('click', () => {
+  saveFile();
+  finishMobileAction();
+});
+document.getElementById('mobile-action-more').addEventListener('click', () => showMobileSheet('more'));
+document.getElementById('mobile-sheet-close').addEventListener('click', closeMobileSheet);
+document.getElementById('mobile-sheet-overlay').addEventListener('click', event => {
+  if (event.target === document.getElementById('mobile-sheet-overlay')) closeMobileSheet();
+});
+document.addEventListener('keydown', event => {
+  if (event.key === 'Escape' && mobileSheetState) closeMobileSheet();
+}, true);
+
+// iOS Safari and Android Chrome resize the *visual* viewport for the keyboard.
+// Suppress the dock above the keyboard rather than blocking the last text lines.
+function updateMobileKeyboardVisibility() {
+  if (!isLeafMobile()) {
+    mobileKeyboardVisible = false;
+    mobileFullViewportHeight = 0;
+    document.body.classList.remove('mobile-keyboard-open');
+    hideMobileDock();
+    return;
+  }
+  const height = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+  const editing = document.activeElement === editor;
+  if (!mobileFullViewportHeight) mobileFullViewportHeight = height;
+  if (!editing) mobileFullViewportHeight = Math.max(mobileFullViewportHeight, height);
+  mobileKeyboardVisible = editing && mobileFullViewportHeight - height > 130;
+  const bottomGap = window.visualViewport
+    ? Math.max(0, window.innerHeight - window.visualViewport.height -
+        (window.visualViewport.offsetTop || 0))
+    : 0;
+  document.getElementById('mobile-dock').style.setProperty(
+    '--leaf-keyboard-bottom', Math.round(bottomGap) + 'px'
+  );
+  document.body.classList.toggle('mobile-keyboard-open', mobileKeyboardVisible);
+  if (mobileKeyboardVisible) hideMobileDock();
+  else if (!document.getElementById('chk-mobile-autohide').checked && !mobileSheetState) {
+    setMobileDockVisible(true);
+  }
+}
+if (window.visualViewport) {
+  window.visualViewport.addEventListener('resize', updateMobileKeyboardVisibility);
+}
+window.addEventListener('resize', () => {
+  updateMobileKeyboardVisibility();
+  applyMobilePreferences();
+});
+window.addEventListener('orientationchange', () => {
+  mobileFullViewportHeight = 0;
+  setTimeout(updateMobileKeyboardVisibility, 350);
+});
+editor.addEventListener('focus', updateMobileKeyboardVisibility);
+editor.addEventListener('blur', () => {
+  setTimeout(updateMobileKeyboardVisibility, 100);
+});
+editor.addEventListener('input', () => {
+  if (isLeafMobile() && document.getElementById('chk-mobile-autohide').checked) hideMobileDock();
+});
+document.getElementById('editor-scroll').addEventListener('pointerdown', () => {
+  if (isLeafMobile() && document.getElementById('chk-mobile-autohide').checked) hideMobileDock();
+});
+updateMobileModeButton();
+applyMobilePreferences();
+updateMobileKeyboardVisibility();
 
 // ── Progressive Web App installation and offline cache ────────────────
 // A manifest alone cannot cache the editor: the service worker must be
