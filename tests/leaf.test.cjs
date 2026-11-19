@@ -688,5 +688,6 @@ test('About offers desktop releases without adding a native runtime to web', () 
   assert.ok(html.includes('Windows downloads &amp; release notes'));
   assert.ok(html.includes('if (window.leafDesktop) return window.leafDesktop.save()'));
   assert.ok(html.includes('if (window.leafDesktop) return window.leafDesktop.open()'));
-  assert.ok(html.includes('if (!answer && window.leafDesktop) return'));
+  assert.ok(html.includes('if (!answer && window.leafDesktop &&'));
+  assert.ok(html.includes("!confirm('Discard unsaved changes in"));
 });
