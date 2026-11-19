@@ -24,7 +24,7 @@ test('desktop source bridge parses and implements OS file entry points', () => {
 
 test('Tauri capabilities do not enable unrestricted file system APIs', () => {
   const capability = require('../src-tauri/capabilities/default.json');
-  assert.deepEqual(capability.permissions, ['core:default']);
+  assert.deepEqual(capability.permissions, ['core:default', 'core:window:allow-destroy']);
   assert.deepEqual(capability.windows, ['main']);
 });
 
