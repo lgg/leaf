@@ -331,6 +331,93 @@ test('restoring a backup preserves the prior primary and writes recovered conten
   assert.ok(notices.some(x=>x.includes('Recovered draft restored')));
 });
 
+test('all persisted settings keys are included in a saved preferences record', () => {
+  const source=between('function saveSettings() {','function loadSettings() {');
+  const data={};
+  const nodes=new Proxy({}, {get:(obj,key) => obj[key] || (obj[key]={value:'22',checked:false})});
+  nodes['theme-select']={value:'black'};
+  nodes['settings-font-select']={value:'Arial, Helvetica, sans-serif'};
+  nodes['settings-font-size-select']={value:'22'};
+  nodes['color-bg']={value:'#010203'};
+  nodes['color-text']={value:'#aabbcc'};
+  nodes['color-accent']={value:'#334455'};
+  nodes['chk-show-words']={checked:false};
+  nodes['chk-show-placeholder']={checked:false};
+  nodes['chk-welcome']={checked:false};
+  nodes['chk-crt']={checked:true};
+  const document={
+    getElementById:id=>nodes[id],
+    body:{classList:{contains:()=>true}}
+  };
+  const storage={setItem:(key,value)=>{data[key]=value}};
+  const prefix=
+    "const SETTINGS_KEY='leaf-editor-settings',localStorage=deps.storage,document=deps.document;" +
+    "let autohideEnabled=true,tabBarPinned=true,scrollSynced=false,smartPunctEnabled=true;" +
+    "function workspaceNotice(){}";
+  new Function('deps',prefix+source+';saveSettings();')({storage,document});
+  const saved=JSON.parse(data['leaf-editor-settings']);
+  const required=[
+    'theme','font','fontSize','autohide','tabPinned','showWelcome','crtEnabled',
+    'scrollSynced','customBg','customText','customAccent','smartPunct',
+    'showWords','showPlaceholder','showChars','showLines','showReadtime','showCursor'
+  ];
+  assert.equal(required.every(key => Object.prototype.hasOwnProperty.call(saved,key)),true);
+  assert.equal(saved.theme,'black');
+  assert.equal(saved.font,'Arial, Helvetica, sans-serif');
+  assert.equal(saved.customBg,'#010203');
+  assert.equal(saved.autohide,true);
+  assert.equal(saved.tabPinned,true);
+  assert.equal(saved.scrollSynced,false);
+  assert.equal(saved.smartPunct,true);
+  assert.equal(saved.showWords,false);
+  assert.equal(saved.showPlaceholder,false);
+});
+
+test('valid custom HEX input saves the choice; invalid input does not', () => {
+  const source=between('// Sync color picker → hex input','// ── Font / Size');
+  const nodes={};
+  const fired={};
+  for(const kind of ['bg','text','accent']) {
+    for(const type of ['color-','hex-']) {
+      const id=type+kind;
+      nodes[id]={value:'#123456',addEventListener(event,cb){fired[id+':'+event]=cb}};
+    }
+  }
+  let saves=0,applied=0;
+  new Function('deps',
+    "const document={getElementById:id=>deps.nodes[id]};" +
+    "function saveSettings(){deps.saves.count++}" +
+    "function applyCustomColors(){deps.applied.count++}" +
+    source
+  )({nodes,saves:{count:0},applied:{count:0}});
+  // The registered listener must be present for each of the three colors.
+  for(const kind of ['bg','text','accent'])
+    assert.equal(typeof fired['hex-'+kind+':input'],'function');
+  const saveCounter={count:0};
+  const applyCounter={count:0};
+  const registered={};
+  for(const kind of ['bg','text','accent'])for(const type of ['color-','hex-']){
+    const id=type+kind;
+    nodes[id].addEventListener=(event,cb)=>{registered[id+':'+event]=cb};
+  }
+  new Function('deps',
+    "const document={getElementById:id=>deps.nodes[id]};" +
+    "function saveSettings(){deps.saved.count++}" +
+    "function applyCustomColors(){deps.updated.count++}" +
+    source
+  )({nodes,saved:saveCounter,updated:applyCounter});
+  nodes['hex-bg'].value='#aabbcc';
+  registered['hex-bg:input']();
+  assert.equal(nodes['color-bg'].value,'#aabbcc');
+  assert.equal(saveCounter.count,1);
+  assert.equal(applyCounter.count,1);
+  nodes['hex-bg'].value='not-a-color';
+  registered['hex-bg:input']();
+  assert.equal(saveCounter.count,1);
+  registered['hex-bg:blur']();
+  assert.equal(nodes['hex-bg'].value,'#aabbcc');
+});
+
 test('GitHub Pages service worker prefers fresh HTML and keeps an offline fallback', () => {
   const sw=fs.readFileSync(path.join(__dirname,'..','sw.js'),'utf8');
   assert.ok(sw.includes("const CACHE = 'leaf-lgg-v4'"));
