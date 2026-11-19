@@ -54,4 +54,4 @@ This audit includes source inspection and JavaScript unit tests using browser AP
 
 The browser's storage may be cleared, quota-limited, or isolated by origin. Exported Markdown files are recommended as durable backups. Web fonts may need an internet connection; Arial and Times New Roman require system availability.
 
-**Separate GitHub repository metadata:** The GitHub *About → Website* field still points to the upstream site as of this audit. The connected GitHub write actions cannot modify repository About metadata. The fork README and in-app credits already link to both the original author/repository and `updated by lgg`. The Website field must be changed in GitHub's repository UI to `https://lgg.github.io/leaf/editor.html`.
+**Separate GitHub repository metadata:** The repository's *About → Website* field was verified after merge and currently points to `https://lgg.github.io/leaf/editor.html`. GitHub Pages is enabled. The fork README and in-app credits link to both the original author/repository and `updated by lgg`. The GitHub connector did not change repository metadata in this work.
