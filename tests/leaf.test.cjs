@@ -69,7 +69,7 @@ test('empty-page placeholder can be hidden or restored', () => {
 
 test('ZIP export keeps Unicode text and avoids duplicate Markdown filenames', async () => {
   const source = between('function getMarkdownExportEntries(', 'function exportAllMarkdown()');
-  const funcs = new Function(source + ';return {getMarkdownExportEntries,makeMarkdownZip,zipCrc32};')();
+  const funcs = new Function('TextEncoder','Blob',source + ';return {getMarkdownExportEntries,makeMarkdownZip,zipCrc32};')(TextEncoder,Blob);
   assert.equal(funcs.zipCrc32(new TextEncoder().encode('123456789')), 0xcbf43926);
   const files = funcs.getMarkdownExportEntries([
     {name:'idea.txt', content:'Привет, мир'},
