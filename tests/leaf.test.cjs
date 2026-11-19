@@ -246,6 +246,99 @@ test('actual localStorage settings round-trip restores font, theme and hidden UI
   assert.equal(nodes['chk-show-cursor'].checked,false);
 });
 
+test('settings order, responsive layout and unobtrusive backup control', () => {
+  const modal = html.split('<!-- Settings Modal -->')[1].split('<!-- About Modal -->')[0];
+  const sections = [...modal.matchAll(/<h3>([^<]+)<\/h3>/g)].map(item => item[1]);
+  assert.equal(sections.join(','), 'Current document,Appearance,Status bar,Editor');
+  assert.ok(modal.includes('id="workspace-recovery-row" class="settings-recovery" hidden'));
+  assert.ok(modal.includes('aria-label="Restore latest recovery copy"'));
+  assert.ok(!modal.includes('title="Restore a separately saved workspace'));
+  assert.ok(html.includes('max-height: calc(100dvh - 24px)'));
+  assert.ok(html.includes('overflow-y: auto'));
+  assert.ok(html.includes('grid-template-columns: repeat(2, minmax(0, 1fr))'));
+  assert.ok(html.includes('#settings-modal .settings-recovery[hidden] { display: none; }'));
+  assert.ok(html.includes('overflow-wrap: anywhere'));
+});
+
+test('recovery button appears only for valid backups; invalid copies do not block others', () => {
+  const source = between('function availableWorkspaceRecoveries() {',
+    "document.getElementById('btn-recover-workspace').addEventListener('click'");
+  const entries = {};
+  const container = {
+    hidden:true, span:{textContent:''},
+    querySelector(){return this.span}
+  };
+  const storage = {
+    get length(){return Object.keys(entries).length},
+    key:index=>Object.keys(entries)[index],
+    getItem:key=>entries[key]||null
+  };
+  const code =
+    "const WORKSPACE_CONFLICT_PREFIX='leaf-workspace-conflict-',localStorage=deps.storage;" +
+    "const document={getElementById:()=>deps.container};" +
+    source + ';return {availableWorkspaceRecoveries,refreshRecoveryControl};';
+  const actions = new Function('deps', code)({storage,container});
+  actions.refreshRecoveryControl();
+  assert.equal(container.hidden,true);
+  entries['leaf-workspace-conflict-corrupt']='not JSON';
+  entries['leaf-workspace-conflict-valid']=JSON.stringify({
+    savedAt:'2026-11-19T09:00:00Z',
+    tabs:[{id:1,name:'draft.md',content:'safe'}]
+  });
+  actions.refreshRecoveryControl();
+  assert.equal(container.hidden,false);
+  assert.equal(actions.availableWorkspaceRecoveries().length,1);
+  assert.match(container.span.textContent,/backup/);
+  delete entries['leaf-workspace-conflict-valid'];
+  actions.refreshRecoveryControl();
+  assert.equal(container.hidden,true);
+});
+
+test('restoring a backup preserves the prior primary and writes recovered content to primary', () => {
+  const source = between(
+    "document.getElementById('btn-recover-workspace').addEventListener('click', () => {",
+    '\nfunction markDirty()'
+  );
+  const original = JSON.stringify({tabs:[{id:1,name:'old.md',content:'Old'}],savedAt:'2026-11-19T08:00:00Z'});
+  const backup = JSON.stringify({tabs:[{id:2,name:'new.md',content:'Recovered'}],savedAt:'2026-11-19T09:00:00Z'});
+  const data = {'leaf-workspace-v1':original};
+  const storage = {
+    getItem:k=>data[k]||null,
+    setItem:(k,v)=>{data[k]=v}
+  };
+  const modal = {style:{display:'flex'}};
+  const btn = {handle:null,addEventListener(type,fn){this.handle=fn}};
+  let state=JSON.parse(original),lastPayload=JSON.stringify(state);
+  const notices=[];
+  const code =
+    "const WORKSPACE_KEY='leaf-workspace-v1',WORKSPACE_CONFLICT_PREFIX='leaf-workspace-conflict-';" +
+    "const workspaceWriterId='session-123',localStorage=deps.storage;" +
+    "let workspaceConflictMode=false,workspaceLastConflictPayload=null,workspaceLastPayload='prior';" +
+    "const document={getElementById:id=>id==='btn-recover-workspace'?deps.btn:deps.modal};" +
+    "const confirm=()=>true;" +
+    "function availableWorkspaceRecoveries(){return [{raw:deps.backup,savedAt:'2026-11-19T09:00:00Z'}]}" +
+    "function persistWorkspace(){if(!workspaceConflictMode){localStorage.setItem(WORKSPACE_KEY,JSON.stringify(deps.state.value));workspaceLastPayload=JSON.stringify(deps.state.value)}}" +
+    "function restoreWorkspace(raw){deps.state.value=JSON.parse(raw);workspaceConflictMode=true;return true}" +
+    "function workspaceNotice(message){deps.notices.push(message)}" +
+    "function refreshRecoveryControl(){}" +
+    source + ';return deps.btn.handle;';
+  const holder={value:state};
+  const click=new Function('deps',code)({storage,btn,modal,backup,state:holder,notices});
+  click();
+  assert.equal(JSON.parse(data['leaf-workspace-v1']).tabs[0].content,'Recovered');
+  assert.equal(Object.keys(data).filter(k=>k.startsWith('leaf-workspace-conflict-before-restore-')).length,1);
+  assert.equal(modal.style.display,'none');
+  assert.ok(notices.some(x=>x.includes('Recovered draft restored')));
+});
+
+test('GitHub Pages service worker prefers fresh HTML and keeps an offline fallback', () => {
+  const sw=fs.readFileSync(path.join(__dirname,'..','sw.js'),'utf8');
+  assert.ok(sw.includes("const CACHE = 'leaf-lgg-v4'"));
+  assert.ok(sw.includes("request.mode === 'navigate'"));
+  assert.ok(sw.includes("fetch(request).then(response"));
+  assert.ok(sw.includes("caches.match('./editor.html')"));
+});
+
 test('preferences, independent tab names, input edits and recovery are wired', () => {
   assert.ok(html.includes('id="settings-tab-label"'));
   assert.ok(html.includes('id="settings-browser-title"'));
