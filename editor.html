@@ -1471,7 +1471,7 @@
     <p class="about-credit">Vibe coded by <a href="https://github.com/uncle-jasper" target="_blank" rel="noopener noreferrer">Dan</a> · <a href="https://github.com/uncle-jasper/leaf" target="_blank" rel="noopener noreferrer">original repository</a></p>
     <p class="about-credit">updated by <a href="https://github.com/lgg" target="_blank" rel="noopener noreferrer">lgg</a> · <a href="https://github.com/lgg/leaf" target="_blank" rel="noopener noreferrer">fork repository</a></p>
     <p class="about-copy">© 2026</p>
-    <p class="about-version"><span style="font-size:13px;">v1.8.0-lgg.1</span> · <a href="#" onclick="openReadmeTab(); return false;" style="font-size:11px; color:var(--accent); opacity:0.7; text-decoration:none;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.7'">changelog</a></p>
+    <p class="about-version"><span style="font-size:13px;">v1.9.0-lgg.1</span> · <a href="#" onclick="openReadmeTab(); return false;" style="font-size:11px; color:var(--accent); opacity:0.7; text-decoration:none;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.7'">changelog</a></p>
     <p style="margin-top:4px; font-size:11px;"><a href="https://buymeacoffee.com/dandanmian" target="_blank" style="color:var(--accent); opacity:0.7; text-decoration:none;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.7'">☕ buy me a coffee</a></p>
   </div>
 </div>
@@ -1480,7 +1480,7 @@
 const README_CONTENT = `LEAF: A MARKDOWN EDITOR
 Vibe coded by Dan (c) 2026 — https://github.com/uncle-jasper/leaf
 updated by lgg — https://github.com/lgg/leaf
-Version 1.8.0-lgg.1 (lgg fork; based on upstream v1.7)
+Version 1.9.0-lgg.1 (lgg fork; based on upstream v1.7)
 
 ================================================================================
 WHAT IS LEAF?
@@ -1532,6 +1532,26 @@ OPTION 4 - Install on Android
 Open the same page in Chrome, then use the browser's Install app or
 Add to Home Screen command. Open it once online to pre-cache the editor.
 Some browsers offer only a shortcut rather than a standalone install.
+
+MOBILE WRITING MODE
+On phones and touch tablets (up to 1366 CSS px wide), Leaf hides the desktop
+toolbar and tabs automatically. By default, only the writing surface is shown.
+
+  - Tap the invisible area at the BOTTOM of the screen to reveal the dock.
+  - The dock provides: Documents, Write/Preview, Save, and More actions.
+  - After about 4 seconds with no action, the dock automatically hides.
+  - Documents opens a bottom sheet for switching, creating or closing tabs.
+  - More includes opening a file, exporting Markdown ZIP, settings, and About.
+  - The dock stays clear of the on-screen keyboard while typing.
+  - The optional top document title and mobile status bar are OFF by default.
+  - Settings > Editor > Mobile display can show either of them and disable
+    automatic dock hiding to keep the bottom controls visible all the time.
+  - Settings > Current document includes a filename field so mobile users
+    can edit the saved Markdown filename independently from document labels.
+
+There is no account, cloud synchronization or automatic transfer between
+mobile, web and desktop. Use Markdown export for durable copies of drafts.
+Remote fonts can fall back to bundled/system fonts when completely offline.
 
 
 ================================================================================
@@ -1700,12 +1720,15 @@ Write 500 words to earn your freedom early.
 SETTINGS — FORK UPDATE
 ================================================================================
 
-Settings open with Ctrl+, or the "settings" toolbar control. Section order:
+On desktop, settings open with Ctrl+, or the "settings" toolbar control.
+On phones/tablets, tap the bottom edge > More > Settings.
+Section order:
   1. Current document — in-app tab label, browser tab title and recovery
      action (only when a backup exists)
   2. Appearance — themes, custom colors, fonts and font size
   3. Status bar — five independent visibility toggles
-  4. Editor — writing hint, status messages and smart punctuation
+  4. Editor — writing hint, status messages, smart punctuation and three
+     mobile display toggles (heading, status bar, auto-hide dock)
 
 Each setting is saved in the browser-local "leaf-editor-settings" localStorage
 entry. Draft workspaces use a separate key. Browser cleanup, incognito mode,
@@ -1714,6 +1737,15 @@ storage quota failures, and other websites' storage cannot be controlled by Leaf
 ================================================================================
 CHANGELOG
 ================================================================================
+
+v1.9.0-lgg.1 — lgg fork (2026-11-19)
+  - Minimal phone and touch-tablet editor with no permanent top toolbar or tabs
+  - Invisible bottom tap area to reveal a one-handed action dock; auto-hide
+  - Touch-friendly bottom sheets for documents and additional actions
+  - Keyboard-aware bottom controls and safe-area padding for iOS/Android
+  - Optional document heading, status bar and auto-hide mode, all persisted
+  - Editable filename in settings for mobile file export
+  - Kept full desktop interface unchanged
 
 v1.8.0-lgg.1 — lgg fork (2026-11-19)
   - Fork version now displayed consistently in About, README and changelog
@@ -1877,6 +1909,7 @@ FORK NOTES (lgg/leaf)
 - ZIP export of multiple Markdown files (issue #1).
 - Independent internal/browser tab names per document (issue #2).
 - Additional fonts: Roboto Mono, Open Sans, Times New Roman and Arial.
+- Mobile full-screen writing and touch-accessible bottom controls (v1.9.0-lgg.1).
 - Original: Dan / https://github.com/uncle-jasper/leaf
 - updated by lgg / https://github.com/lgg/leaf
 
