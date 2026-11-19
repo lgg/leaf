@@ -691,3 +691,31 @@ test('About offers desktop releases without adding a native runtime to web', () 
   assert.ok(html.includes('if (!answer && window.leafDesktop &&'));
   assert.ok(html.includes("!confirm('Discard unsaved changes in"));
 });
+
+test('Markdown preview treats raw HTML as text and rejects unsafe link protocols', () => {
+  const source = between('function markdownAttr(value) {', 'function renderPreview');
+  const {parseMarkdown, markdownTarget} = new Function(source +
+    ';return {parseMarkdown,markdownTarget};')();
+  assert.equal(markdownTarget('javascript:alert(1)',false), '#');
+  assert.equal(markdownTarget('file:///C:/example.md',false), '#');
+  assert.equal(markdownTarget('data:text/html,evil',true), '#');
+  assert.equal(markdownTarget('mailto:team@example.com',true), '#');
+  assert.equal(markdownTarget('mailto:team@example.com',false), 'mailto:team@example.com');
+  assert.equal(markdownTarget('https://example.com/a',false), 'https://example.com/a');
+
+  const raw = parseMarkdown('<img src=x onerror=alert(1)>');
+  assert.ok(raw.includes('&lt;img src=x onerror=alert(1)&gt;'));
+  assert.ok(!raw.includes('<img src=x'));
+
+  const malicious = parseMarkdown('[click](javascript:alert(1))');
+  assert.ok(malicious.includes('href="#"'));
+  assert.ok(!malicious.includes('href="javascript:'));
+
+  const image = parseMarkdown('![pic](file:///C:/private-file.md)');
+  assert.ok(image.includes('src="#"'));
+  assert.ok(!image.includes('src="file:'));
+
+  const quoted = parseMarkdown('[click](https://example.com/" onclick="bad)');
+  assert.ok(quoted.includes('&quot;'));
+  assert.ok(!quoted.includes('" onclick="'));
+});
