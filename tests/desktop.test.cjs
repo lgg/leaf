@@ -44,6 +44,8 @@ test('desktop stage creates offline assets without adding web-only service worke
   const dist = fs.readFileSync(path.join(root, 'desktop', 'dist', 'index.html'), 'utf8');
   assert.ok(dist.includes('desktop-bridge.js'));
   assert.ok(dist.includes('btn-desktop-save-as'));
+  assert.ok(dist.includes('btn-desktop-check-updates'));
+  assert.ok(!fs.readFileSync(path.join(root, 'editor.html'), 'utf8').includes('btn-desktop-check-updates'));
   assert.ok(dist.includes('id="btn-desktop-releases"'));
   assert.ok(!fs.readFileSync(path.join(root, 'editor.html'), 'utf8').includes('id="btn-desktop-releases"'));
 
@@ -52,4 +54,13 @@ test('desktop stage creates offline assets without adding web-only service worke
   const icon = fs.readFileSync(path.join(root, 'src-tauri', 'icons', 'icon.ico'));
   assert.equal(icon.readUInt16LE(2), 1);
   assert.equal(icon.readUInt32LE(18), 22);
+});
+
+test('native drop reading requires a prior OS drag/drop authorization', () => {
+  const source = fs.readFileSync(path.join(root, 'src-tauri', 'src', 'main.rs'), 'utf8');
+  assert.ok(source.includes('dropped: Mutex<HashSet<String>>'));
+  assert.ok(source.includes('on_webview_event('));
+  assert.ok(source.includes('tauri::DragDropEvent::Drop'));
+  assert.ok(source.includes('.remove(&key)'));
+  assert.ok(source.includes('approved_revision != expected'));
 });

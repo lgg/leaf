@@ -32,7 +32,8 @@ Leaf desktop uses the **same editor** with a small, separate Rust/Tauri layer. T
 - An interrupted or failed save retains the unsaved editor text; a disk-conflict warning never silently overwrites external changes.
 - File associations register Markdown and plain text with the Windows installer. File paths passed at launch can be opened on startup.
 - Tabs, order, custom labels and per-document titles persist in local app settings. On restart, Leaf reads real files again from disk. Unsaved drafts can be recovered explicitly; missing files become recovery drafts that must be saved to a new location.
-- Drag and drop existing Markdown/text files onto the desktop window; export all documents as a native ZIP file.
+- Drag and drop existing Markdown/text files onto the desktop window; only actual OS-dropped paths are authorized. Export all documents as a native ZIP file.
+- Check published GitHub releases from the desktop About panel on demand; review release notes and download manually. No forced updates.
 - File operations are restricted to text extensions and exposed through explicit native commands. The browser/PWA remains sandboxed.
 
 **Limits:** The desktop edition currently targets **Windows**. A signed unattended updater, macOS signing/notarization and macOS CI require separate signing credentials / an appropriately provisioned macOS runner. No automatic download or forced update is enabled: use the GitHub Releases link to review downloads and release notes manually.

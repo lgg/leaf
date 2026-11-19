@@ -251,6 +251,40 @@
     }
   });
 
+  const checkButton = document.getElementById('btn-desktop-check-updates');
+  const updateStatus = document.getElementById('desktop-update-status');
+  if (checkButton && updateStatus) {
+    checkButton.addEventListener('click', async () => {
+      checkButton.disabled = true;
+      updateStatus.textContent = 'Checking published releases…';
+      try {
+        const response = await fetch('https://api.github.com/repos/lgg/leaf/releases/latest', {
+          headers: {'Accept': 'application/vnd.github+json'}
+        });
+        if (response.status === 404) {
+          updateStatus.textContent = 'No published desktop release yet.';
+        } else if (!response.ok) {
+          updateStatus.textContent = 'Could not check releases (HTTP ' + response.status + ').';
+        } else {
+          const payload = await response.json();
+          const latest = String(payload.tag_name || '').replace(/^v/i, '');
+          const current = '1.10.0-lgg.1';
+          const nums = v => v.split(/[^0-9]+/).filter(Boolean).map(Number);
+          const parts = nums(latest), base = nums(current);
+          const newer = parts.some((n, i) => n > (base[i] || 0) &&
+            parts.slice(0, i).every((m, j) => m === (base[j] || 0)));
+          updateStatus.textContent = newer
+            ? 'A newer version (' + latest.slice(0, 40) + ') is available. Open GitHub Releases to review notes and download.'
+            : 'Your app is current, or no newer stable release is published.';
+        }
+      } catch (error) {
+        updateStatus.textContent = 'Release check unavailable. Open GitHub Releases manually.';
+      } finally {
+        checkButton.disabled = false;
+      }
+    });
+  }
+
   if (tauri.window && tauri.window.getCurrentWindow) {
     const win = tauri.window.getCurrentWindow();
     win.onCloseRequested(async event => {

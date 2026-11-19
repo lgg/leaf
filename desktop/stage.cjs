@@ -14,6 +14,11 @@ html = html.replace(/<link rel="manifest"[^>]*>\s*/i, '');
 html = html.replace('</body>', '<script src="./desktop-bridge.js"></script>\n</body>');
 html = html.replace('href="https://github.com/lgg/leaf/releases"', 'id="btn-desktop-releases" href="https://github.com/lgg/leaf/releases"');
 html = html.replace(
+  '<p class="about-version">',
+  '<p id="desktop-update-status" role="status" style="font-size:11px;"></p><button id="btn-desktop-check-updates" type="button" title="Check published GitHub releases">check updates</button><p class="about-version">'
+);
+if (!html.includes('btn-desktop-check-updates')) throw new Error('Desktop updater UI injection point not found.');
+html = html.replace(
   '<button id="btn-save" title="Save file (Ctrl+S)">',
   '<button id="btn-desktop-save-as" title="Save as a new file (Ctrl+Shift+S)">save as</button>\n    <button id="btn-save" title="Save file (Ctrl+S)">'
 );

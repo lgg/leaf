@@ -3,7 +3,7 @@
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::{
-    collections::HashMap,
+    collections::{HashMap, HashSet},
     fs,
     io::Write,
     path::{Path, PathBuf},
@@ -16,6 +16,8 @@ use tauri_plugin_dialog::DialogExt;
 struct DesktopState {
     // Only user-selected or restored Markdown/text files can be saved in place.
     authorized: Mutex<HashMap<String, String>>,
+    // Paths are authorized for drag/drop only by a genuine OS webview event.
+    dropped: Mutex<HashSet<String>>,
 }
 
 #[derive(Clone, Serialize)]
@@ -182,6 +184,12 @@ async fn desktop_save(
     if !save_as && path.is_some() {
         let old = read_document(&destination)?;
         let expected = expected_revision.ok_or("Document revision is missing. Use Save As.".to_string())?;
+        let approved_revision = state.authorized.lock()
+            .map_err(|_| "File registry unavailable.".to_string())?
+            .get(&old.path).cloned().ok_or("File is no longer authorized for saving.")?;
+        if approved_revision != expected {
+            return Err("The active file revision changed. Reopen the file or use Save As.".into());
+        }
         if old.revision != expected {
             return Err("The file changed outside Leaf. Your edits are intact. Use Save As or reopen the external changes.".into());
         }
@@ -201,8 +209,15 @@ fn desktop_show_releases() -> Result<(), String> {
 
 #[tauri::command]
 fn desktop_open_path(path: String, state: State<'_, DesktopState>) -> Result<Document, String> {
-    // Used only for explicit OS drag-and-drop; filenames must be Markdown/text.
-    let doc = read_document(Path::new(&path))?;
+    // A caller cannot just pass an arbitrary local path to read a file.
+    let canonical = fs::canonicalize(&path).map_err(|_| "Dropped file is unavailable.".to_string())?;
+    let key = canonical.to_string_lossy().to_string();
+    let approved = state.dropped.lock().map_err(|_| "File drop registry unavailable.".to_string())?
+        .remove(&key);
+    if !approved {
+        return Err("Only files actually dropped onto the Leaf window can be opened here.".into());
+    }
+    let doc = read_document(&canonical)?;
     remember(&state, &doc)?;
     Ok(doc)
 }
@@ -282,6 +297,21 @@ fn desktop_save_session(
 
 fn main() {
     tauri::Builder::default()
+        .on_webview_event(|webview, event| {
+            if webview.label() != "main" { return; }
+            if let tauri::WebviewEvent::DragDrop(tauri::DragDropEvent::Drop { paths, .. }) = event {
+                let state = webview.state::<DesktopState>();
+                if let Ok(mut allowed) = state.dropped.lock() {
+                    allowed.clear();
+                    for path in paths {
+                        if !is_text(path) { continue; }
+                        if let Ok(canonical) = fs::canonicalize(path) {
+                            allowed.insert(canonical.to_string_lossy().to_string());
+                        }
+                    }
+                }
+            }
+        })
         .plugin(tauri_plugin_dialog::init())
         .manage(DesktopState::default())
         .invoke_handler(tauri::generate_handler![
