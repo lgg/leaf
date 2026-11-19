@@ -14,26 +14,38 @@ const environmentKeys = [
   'LOCALAPPDATA','APPDATA','CARGO_HOME','RUSTUP_HOME'
 ];
 
-function countLeaks(bytes, env = process.env) {
+function privatePathCategories(bytes, env = process.env) {
   const raw = Buffer.isBuffer(bytes) ? bytes : Buffer.from(bytes);
   const contents = [
     raw.toString('latin1'),
     raw.toString('utf16le'),
     raw.subarray(1).toString('utf16le')
   ];
-  const specific = environmentKeys.map(key => env[key]).filter(v => typeof v === 'string' && v.length > 5);
-  if (env.HOMEDRIVE && env.HOMEPATH) specific.push(env.HOMEDRIVE + env.HOMEPATH);
-  let detected = 0;
+  const labels = ['profile-directory', 'runner-workspace', 'cargo-cache', 'rust-toolchain'];
+  const found = new Set();
   for (const text of contents) {
-    // Only signal categories and counts, not matched usernames or paths.
-    for (const regex of dangerous) if (regex.test(text)) detected++;
+    for (let i = 0; i < dangerous.length; i++) {
+      if (dangerous[i].test(text)) found.add(labels[i]);
+    }
     const lower = text.toLowerCase();
-    for (const path of specific) {
+    for (const key of environmentKeys) {
+      const path = env[key];
+      if (typeof path !== 'string' || path.length < 6) continue;
       const normalized = path.replace(/[\\/]+/g, '\\').replace(/[\\/]$/, '').toLowerCase();
-      if (lower.includes(normalized) || lower.includes(normalized.replace(/\\/g, '/'))) detected++;
+      if (lower.includes(normalized) || lower.includes(normalized.replace(/\\/g, '/'))) {
+        found.add('environment:' + key);
+      }
+    }
+    if (env.HOMEDRIVE && env.HOMEPATH) {
+      const home = String(env.HOMEDRIVE + env.HOMEPATH).replace(/[\\/]+/g, '\\').toLowerCase();
+      if (lower.includes(home) || lower.includes(home.replace(/\\/g, '/'))) found.add('environment:HOME');
     }
   }
-  return detected;
+  return [...found].sort();
+}
+
+function countLeaks(bytes, env = process.env) {
+  return privatePathCategories(bytes, env).length;
 }
 
 if (require.main === module) {
@@ -49,7 +61,9 @@ if (require.main === module) {
       } else {
         const leaks = countLeaks(binary);
         if (leaks) {
-          console.error('Release gate failed: Windows binary contains local user/runner path markers. Artifacts will NOT be uploaded.');
+          // Print coarse *category names only*, never paths, excerpts or usernames.
+          console.error('Release gate failed: Windows binary contains local path markers. Artifacts will NOT be uploaded.');
+          console.error('Sanitized detection categories: ' + privatePathCategories(binary).join(', '));
           process.exitCode = 1;
         } else {
           console.log('Windows binary privacy scan passed: no user/runner absolute-path markers.');
@@ -61,4 +75,4 @@ if (require.main === module) {
     }
   }
 }
-module.exports = {countLeaks};
+module.exports = {countLeaks, privatePathCategories};
