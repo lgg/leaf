@@ -2410,6 +2410,7 @@ function setTheme(val) {
 // Theme label in toolbar opens settings
 document.getElementById('theme-label').addEventListener('click', () => {
   if (justWriteActive) return;
+  refreshRecoveryControl();
   document.getElementById('settings-overlay').style.display = 'flex';
 });
 
@@ -2482,6 +2483,7 @@ function blendHex(f,b,t){const[r1,g1,b1]=hexToRgb(f);const[r2,g2,b2]=hexToRgb(b)
     if (/^#[0-9a-fA-F]{6}$/.test(val)) {
       picker.value = val;
       applyCustomColors();
+      saveSettings();
     }
   });
   hex.addEventListener('blur', () => {
@@ -2993,7 +2995,9 @@ function loadSettings() {
     }
     applyStatusBarVisibility();
     syncThemeUI();
-  } catch(e) {}
+  } catch(error) {
+    workspaceNotice('Saved preferences could not be read. Default settings are being used.');
+  }
 }
 
 ['theme-select'].forEach(id => document.getElementById(id).addEventListener('change', saveSettings));
@@ -3223,6 +3227,7 @@ function persistWorkspace() {
     if (workspaceConflictMode) {
       workspaceLastConflictPayload = payload;
       workspaceNotice('Another Leaf window changed this workspace. Your edits are saved in a separate local recovery copy.');
+      refreshRecoveryControl();
     } else {
       workspaceLastRaw = raw;
       localStorage.removeItem(AUTOSAVE_KEY);
@@ -3315,6 +3320,17 @@ function availableWorkspaceRecoveries() {
   return results.sort((a, b) => b.savedAt.localeCompare(a.savedAt));
 }
 
+function refreshRecoveryControl() {
+  const container = document.getElementById('workspace-recovery-row');
+  const recoveries = availableWorkspaceRecoveries();
+  container.hidden = recoveries.length === 0;
+  if (recoveries.length) {
+    container.querySelector('span').textContent = recoveries.length === 1
+      ? 'A separate draft backup is available.'
+      : recoveries.length + ' separate draft backups are available.';
+  }
+}
+
 document.getElementById('btn-recover-workspace').addEventListener('click', () => {
   const backup = availableWorkspaceRecoveries()[0];
   if (!backup) {
@@ -3323,12 +3339,33 @@ document.getElementById('btn-recover-workspace').addEventListener('click', () =>
   }
   if (!confirm('Restore the most recent recovery copy from ' +
       new Date(backup.savedAt).toLocaleString() + '? Your current workspace will be preserved separately.')) return;
+  // Preserve the current primary state before replacing it with the selected backup.
+  // A restore should survive a full reload, not merely update the in-memory editor.
   persistWorkspace();
-  if (restoreWorkspace(backup.raw)) {
+  try {
+    const primaryRaw = localStorage.getItem(WORKSPACE_KEY);
+    if (primaryRaw) {
+      const previousKey = WORKSPACE_CONFLICT_PREFIX + 'before-restore-' +
+        Date.now().toString(36) + '-' + workspaceWriterId;
+      localStorage.setItem(previousKey, primaryRaw);
+    }
+    if (!restoreWorkspace(backup.raw)) {
+      workspaceNotice('Recovery data is invalid. Your current draft was left untouched.');
+      return;
+    }
+    workspaceConflictMode = false;
     workspaceLastConflictPayload = null;
+    workspaceLastPayload = null;
     persistWorkspace();
-    workspaceNotice('Recovery copy loaded. Export the restored documents as Markdown to keep a durable backup.');
+    if (workspaceConflictMode || workspaceLastPayload === null) {
+      workspaceNotice('The recovered draft is loaded, but could not be made primary. Export it as Markdown.');
+    } else {
+      workspaceNotice('Recovered draft restored. The previous workspace is stored as a separate backup.');
+    }
+    refreshRecoveryControl();
     document.getElementById('settings-overlay').style.display = 'none';
+  } catch (error) {
+    workspaceNotice('Could not complete recovery. Export your documents before closing this page.');
   }
 });
 
@@ -3425,6 +3462,7 @@ editor.focus();
 // ── Settings modal ───────────────────────────────────────
 document.getElementById('btn-settings').addEventListener('click', () => {
   if (justWriteActive) return;
+  refreshRecoveryControl();
   document.getElementById('settings-overlay').style.display = 'flex';
 });
 document.getElementById('btn-settings-close').addEventListener('click', () => {
