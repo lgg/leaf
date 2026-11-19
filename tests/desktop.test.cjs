@@ -42,6 +42,9 @@ test('desktop stage creates offline assets without adding web-only service worke
   const dist = fs.readFileSync(path.join(root, 'desktop', 'dist', 'index.html'), 'utf8');
   assert.ok(dist.includes('desktop-bridge.js'));
   assert.ok(dist.includes('btn-desktop-save-as'));
+  assert.ok(dist.includes('id="btn-desktop-releases"'));
+  assert.ok(!fs.readFileSync(path.join(root, 'editor.html'), 'utf8').includes('id="btn-desktop-releases"'));
+
   assert.ok(!dist.includes('<link rel="manifest"'));
   assert.ok(!fs.existsSync(path.join(root, 'desktop', 'dist', 'sw.js')));
   const icon = fs.readFileSync(path.join(root, 'src-tauri', 'icons', 'icon.ico'));

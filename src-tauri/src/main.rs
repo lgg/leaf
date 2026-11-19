@@ -193,6 +193,13 @@ async fn desktop_save(
 }
 
 #[tauri::command]
+fn desktop_show_releases() -> Result<(), String> {
+    // A fixed and reviewed URL. No frontend-provided shell commands or URLs.
+    open::that("https://github.com/lgg/leaf/releases")
+        .map_err(|_| "Could not launch the default browser.".to_string())
+}
+
+#[tauri::command]
 fn desktop_open_path(path: String, state: State<'_, DesktopState>) -> Result<Document, String> {
     // Used only for explicit OS drag-and-drop; filenames must be Markdown/text.
     let doc = read_document(Path::new(&path))?;
@@ -278,7 +285,7 @@ fn main() {
         .plugin(tauri_plugin_dialog::init())
         .manage(DesktopState::default())
         .invoke_handler(tauri::generate_handler![
-            desktop_open_dialog, desktop_open_path, desktop_export_zip, desktop_save, desktop_restore, desktop_save_session
+            desktop_open_dialog, desktop_open_path, desktop_export_zip, desktop_show_releases, desktop_save, desktop_restore, desktop_save_session
         ])
         .run(tauri::generate_context!())
         .expect("Leaf desktop could not start");

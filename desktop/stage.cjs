@@ -12,6 +12,7 @@ if (!html.includes('</body>') || !html.includes('async function saveFile()')) {
 }
 html = html.replace(/<link rel="manifest"[^>]*>\s*/i, '');
 html = html.replace('</body>', '<script src="./desktop-bridge.js"></script>\n</body>');
+html = html.replace('href="https://github.com/lgg/leaf/releases"', 'id="btn-desktop-releases" href="https://github.com/lgg/leaf/releases"');
 html = html.replace(
   '<button id="btn-save" title="Save file (Ctrl+S)">',
   '<button id="btn-desktop-save-as" title="Save as a new file (Ctrl+Shift+S)">save as</button>\n    <button id="btn-save" title="Save file (Ctrl+S)">'

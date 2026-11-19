@@ -4,7 +4,6 @@
   const tauri = window.__TAURI__;
   if (!tauri || !tauri.core || typeof tauri.core.invoke !== 'function') return;
   const invoke = tauri.core.invoke;
-  const releaseUrl = 'https://github.com/lgg/leaf/releases';
   let restoring = true;
   let sessionTimer = null;
   let pendingSession = Promise.resolve();
@@ -244,10 +243,11 @@
   }, true);
 
   const releaseButton = document.getElementById('btn-desktop-releases');
-  if (releaseButton) releaseButton.addEventListener('click', () => {
-    if (confirm('Open GitHub Releases to see available desktop downloads and release notes?')) {
-      // No downloads or installs happen without the user's explicit action.
-      window.open(releaseUrl, '_blank', 'noopener,noreferrer');
+  if (releaseButton) releaseButton.addEventListener('click', async event => {
+    event.preventDefault();
+    if (confirm('Open GitHub Releases to review desktop downloads and release notes?')) {
+      try { await invoke('desktop_show_releases'); }
+      catch (error) { alert('Could not open releases: ' + safeError(error)); }
     }
   });
 
