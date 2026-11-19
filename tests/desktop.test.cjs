@@ -19,7 +19,7 @@ test('desktop source bridge parses and implements OS file entry points', () => {
   const source = fs.readFileSync(path.join(root, 'desktop', 'desktop-bridge.js'), 'utf8');
   assert.doesNotThrow(() => new Function(source));
   for (const token of ['desktop_open_dialog','desktop_save','desktop_restore',
-    'desktop_save_session', 'desktop_open_path', 'desktop_export_zip', 'nativePath', 'expectedRevision', 'onCloseRequested']) {
+    'desktop_save_session', 'desktop_open_path', 'desktop_export_zip', 'desktop_open_external', 'nativePath', 'expectedRevision', 'onCloseRequested']) {
     assert.ok(source.includes(token), token);
   }
 });
@@ -110,4 +110,15 @@ test('desktop restart never rebinds a removed file to an unsaved draft', () => {
   assert.equal(missing.nativePath, null);
   assert.equal(missing.dirty, true);
   assert.equal(missing.name, 'lost.md');
+});
+
+test('desktop routes safe external links through OS while rejecting unsupported schemes', () => {
+  const bridge = fs.readFileSync(path.join(root, 'desktop', 'desktop-bridge.js'), 'utf8');
+  const native = fs.readFileSync(path.join(root, 'src-tauri','src','main.rs'), 'utf8');
+  assert.ok(bridge.includes("invoke('desktop_open_external', {url:target})"));
+  assert.ok(bridge.includes("link.id === 'btn-desktop-releases'"));
+  assert.ok(bridge.includes("event.stopImmediatePropagation()"));
+  assert.ok(native.includes('fn permitted_external_url('));
+  assert.ok(native.includes('parsed.username().is_empty()'));
+  assert.ok(native.includes('"mailto"'));
 });

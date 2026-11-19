@@ -273,6 +273,24 @@
     }
   });
 
+  // Never navigate the privileged editor WebView to untrusted Markdown links.
+  // Open only safe HTTP(S) and mail links in the OS default application.
+  document.addEventListener('click', event => {
+    const link = event.target && event.target.closest && event.target.closest('a[href]');
+    if (!link || link.id === 'btn-desktop-releases') return;
+    const target = link.getAttribute('href') || '';
+    if (target.startsWith('#')) return; // In-app About / help controls.
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    if (!/^(https?:\/\/|mailto:)/i.test(target)) {
+      workspaceNotice('Only web and email links can be opened from Leaf desktop.');
+      return;
+    }
+    invoke('desktop_open_external', {url:target}).catch(error => {
+      workspaceNotice('Could not open external link: ' + safeError(error));
+    });
+  }, true);
+
   const checkButton = document.getElementById('btn-desktop-check-updates');
   const updateStatus = document.getElementById('desktop-update-status');
   if (checkButton && updateStatus) {

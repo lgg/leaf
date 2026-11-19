@@ -222,6 +222,27 @@ async fn desktop_save(
     Ok(Some(saved))
 }
 
+fn permitted_external_url(target: &str) -> bool {
+    if target.len() > 2048 || target.chars().any(char::is_control) {
+        return false;
+    }
+    let Ok(parsed) = url::Url::parse(target) else { return false; };
+    match parsed.scheme() {
+        "http" | "https" => parsed.host_str().is_some()
+            && parsed.username().is_empty() && parsed.password().is_none(),
+        "mailto" => !parsed.path().is_empty(),
+        _ => false,
+    }
+}
+
+#[tauri::command]
+fn desktop_open_external(url: String) -> Result<(), String> {
+    if !permitted_external_url(&url) {
+        return Err("Only safe web and mail links may open outside Leaf.".into());
+    }
+    open::that(url).map_err(|_| "Could not open the default application.".to_string())
+}
+
 #[tauri::command]
 fn desktop_show_releases() -> Result<(), String> {
     // A fixed and reviewed URL. No frontend-provided shell commands or URLs.
@@ -345,7 +366,7 @@ fn main() {
         .plugin(tauri_plugin_dialog::init())
         .manage(DesktopState::default())
         .invoke_handler(tauri::generate_handler![
-            desktop_open_dialog, desktop_open_path, desktop_export_zip, desktop_show_releases, desktop_save, desktop_restore, desktop_save_session
+            desktop_open_dialog, desktop_open_path, desktop_export_zip, desktop_open_external, desktop_show_releases, desktop_save, desktop_restore, desktop_save_session
         ])
         .run(tauri::generate_context!())
         .expect("Leaf desktop could not start");
@@ -354,6 +375,19 @@ fn main() {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn external_links_reject_local_files_custom_protocols_and_phishing_userinfo() {
+        assert!(permitted_external_url("https://example.com/a"));
+        assert!(permitted_external_url("http://example.com"));
+        assert!(permitted_external_url("mailto:editor@example.com"));
+        for disallowed in [
+            "file:///C:/secrets.txt", "javascript:alert(1)", "cmd://powershell",
+            "https://attacker@example.com/", "https://", "https://example.com\nunsafe"
+        ] {
+            assert!(!permitted_external_url(disallowed), "disallowed: {disallowed}");
+        }
+    }
+
     #[test]
     fn only_markdown_and_plaintext_files_are_allowed() {
         assert!(is_text(Path::new("note.MD")));
