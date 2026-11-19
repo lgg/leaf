@@ -62,5 +62,52 @@ test('native drop reading requires a prior OS drag/drop authorization', () => {
   assert.ok(source.includes('on_webview_event('));
   assert.ok(source.includes('tauri::DragDropEvent::Drop'));
   assert.ok(source.includes('.remove(&key)'));
-  assert.ok(source.includes('approved_revision != expected'));
+  assert.ok(source.includes('authorized != expected'));
+  assert.ok(source.includes('write_checked('));
+});
+
+test('desktop restart preserves a discarded dirty draft as a separate recovery tab', () => {
+  const source = fs.readFileSync(path.join(root, 'desktop', 'desktop-bridge.js'), 'utf8');
+  const start = source.indexOf('  function restoredTab(');
+  const end = source.indexOf('\n  async function restore()', start);
+  assert.ok(start >= 0 && end > start);
+  const create = result => new Function('confirm', source.slice(start, end) + ';return restoredTab;')(() => result);
+  const item = {
+    saved: {name:'report.md',path:'example-path.md',dirty:true,draft:'my unsaved edit',
+      revision:'before',label:'Journal',browserTitle:'Work'},
+    disk: {name:'report.md',path:'example-path.md',content:'external change',revision:'after'}
+  };
+  const recoveries = [];
+  const disk = create(false)(item, 1, recoveries);
+  assert.equal(disk.content, 'external change');
+  assert.equal(disk.dirty, false);
+  assert.equal(disk.nativePath, 'example-path.md');
+  assert.equal(recoveries.length, 1);
+  assert.equal(recoveries[0].content, 'my unsaved edit');
+  assert.equal(recoveries[0].dirty, true);
+  assert.equal(recoveries[0].nativePath, null);
+  assert.match(recoveries[0].name, /recovery/);
+
+  const recovered = [];
+  const draft = create(true)(item, 1, recovered);
+  assert.equal(draft.content, 'my unsaved edit');
+  assert.equal(draft.dirty, true);
+  assert.equal(draft.nativePath, 'example-path.md');
+  assert.equal(recovered.length, 0);
+});
+
+test('desktop restart never rebinds a removed file to an unsaved draft', () => {
+  const source = fs.readFileSync(path.join(root, 'desktop', 'desktop-bridge.js'), 'utf8');
+  const start = source.indexOf('  function restoredTab(');
+  const end = source.indexOf('\n  async function restore()', start);
+  const restoredTab = new Function('confirm', source.slice(start, end) +
+    ';return restoredTab;')(() => { throw new Error('Missing files cannot be read from disk'); });
+  const missing = restoredTab({
+    saved: {name:'lost.md',path:'no-longer-present.md',dirty:true,draft:'important'},
+    disk:null, error:'File was moved'
+  }, 5, []);
+  assert.equal(missing.content, 'important');
+  assert.equal(missing.nativePath, null);
+  assert.equal(missing.dirty, true);
+  assert.equal(missing.name, 'lost.md');
 });
