@@ -256,3 +256,30 @@ test('known relative README documentation links resolve only to GitHub', () => {
   assert.ok(bridge.includes("'https://github.com/lgg/leaf/blob/main/' + target"));
   assert.ok(bridge.includes('docs.has(target)'));
 });
+
+test('native session snapshots store dirty drafts and paths, but not clean file copies', () => {
+  const source = fs.readFileSync(path.join(root,'desktop','desktop-bridge.js'), 'utf8')
+    .replace(/\r\n/g,'\n');
+  const start = source.indexOf('  function sessionSnapshot() {');
+  const end = source.indexOf('  function storeSession() {', start);
+  assert.ok(start >= 0 && end > start);
+  const tabs = [
+    {id:1,name:'saved.md',content:'on disk',nativePath:'synthetic-file.md',
+      nativeRev:'sha1',dirty:false,readonly:false,label:'One',browserTitle:'Journal'},
+    {id:2,name:'draft.txt',content:'unwritten text',nativePath:null,
+      nativeRev:null,dirty:false,readonly:false,label:'Two'},
+    {id:3,name:'changed.md',content:'unsaved edit',nativePath:'synthetic-file-2.md',
+      nativeRev:'sha2',dirty:true,readonly:false},
+    {id:4,name:'README.md',content:'internal help',readonly:true}
+  ];
+  const snapshot = new Function('saveActiveTabState','tabs','activeTabId',
+    source.slice(start,end) + 'return sessionSnapshot;')(() => {},tabs,3)();
+  assert.equal(snapshot.activeIndex,2);
+  assert.equal(snapshot.tabs.length,3);
+  assert.equal(snapshot.tabs[0].path,'synthetic-file.md');
+  assert.equal(snapshot.tabs[0].revision,'sha1');
+  assert.equal(snapshot.tabs[0].draft,null);
+  assert.equal(snapshot.tabs[1].draft,'unwritten text');
+  assert.equal(snapshot.tabs[2].draft,'unsaved edit');
+  assert.equal(snapshot.tabs[2].dirty,true);
+});
