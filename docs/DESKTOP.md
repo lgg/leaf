@@ -1,0 +1,38 @@
+# Leaf desktop implementation and release gates
+
+**Fork version:** v1.10.0-lgg.1. Windows desktop source branch, not a published installer.
+
+## Isolation and persistence
+
+The production website and offline PWA use the original standalone editor HTML, and never load desktop-bridge.js, Rust, Tauri or a desktop bundle. The dependency-free desktop staging script copies the editor into desktop/dist, appends a desktop-only bridge and adds Save As. A generated Windows icon and the staged frontend are ignored by Git.
+
+The Tauri backend uses native OS dialogs for opening .md/.txt and saving to a user-chosen location. A SHA-256 content revision is checked before saving a previously opened file, preventing a silent overwrite after external changes. Writes use a temporary file in the destination directory. OS errors leave the draft intact. Rust commands store session tab order, paths, titles and recovery drafts in the application's own per-user config. On restart, the on-disk version is read again, and differing unsaved drafts are offered for recovery. Missing files are shown as recoverable unbound drafts, not silently recreated.
+
+No literal paths to the user's PC are stored in this repository. The GitHub Actions workflow is restricted to same-repository desktop/** pushes and trusted manual dispatch; it NEVER runs pull_request branches on a self-hosted machine. Logs avoid printing Cargo output that could contain absolute local paths.
+
+## Release acceptance
+
+Automated checks added (pending runner results):
+- JavaScript regression suite and isolated desktop build staging
+- Native Rust unit tests for safe file types, content revision, atomic writes and JSON sessions
+- Windows release-mode build on the existing self-hosted leaf-runner-ci label
+- Optional NSIS installer using an already installed Tauri CLI; no tool installation
+
+Real-device acceptance to complete before a public desktop release:
+- [ ] Open, edit and save a real .md/.txt file in its original folder
+- [ ] Save As creates a new file and does not alter the old one
+- [ ] Cancellation / permissions / read-only errors leave unsaved changes intact
+- [ ] External edits are detected and protected from silent overwrite
+- [ ] Tab order, custom titles, recovery drafts and missing files survive relaunch
+- [ ] OS file association launches with passed document and installer opens
+- [ ] Native close confirmation and recovery behave correctly
+- [ ] Web and installed PWA work offline with no desktop payload
+- [ ] Installer artifact verified on a clean Windows PC
+
+Additional infrastructure before claiming signed in-app updates or macOS support:
+- [ ] Secure Tauri updater signing keys and Windows code signing (never commit private secrets)
+- [ ] Explicit safe update consent UI and signed feed
+- [ ] macOS build runner and Apple Developer signing / notarization
+- [ ] Confirm runner has all packaging prerequisites; workflow will not install them
+
+GitHub Releases is linked from About for manual downloads; unsigned automatic updates are intentionally not implemented.
