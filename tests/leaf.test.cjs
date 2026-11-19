@@ -189,6 +189,63 @@ test('restoring workspace keeps independent labels, filenames and active tab', (
   assert.equal(recovered.fileHandle,null);
 });
 
+test('actual localStorage settings round-trip restores font, theme and hidden UI options', () => {
+  const source = between('function saveSettings() {', "\n['theme-select'].forEach");
+  const data = {};
+  const storage = {
+    getItem:key => data[key] || null,
+    setItem:(key,value) => {data[key]=value}
+  };
+  const ids = [
+    'theme-select','settings-font-select','settings-font-size-select',
+    'chk-welcome','color-bg','color-text','color-accent',
+    'hex-bg','hex-text','hex-accent',
+    'chk-show-words','chk-show-placeholder','chk-show-chars',
+    'chk-show-lines','chk-show-readtime','chk-show-cursor',
+    'btn-pin-tabs','btn-autohide','chk-crt','custom-colors','chk-smart-punct'
+  ];
+  const nodes = Object.fromEntries(ids.map(id => [id, {
+    value:'', checked:true, style:{}, classList:{
+      add(){},remove(){},toggle(){}
+    }
+  }]));
+  const vars = {};
+  const root = {dataset:{}, style:{setProperty:(key,value)=>{vars[key]=value}}};
+  const body = {dataset:{},classList:{contains:()=>false,remove(){}}};
+  const document = {getElementById:id=>nodes[id],documentElement:root,body};
+  const init = "const SETTINGS_KEY='leaf-editor-settings',localStorage=deps.storage,document=deps.document;" +
+    "let autohideEnabled=false,tabBarPinned=false,scrollSynced=true,smartPunctEnabled=false;" +
+    "function workspaceNotice(){} function applyCustomColors(){}" +
+    "function updatePinIcon(){} function updateSyncIcon(){}" +
+    "function applyStatusBarVisibility(){} function syncThemeUI(){}";
+  const settings = new Function('deps',init+source+';return {saveSettings,loadSettings};')({storage,document});
+  nodes['theme-select'].value='black';
+  nodes['settings-font-select'].value="'Open Sans', Arial, sans-serif";
+  nodes['settings-font-size-select'].value='22';
+  nodes['chk-show-words'].checked=false;
+  nodes['chk-show-placeholder'].checked=false;
+  nodes['chk-show-chars'].checked=false;
+  nodes['chk-show-lines'].checked=false;
+  nodes['chk-show-readtime'].checked=false;
+  nodes['chk-show-cursor'].checked=false;
+  settings.saveSettings();
+  assert.ok(data['leaf-editor-settings']);
+  nodes['theme-select'].value='paper';
+  nodes['settings-font-select'].value='Arial, Helvetica, sans-serif';
+  nodes['settings-font-size-select'].value='14';
+  for (const id of ['chk-show-words','chk-show-placeholder','chk-show-chars',
+    'chk-show-lines','chk-show-readtime','chk-show-cursor']) nodes[id].checked=true;
+  settings.loadSettings();
+  assert.equal(nodes['theme-select'].value,'black');
+  assert.equal(body.dataset.theme,'black');
+  assert.equal(nodes['settings-font-select'].value,"'Open Sans', Arial, sans-serif");
+  assert.equal(vars['--editor-font'],"'Open Sans', Arial, sans-serif");
+  assert.equal(nodes['settings-font-size-select'].value,'22');
+  assert.equal(nodes['chk-show-words'].checked,false);
+  assert.equal(nodes['chk-show-placeholder'].checked,false);
+  assert.equal(nodes['chk-show-cursor'].checked,false);
+});
+
 test('preferences, independent tab names, input edits and recovery are wired', () => {
   assert.ok(html.includes('id="settings-tab-label"'));
   assert.ok(html.includes('id="settings-browser-title"'));
