@@ -2135,6 +2135,122 @@ function flashSaved() {
   saveTimer = setTimeout(() => el.classList.remove('show'), 2000);
 }
 
+// ── Bulk Markdown export: dependency-free, offline-compatible ZIP ────────
+// ZIP "store" mode avoids external libraries and includes UTF-8 file names.
+function getMarkdownExportEntries(openTabs) {
+  const used = new Set();
+  return openTabs.filter(tab => !tab.readonly).map(tab => {
+    let filename = String(tab.name || 'untitled').replace(/[<>:"/\\|?*\u0000-\u001f]/g, '_').trim();
+    filename = filename.replace(/[. ]+$/g, '');
+    if (!filename) filename = 'untitled';
+    filename = filename.replace(/\.(txt|md)$/i, '');
+    filename += '.md';
+    const stem = filename.slice(0, -3);
+    let unique = filename;
+    for (let suffix = 2; used.has(unique.toLowerCase()); suffix++) {
+      unique = stem + ' (' + suffix + ').md';
+    }
+    used.add(unique.toLowerCase());
+    return { name: unique, content: tab.content || '' };
+  });
+}
+
+const ZIP_CRC32_TABLE = (() => {
+  const table = new Uint32Array(256);
+  for (let n = 0; n < 256; n++) {
+    let c = n;
+    for (let k = 0; k < 8; k++) c = c & 1 ? (0xedb88320 ^ (c >>> 1)) : c >>> 1;
+    table[n] = c >>> 0;
+  }
+  return table;
+})();
+
+function zipCrc32(data) {
+  let crc = 0xffffffff;
+  for (let i = 0; i < data.length; i++) {
+    crc = ZIP_CRC32_TABLE[(crc ^ data[i]) & 0xff] ^ (crc >>> 8);
+  }
+  return (crc ^ 0xffffffff) >>> 0;
+}
+
+function makeMarkdownZip(entries) {
+  if (entries.length > 65535) throw new Error('Too many Markdown files for a ZIP archive.');
+  const encoder = new TextEncoder();
+  const localChunks = [];
+  const centralChunks = [];
+  let offset = 0;
+  let centralSize = 0;
+
+  for (const entry of entries) {
+    const name = encoder.encode(entry.name);
+    const data = encoder.encode(entry.content);
+    if (name.length > 65535 || data.length > 0xffffffff) throw new Error('Document exceeds ZIP limits.');
+    const crc = zipCrc32(data);
+    const local = new Uint8Array(30 + name.length);
+    const lh = new DataView(local.buffer);
+    lh.setUint32(0, 0x04034b50, true);
+    lh.setUint16(4, 20, true);              // ZIP 2.0
+    lh.setUint16(6, 0x0800, true);          // UTF-8 filenames
+    lh.setUint16(8, 0, true);               // Stored, no compression
+    lh.setUint32(14, crc, true);
+    lh.setUint32(18, data.length, true);
+    lh.setUint32(22, data.length, true);
+    lh.setUint16(26, name.length, true);
+    local.set(name, 30);
+
+    const central = new Uint8Array(46 + name.length);
+    const ch = new DataView(central.buffer);
+    ch.setUint32(0, 0x02014b50, true);
+    ch.setUint16(4, 20, true);
+    ch.setUint16(6, 20, true);
+    ch.setUint16(8, 0x0800, true);
+    ch.setUint16(10, 0, true);
+    ch.setUint32(16, crc, true);
+    ch.setUint32(20, data.length, true);
+    ch.setUint32(24, data.length, true);
+    ch.setUint16(28, name.length, true);
+    ch.setUint32(42, offset, true);
+    central.set(name, 46);
+
+    localChunks.push(local, data);
+    centralChunks.push(central);
+    offset += local.length + data.length;
+    centralSize += central.length;
+    if (offset > 0xffffffff || centralSize > 0xffffffff) {
+      throw new Error('Workspace is too large for a standard ZIP archive.');
+    }
+  }
+
+  const end = new Uint8Array(22);
+  const eh = new DataView(end.buffer);
+  eh.setUint32(0, 0x06054b50, true);
+  eh.setUint16(8, entries.length, true);
+  eh.setUint16(10, entries.length, true);
+  eh.setUint32(12, centralSize, true);
+  eh.setUint32(16, offset, true);
+
+  return new Blob([...localChunks, ...centralChunks, end], { type: 'application/zip' });
+}
+
+function exportAllMarkdown() {
+  saveActiveTabState(); // Capture the active document, including its last keystroke.
+  const files = getMarkdownExportEntries(tabs);
+  if (!files.length) return;
+  try {
+    const zip = makeMarkdownZip(files);
+    const url = URL.createObjectURL(zip);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'leaf-markdown-files.zip';
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 3000);
+  } catch (error) {
+    alert('Could not export the Markdown files: ' + error.message);
+  }
+}
+
+document.getElementById('btn-export-all').addEventListener('click', exportAllMarkdown);
+
 document.getElementById('btn-save').addEventListener('click', saveFile);
 
 document.getElementById('file-open').addEventListener('change', e => {
