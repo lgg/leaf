@@ -16,7 +16,8 @@ Automated checks added (pending runner results):
 - JavaScript regression suite and isolated desktop build staging
 - Native Rust unit tests for safe file types, content revision, atomic writes and JSON sessions
 - Windows release-mode build on the existing self-hosted leaf-runner-ci label
-- Optional NSIS installer using an already installed Tauri CLI; no tool installation
+- Portable Windows ZIP using built-in PowerShell, with no installer packages downloaded
+- Informational detection of Tauri CLI and NSIS availability; NSIS packaging remains disabled until all tools are verified
 
 Real-device acceptance to complete before a public desktop release:
 - [ ] Open via picker and drag-drop, edit and save a real .md/.txt file in its original folder
@@ -34,6 +35,6 @@ Additional infrastructure before claiming signed in-app updates or macOS support
 - [ ] Secure Tauri updater signing keys and Windows code signing (never commit private secrets)
 - [ ] Explicit safe update consent UI and signed feed
 - [ ] macOS build runner and Apple Developer signing / notarization
-- [ ] Confirm runner has all packaging prerequisites; workflow will not install them
+- [ ] Confirm existing Tauri CLI + NSIS bundler toolchain and explicitly approve packaging. CI currently does not invoke NSIS to avoid automatic tool downloads
 
 GitHub Releases is linked from About for manual downloads; unsigned automatic updates are intentionally not implemented.
