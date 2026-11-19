@@ -1132,7 +1132,14 @@
       touch-action: manipulation;
     }
     .mobile-control-button:active, .mobile-control-button:focus-visible { background: var(--border); }
-    body.mobile-keyboard-open #mobile-dock { display: none; }
+    /* While typing the dock itself stays hidden. The invisible bottom
+       tap zone remains reachable just ABOVE the software keyboard. */
+    body.mobile-keyboard-open #mobile-dock {
+      display: block;
+      bottom: var(--leaf-keyboard-bottom, 0px);
+    }
+    body.mobile-keyboard-open #mobile-controls { display: none !important; }
+    body.mobile-keyboard-open #mobile-dock-trigger { display: block; }
     #mobile-sheet-overlay {
       position: fixed;
       display: flex;
@@ -4007,6 +4014,15 @@ function applyMobilePreferences() {
 // No CSS pseudo-button is necessary: the transparent 44px tap target exposes
 // real, keyboard-accessible buttons, without a permanent handle on the page.
 document.getElementById('mobile-dock-trigger').addEventListener('click', () => {
+  if (mobileKeyboardVisible) {
+    // One tap above the keyboard exits typing and reveals the dock, so an
+    // iPhone user never needs a hardware Escape/Back key to reach menus.
+    editor.blur();
+    mobileKeyboardVisible = false;
+    document.body.classList.remove('mobile-keyboard-open');
+    setTimeout(() => setMobileDockVisible(true), 180);
+    return;
+  }
   setMobileDockVisible(true);
 });
 
@@ -4143,6 +4159,13 @@ function updateMobileKeyboardVisibility() {
   if (!mobileFullViewportHeight) mobileFullViewportHeight = height;
   if (!editing) mobileFullViewportHeight = Math.max(mobileFullViewportHeight, height);
   mobileKeyboardVisible = editing && mobileFullViewportHeight - height > 130;
+  const bottomGap = window.visualViewport
+    ? Math.max(0, window.innerHeight - window.visualViewport.height -
+        (window.visualViewport.offsetTop || 0))
+    : 0;
+  document.getElementById('mobile-dock').style.setProperty(
+    '--leaf-keyboard-bottom', Math.round(bottomGap) + 'px'
+  );
   document.body.classList.toggle('mobile-keyboard-open', mobileKeyboardVisible);
   if (mobileKeyboardVisible) hideMobileDock();
   else if (!document.getElementById('chk-mobile-autohide').checked && !mobileSheetState) {
