@@ -70,6 +70,8 @@ TAB BAR (below toolbar)
 STATUS BAR
   Shows live word count, character count, line count, and cursor position.
   When text is selected, shows the word and character count of the selection.
+  Each counter can be hidden independently under Settings > Status bar.
+  When all five counters are disabled, the entire status bar disappears.
   Fades out in focus mode and reappears on hover.
   Displays a random welcome message on launch.
   Shows milestone messages at 100, 250, 500, 1000, 2000, and 5000 words.
@@ -84,6 +86,7 @@ THEMES
   parchment   Warm cream (default)
   paper       Cool white with a slight blue-grey tint
   dark        Near-black with cool grey text
+  black       Pure black (#000000) with a grey (#c8c8c8) caret and monospace font
   moss        Dark green
   slate       Dark blue-grey
   terminal    Black with dimmed green phosphor text. Includes an optional
@@ -146,9 +149,18 @@ a saved confirmation.
 In Brave and other browsers, each save downloads the file. Name the file
 using the filename field before saving.
 
-Leaf also autosaves your work to browser storage every 30 seconds. If Leaf
-is closed unexpectedly and you reopen it, you will be offered the chance to
-restore your last autosaved draft.
+Leaf autosaves the entire workspace in localStorage around 250 ms after edits,
+and also when the browser tab is hidden or closed. All open documents, their
+filenames, content and active tab are restored automatically on the same site
+and browser. Older single-document autosaves can still be restored.
+
+The writing hint ("Start writing… markdown is supported.") can be disabled
+in Settings > Editor. Appearance and visibility preferences are saved as well.
+
+IMPORTANT: Browser data can be erased by the user, by private/incognito mode or
+by browser cleanup. Download important files as .md or .txt for durable backups.
+Storage is per browser + website origin: a local file, the upstream GitHub Pages
+site and your own fork's GitHub Pages site have separate localStorage.
 
 
 ================================================================================
@@ -303,6 +315,21 @@ v1.0
   - Windows Chrome launcher (Leaf.bat)
   - Mac Platypus launcher
 
+
+================================================================================
+FORK NOTES (lgg/leaf)
+================================================================================
+
+- Word count can now be hidden; hiding all counters removes the status bar.
+- Black theme, grey caret and monospaced writing font.
+- Optional writing hint, remembered after reload.
+- All open tabs and filenames are now restored after reopening the browser.
+- Settings are stored per website in localStorage.
+- Multi-file Markdown export tracked in issue #1; separate internal/browser
+  tab names tracked in issue #2.
+
+When GitHub Pages is enabled for the main branch of this fork, open:
+https://lgg.github.io/leaf/editor.html
 
 ================================================================================
 LEAF IS A SINGLE HTML FILE. NO DATA EVER LEAVES YOUR COMPUTER.
