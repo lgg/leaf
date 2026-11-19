@@ -292,6 +292,9 @@ fn desktop_save_session(
     }
     let path = session_file(&app)?;
     let bytes = serde_json::to_vec(&session).map_err(|_| "Could not serialize session.".to_string())?;
+    if bytes.len() > 64 * 1024 * 1024 {
+        return Err("Recovery session exceeds 64 MB. Save or export large documents first.".into());
+    }
     atomic_write(&path, &bytes)
 }
 
