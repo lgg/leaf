@@ -682,3 +682,11 @@ test('preferences, independent tab names, input edits and recovery are wired', (
   assert.ok(js.includes("window.addEventListener('pagehide', persistWorkspace)"));
   assert.ok(js.includes("const backups = availableWorkspaceRecoveries()"));
 });
+
+test('About offers desktop releases without adding a native runtime to web', () => {
+  assert.ok(html.includes('href="https://github.com/lgg/leaf/releases"'));
+  assert.ok(html.includes('Windows downloads &amp; release notes'));
+  assert.ok(html.includes('if (window.leafDesktop) return window.leafDesktop.save()'));
+  assert.ok(html.includes('if (window.leafDesktop) return window.leafDesktop.open()'));
+  assert.ok(html.includes('if (!answer && window.leafDesktop) return'));
+});

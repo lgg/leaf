@@ -1479,6 +1479,7 @@
     <p class="about-credit">updated by <a href="https://github.com/lgg" target="_blank" rel="noopener noreferrer">lgg</a> · <a href="https://github.com/lgg/leaf" target="_blank" rel="noopener noreferrer">fork repository</a></p>
     <p class="about-copy">© 2026</p>
     <p class="about-version"><span style="font-size:13px;">v1.10.0-lgg.1</span> · <a href="#" onclick="openReadmeTab(); return false;" style="font-size:11px; color:var(--accent); opacity:0.7; text-decoration:none;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.7'">changelog</a></p>
+    <p class="about-copy" style="margin:10px 0 0;font-size:12px;">Desktop edition · <a href="https://github.com/lgg/leaf/releases" target="_blank" rel="noopener noreferrer" style="color:var(--accent)">Windows downloads &amp; release notes</a> (when available)</p>
     <p style="margin-top:4px; font-size:11px;"><a href="https://buymeacoffee.com/dandanmian" target="_blank" style="color:var(--accent); opacity:0.7; text-decoration:none;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.7'">☕ buy me a coffee</a></p>
   </div>
 </div>
@@ -3100,6 +3101,8 @@ async function closeTab(id) {
   // Check for unsaved changes
   if (tab.dirty || (id === activeTabId && isDirty)) {
     const answer = confirm('Save "' + tab.name + '" before closing?');
+    // Desktop: Cancel means keep this unsaved tab, not silently discard it.
+    if (!answer && window.leafDesktop) return;
     if (answer) {
       // Switch to it and save
       switchTab(id);

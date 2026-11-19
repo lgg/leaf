@@ -91,7 +91,7 @@ fn read_document(path: &Path) -> Result<Document, String> {
     }
     let revision = digest(&bytes);
     let content = String::from_utf8(bytes).map_err(|_| "File is not UTF-8 text. Export it as UTF-8 before opening.".to_string())?;
-    let name = canonical.file_name().unwrap_or_default().to_string_lossy().to_string();
+    let name = canonical.file_name().map(|x| x.to_string_lossy().to_string()).unwrap_or_else(|| "untitled.md".into());
     Ok(Document { path: canonical.to_string_lossy().to_string(), name, content, revision })
 }
 
@@ -160,7 +160,7 @@ async fn desktop_save(
         // The OS Save dialog is the only way to authorize a new destination.
         let handle = app.clone();
         let suggested = Path::new(&suggested_name).file_name()
-            .unwrap_or_default().to_string_lossy().to_string();
+            .map(|x| x.to_string_lossy().to_string()).unwrap_or_else(|| "untitled.md".into());
         let picked = tauri::async_runtime::spawn_blocking(move || {
             handle.dialog().file().add_filter("Markdown and text", &["md", "txt"])
                 .set_file_name(if suggested.is_empty() { "untitled.md" } else { &suggested })
