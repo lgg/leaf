@@ -3313,13 +3313,19 @@ function availableWorkspaceRecoveries() {
     for (let index = 0; index < localStorage.length; index++) {
       const key = localStorage.key(index);
       if (!key || !key.startsWith(WORKSPACE_CONFLICT_PREFIX)) continue;
-      const raw = localStorage.getItem(key);
-      const data = JSON.parse(raw);
-      if (data && Array.isArray(data.tabs) && data.tabs.length) {
-        results.push({key, raw, savedAt: data.savedAt || ''});
+      try {
+        const raw = localStorage.getItem(key);
+        const data = JSON.parse(raw);
+        if (data && Array.isArray(data.tabs) && data.tabs.length) {
+          results.push({key, raw, savedAt: data.savedAt || ''});
+        }
+      } catch (error) {
+        // One damaged backup must not hide other valid recovery copies.
       }
     }
-  } catch (error) {}
+  } catch (error) {
+    // Storage can be blocked in private browsing or after a quota error.
+  }
   return results.sort((a, b) => b.savedAt.localeCompare(a.savedAt));
 }
 
