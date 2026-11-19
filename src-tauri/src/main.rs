@@ -95,8 +95,8 @@ fn read_document(path: &Path) -> Result<Document, String> {
     let revision = digest(&bytes);
     let content = String::from_utf8(bytes).map_err(|_| "File is not UTF-8 text. Export it as UTF-8 before opening.".to_string())?;
     let name = canonical.file_name().map(|x| x.to_string_lossy().to_string()).unwrap_or_else(|| "untitled.md".into());
-    let line_ending = if content.contains("\r\n")
-        && !content.replace("\r\n", "").contains('\n') { "crlf" } else { "lf" }.to_string();
+    let line_ending = (if content.contains("\r\n")
+        && !content.replace("\r\n", "").contains('\n') { "crlf" } else { "lf" }).to_string();
     Ok(Document { path: canonical.to_string_lossy().to_string(), name, content, revision, line_ending })
 }
 
@@ -400,7 +400,7 @@ mod tests {
         assert_eq!(encoded, "first\r\nchanged\r\n");
         let saved = write_checked(&path, &encoded, Some((&opened.revision, &opened.revision))).unwrap();
         assert_eq!(saved.line_ending, "crlf");
-        assert_eq!(fs::read(&path).unwrap(), b"first\r\nchanged\r\n");
+        assert_eq!(fs::read(&path).unwrap().as_slice(), b"first\r\nchanged\r\n");
         assert!(apply_line_ending("text", "invalid").is_err());
     }
 
