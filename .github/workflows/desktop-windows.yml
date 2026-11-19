@@ -87,8 +87,34 @@ jobs:
           }
           Write-Output "Native Rust tests passed"
 
-      - name: Compile Windows desktop executable
+      - name: Compile Windows desktop executable with private paths remapped
         run: |
+          # Cargo unit-separator flags support paths containing spaces.
+          # Rust source, Cargo registry and runner directories must NOT appear
+          # in EXE debug data. Only the RELEASE build gets these remaps.
+          $cargoHome = if ($env:CARGO_HOME) { $env:CARGO_HOME } else { Join-Path $env:USERPROFILE '.cargo' }
+          $rustupHome = if ($env:RUSTUP_HOME) { $env:RUSTUP_HOME } else { Join-Path $env:USERPROFILE '.rustup' }
+          $prefixes = @(
+            @($env:GITHUB_WORKSPACE, '/leaf-source'),
+            @($env:RUNNER_WORKSPACE, '/leaf-runner'),
+            @($env:RUNNER_TEMP, '/leaf-temp'),
+            @($cargoHome, '/cargo-cache'),
+            @($rustupHome, '/rust-toolchain'),
+            @($env:LOCALAPPDATA, '/local-appdata'),
+            @($env:APPDATA, '/appdata'),
+            @($env:USERPROFILE, '/user-home')
+          )
+          $flags = New-Object 'System.Collections.Generic.List[string]'
+          foreach ($pair in $prefixes) {
+            if (-not $pair[0]) { continue }
+            $source = $pair[0].TrimEnd([char]92, [char]47)
+            $flags.Add("--remap-path-prefix=$source=$($pair[1])")
+            $forward = $source.Replace([char]92, [char]47)
+            if ($forward -ne $source) {
+              $flags.Add("--remap-path-prefix=$forward=$($pair[1])")
+            }
+          }
+          $env:CARGO_ENCODED_RUSTFLAGS = $flags -join [char]31
           $run = Start-Process -FilePath (Get-Command cargo).Source -ArgumentList @('build','--release','--manifest-path','src-tauri/Cargo.toml') -NoNewWindow -Wait -PassThru -RedirectStandardOutput "$env:RUNNER_TEMP/leaf-build-out.log" -RedirectStandardError "$env:RUNNER_TEMP/leaf-build-err.log"
           if ($run.ExitCode -ne 0) {
             Get-Content "$env:RUNNER_TEMP/leaf-build-err.log" |
@@ -103,6 +129,11 @@ jobs:
             throw "Expected Windows binary is missing."
           }
           Write-Output "Windows binary compiled successfully"
+
+      - name: Verify compiled EXE contains no private workstation paths
+        run: |
+          node desktop/check-binary.cjs src-tauri/target/release/leaf-desktop.exe
+          if ($LASTEXITCODE -ne 0) { throw "Private path scan failed; Windows artifact upload blocked." }
 
       - name: Package portable Windows build with built-in PowerShell
         run: |
@@ -126,7 +157,7 @@ jobs:
           name: leaf-windows-smoke-test
           path: src-tauri/target/release/leaf-desktop.exe
           if-no-files-found: error
-          retention-days: 7
+          retention-days: 1
 
       - name: Retain portable ZIP for smoke testing (not a release)
         uses: actions/upload-artifact@v4
@@ -134,4 +165,4 @@ jobs:
           name: leaf-windows-portable-smoke-test
           path: src-tauri/target/release/leaf-desktop-portable.zip
           if-no-files-found: error
-          retention-days: 7
+          retention-days: 1

@@ -138,3 +138,13 @@ test('About distinguishes embedded README help from the actual changelog', () =>
   assert.ok(html.includes('https://github.com/lgg/leaf/blob/main/CHANGELOG.md'));
   assert.ok(html.includes('https://github.com/lgg/leaf/releases'));
 });
+
+test('Windows release binaries are gated against real/embedded host paths', () => {
+  const {countLeaks} = require('../desktop/check-binary.cjs');
+  const synthetic = 'C:\\Users\\Example\\.cargo\\registry\\src\\crate.rs';
+  assert.ok(countLeaks(Buffer.from(synthetic, 'utf8'), {}) > 0);
+  assert.ok(countLeaks(Buffer.from(synthetic, 'utf16le'), {}) > 0);
+  assert.ok(countLeaks(Buffer.concat([Buffer.from('a'),Buffer.from(synthetic, 'utf16le')]), {}) > 0);
+  assert.ok(countLeaks(Buffer.from('D:\\build\\repo\\src\\main.rs'), {GITHUB_WORKSPACE:'D:\\build\\repo'}) > 0);
+  assert.equal(countLeaks(Buffer.from('Windows build. Source maps: /leaf-source/lib.rs'), {}), 0);
+});
