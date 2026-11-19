@@ -1,5 +1,16 @@
 # Leaf — fork changelog
 
+## v1.9.0-lgg.1 — 2026-11-19
+
+- Added a minimal responsive writing interface for mobile phones and touch tablets.
+- Replaced desktop top toolbar/tabs on touch screens with a bottom tap-to-reveal dock (Docs, Preview, Save, More).
+- Added touch-friendly document and action sheets with accessible labels and 44px+ controls.
+- Added optional top document heading, mobile status bar and persistent bottom toolbar via settings.
+- Respected iOS/Android safe areas and visual viewport height while the keyboard is open.
+- Enabled per-document Markdown filename editing from settings on mobile.
+- Desktop layout and core localStorage/workspace behavior remain unchanged.
+- Added mobile interaction and preference regression checks.
+
 ## v1.8.0-lgg.1 — 2026-11-19
 
 Based on the original **[uncle-jasper/leaf](https://github.com/uncle-jasper/leaf) v1.7**. Fork updates are independently versioned; the upstream release history remains intact in [README.txt](README.txt).
