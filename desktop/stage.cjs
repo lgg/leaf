@@ -6,7 +6,7 @@ const path = require('node:path');
 const root = path.join(__dirname, '..');
 const out = path.join(__dirname, 'dist');
 fs.mkdirSync(out, {recursive: true});
-let html = fs.readFileSync(path.join(root, 'editor.html'), 'utf8');
+let html = fs.readFileSync(path.join(root, 'editor.html'), 'utf8').replace(/\r\n/g, '\n');
 if (!html.includes('</body>') || !html.includes('async function saveFile()')) {
   throw new Error('Upstream editor layout changed; review the desktop integration.');
 }
