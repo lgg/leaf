@@ -1040,7 +1040,7 @@
     background: var(--surface);
     outline-offset: 2px;
   }
-  #settings-tab-label, #settings-browser-title {
+  #settings-filename, #settings-tab-label, #settings-browser-title {
     min-width: 0;
     flex: 1;
     width: 160px;
@@ -2100,6 +2100,8 @@ function applyScrollPct(el, pct) {
 }
 
 function setMode(mode) {
+  // A narrow touch viewport cannot support side-by-side editing.
+  if (isLeafMobile() && mode === 'split') mode = 'preview';
   const scroll = document.getElementById('editor-scroll');
   const editorEl = document.getElementById('editor');
 
@@ -2136,6 +2138,7 @@ function setMode(mode) {
     renderPreview();
     setTimeout(() => applyScrollPct(preview, globalScrollPct), 30);
   }
+  updateMobileModeButton();
 }
 
 document.getElementById('mode-select').addEventListener('change', function() {
@@ -3178,6 +3181,9 @@ function saveSettings() {
     showLines:    document.getElementById('chk-show-lines').checked,
     showReadtime: document.getElementById('chk-show-readtime').checked,
     showCursor:   document.getElementById('chk-show-cursor').checked,
+    mobileHeading: document.getElementById('chk-mobile-heading').checked,
+    mobileStatus: document.getElementById('chk-mobile-status').checked,
+    mobileAutohide: document.getElementById('chk-mobile-autohide').checked,
   }));
   } catch (error) {
     workspaceNotice('Browser storage is unavailable. These settings might not survive a reload.');
@@ -3262,6 +3268,10 @@ function loadSettings() {
     if (s.showCursor === false) {
       document.getElementById('chk-show-cursor').checked = false;
     }
+    if (s.mobileHeading === true) document.getElementById('chk-mobile-heading').checked = true;
+    if (s.mobileStatus === true) document.getElementById('chk-mobile-status').checked = true;
+    if (s.mobileAutohide === false) document.getElementById('chk-mobile-autohide').checked = false;
+    applyMobilePreferences();
     applyStatusBarVisibility();
     syncThemeUI();
   } catch(error) {
@@ -3278,6 +3288,10 @@ document.getElementById('chk-smart-punct').addEventListener('change', function()
 });
 
 // ── Tab management ───────────────────────────────────────────────────
+let mobileSheetState = null;
+let mobileDockTimer = null;
+let mobileFullViewportHeight = 0;
+let mobileKeyboardVisible = false;
 let tabs = [
   { id: 1, name: 'untitled.txt', content: '', handle: null, dirty: false }
 ];
@@ -3319,6 +3333,7 @@ function renderTabs() {
     list.appendChild(el);
   });
   syncDocumentTitles();
+  renderMobileDocuments();
 }
 
 function syncDocumentTitles() {
@@ -3327,9 +3342,22 @@ function syncDocumentTitles() {
   document.title = tab.browserTitle || tab.name + ' — Leaf';
   const label = document.getElementById('settings-tab-label');
   const browser = document.getElementById('settings-browser-title');
+  const filename = document.getElementById('settings-filename');
   if (label.value !== (tab.label || '')) label.value = tab.label || '';
   if (browser.value !== (tab.browserTitle || '')) browser.value = tab.browserTitle || '';
+  if (filename.value !== tab.name) filename.value = tab.name;
+  document.getElementById('mobile-heading-label').textContent = tab.label || tab.name;
+  document.getElementById('mobile-heading-file').textContent = tab.name;
 }
+
+document.getElementById('settings-filename').addEventListener('input', event => {
+  const tab = getActiveTab();
+  if (!tab) return;
+  tab.name = event.target.value || 'untitled.md';
+  document.getElementById('filename-input').value = tab.name;
+  renderTabs();
+  scheduleWorkspaceSave();
+});
 
 for (const [id, property] of [['settings-tab-label','label'],['settings-browser-title','browserTitle']]) {
   document.getElementById(id).addEventListener('input', event => {
@@ -3705,6 +3733,7 @@ window.addEventListener('beforeunload', e => {
 
 // ── Init ──────────────────────────────────────────────────
 loadSettings();
+applyMobilePreferences();
 syncThemeUI();
 applyStatusBarVisibility();
 applyPlaceholderVisibility();
