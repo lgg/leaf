@@ -179,3 +179,10 @@ test('desktop session persists through native commands only and migrates older p
   assert.ok(bridge.includes('tab.nativePath = null;'));
   assert.ok(bridge.includes('if (!tab.readonly) tab.dirty = true;'));
 });
+
+test('desktop dirty tabs offer Save, Discard and Cancel without affecting web behavior', () => {
+  const html = fs.readFileSync(path.join(root, 'editor.html'), 'utf8');
+  assert.ok(html.includes("if (!answer && window.leafDesktop &&"));
+  assert.ok(html.includes("!confirm('Discard unsaved changes in"));
+  assert.ok(html.includes("if (answer) {\n      // Switch to it and save"));
+});

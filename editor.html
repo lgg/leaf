@@ -3123,8 +3123,10 @@ async function closeTab(id) {
   // Check for unsaved changes
   if (tab.dirty || (id === activeTabId && isDirty)) {
     const answer = confirm('Save "' + tab.name + '" before closing?');
-    // Desktop: Cancel means keep this unsaved tab, not silently discard it.
-    if (!answer && window.leafDesktop) return;
+    // Desktop: the first prompt offers Save. If declined, require a second
+    // explicit confirmation to discard; otherwise cancel closing the tab.
+    if (!answer && window.leafDesktop &&
+        !confirm('Discard unsaved changes in "' + tab.name + '"?')) return;
     if (answer) {
       // Switch to it and save
       switchTab(id);
