@@ -597,7 +597,7 @@ test('mobile filename can be edited without desktop filename field visible', () 
     "function renderTabs(){deps.renders.count++;deps.elements['settings-filename'].value=deps.tab.name}" +
     "function scheduleWorkspaceSave(){deps.saves.count++}";
   const renderCount={count:0}, saveCount={count:0};
-  new Function('deps',prefix+listenerMarker+source)(
+  new Function('deps',prefix+source)(
     {elements,tab,renders:renderCount,saves:saveCount});
   input.value='my-notes.md';
   input.listener({target:input});
