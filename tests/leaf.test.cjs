@@ -485,7 +485,7 @@ test('mobile dock reveals by bottom tap, auto-hides and pauses in a sheet', () =
   const makeNode=(id='') => {
     const classes=new Set(), listeners={};
     const node={
-      id, style:{},hidden:false,value:'',textContent:'',checked:false,children:[],
+      id, style:{setProperty(k,v){this[k]=v}},hidden:false,value:'',textContent:'',checked:false,children:[],
       classList:{
         add:k=>classes.add(k),remove:k=>classes.delete(k),contains:k=>classes.has(k),
         toggle:(k,on)=>{if(on===undefined ? !classes.has(k) : on) classes.add(k);else classes.delete(k)}
@@ -498,6 +498,7 @@ test('mobile dock reveals by bottom tap, auto-hides and pauses in a sheet', () =
       replaceChildren(...children){this.children=children},
       querySelector(sel){return makeNode(sel)},
       focus(){},
+      blur(){if(id==='editor') doc.activeElement=null;},
     };
     return node;
   };
@@ -568,6 +569,13 @@ test('mobile dock reveals by bottom tap, auto-hides and pauses in a sheet', () =
   onVisual.resize();
   assert.equal(body.classList.contains('mobile-keyboard-open'),true);
   assert.equal(getNode('mobile-dock').classList.contains('mobile-visible'),false);
+  assert.equal(getNode('mobile-dock').style['--leaf-keyboard-bottom'],'350px');
+  getNode('mobile-dock-trigger').dispatch('click');
+  assert.equal(body.classList.contains('mobile-keyboard-open'),false);
+  const reveal=[...timers.values()].find(x=>x.ms===180);
+  assert.ok(reveal,'tap-to-dismiss should reveal the dock');
+  reveal.fn();
+  assert.equal(getNode('mobile-dock').classList.contains('mobile-visible'),true);
   win.visualViewport.height=750;
   onVisual.resize();
   assert.equal(body.classList.contains('mobile-keyboard-open'),false);
