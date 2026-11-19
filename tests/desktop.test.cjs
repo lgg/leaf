@@ -49,6 +49,15 @@ test('desktop stage creates offline assets without adding web-only service worke
   assert.ok(dist.includes('id="btn-desktop-releases"'));
   assert.ok(!fs.readFileSync(path.join(root, 'editor.html'), 'utf8').includes('id="btn-desktop-releases"'));
 
+  assert.ok(dist.includes("if (!window.__TAURI__) {\nif (!restoreWorkspace())") ||
+    dist.includes("if (!window.__TAURI__) {\n  if (!restoreWorkspace())"));
+  assert.ok(dist.includes("if (!window.__TAURI__) window.addEventListener('pagehide', persistWorkspace)"));
+  assert.ok(dist.includes("if (!window.__TAURI__ && document.visibilityState === 'hidden')"));
+  assert.ok(dist.includes("if (window.__TAURI__) return; // native close handler"));
+  // The website keeps the browser persistence path; desktop has separate restoration.
+  const web = fs.readFileSync(path.join(root, 'editor.html'), 'utf8');
+  assert.ok(web.includes("window.addEventListener('pagehide', persistWorkspace);"));
+  assert.ok(web.includes("if (!restoreWorkspace()) {"));
   assert.ok(!dist.includes('<link rel="manifest"'));
   assert.ok(!fs.existsSync(path.join(root, 'desktop', 'dist', 'sw.js')));
   const icon = fs.readFileSync(path.join(root, 'src-tauri', 'icons', 'icon.ico'));
@@ -148,4 +157,14 @@ test('Windows release binaries are gated against real/embedded host paths', () =
   assert.ok(countLeaks(Buffer.concat([Buffer.from('a'),Buffer.from(synthetic, 'utf16le')]), {}) > 0);
   assert.ok(countLeaks(Buffer.from('D:\\build\\repo\\src\\main.rs'), {GITHUB_WORKSPACE:'D:\\build\\repo'}) > 0);
   assert.equal(countLeaks(Buffer.from('Windows build. Source maps: /leaf-source/lib.rs'), {}), 0);
+});
+
+test('desktop session persists through native commands only and migrates older previews safely', () => {
+  const bridge = fs.readFileSync(path.join(root,'desktop','desktop-bridge.js'), 'utf8');
+  assert.ok(bridge.includes("invoke('desktop_save_session', {session: snapshot})"));
+  assert.ok(bridge.includes("scheduleWorkspaceSave = function () {\n    scheduleSession();"));
+  assert.ok(!bridge.includes('browserSchedule()'));
+  assert.ok(bridge.includes('typeof restoreWorkspace === \'function\' && restoreWorkspace()'));
+  assert.ok(bridge.includes('tab.nativePath = null;'));
+  assert.ok(bridge.includes('if (!tab.readonly) tab.dirty = true;'));
 });

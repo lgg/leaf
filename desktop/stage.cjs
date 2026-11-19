@@ -11,6 +11,28 @@ if (!html.includes('</body>') || !html.includes('async function saveFile()')) {
   throw new Error('Upstream editor layout changed; review the desktop integration.');
 }
 html = html.replace(/<link rel="manifest"[^>]*>\s*/i, '');
+// Desktop must NEVER mirror private on-disk document content to WebView localStorage.
+// Browser/PWA retain their original storage behavior because editor.html is untouched.
+const webInit = "if (!restoreWorkspace()) {\n  const backups = availableWorkspaceRecoveries();\n  if (!backups.length || !restoreWorkspace(backups[0].raw)) restoreAutosave();\n}\npersistWorkspace();";
+if (!html.includes(webInit)) throw new Error('Browser workspace initialization changed; re-audit native isolation.');
+html = html.replace(webInit, "if (!window.__TAURI__) {\n" + webInit + "\n}");
+html = html.replace(
+  "window.addEventListener('pagehide', persistWorkspace);",
+  "if (!window.__TAURI__) window.addEventListener('pagehide', persistWorkspace);"
+);
+html = html.replace(
+  "if (document.visibilityState === 'hidden') persistWorkspace();",
+  "if (!window.__TAURI__ && document.visibilityState === 'hidden') persistWorkspace();"
+);
+html = html.replace(
+  "window.addEventListener('storage', event => {",
+  "window.addEventListener('storage', event => {\n  if (window.__TAURI__) return;"
+);
+html = html.replace(
+  "window.addEventListener('beforeunload', e => {",
+  "window.addEventListener('beforeunload', e => {\n  if (window.__TAURI__) return; // native close handler persists session and prompts"
+);
+
 html = html.replace('</body>', '<script src="./desktop-bridge.js"></script>\n</body>');
 html = html.replace('href="https://github.com/lgg/leaf/releases"', 'id="btn-desktop-releases" href="https://github.com/lgg/leaf/releases"');
 html = html.replace(

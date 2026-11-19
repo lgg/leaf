@@ -49,11 +49,9 @@
     await storeSession();
   }
 
-  // The editor already calls scheduleWorkspaceSave whenever tabs, content or
-  // labels change. Reuse that event, rather than changing web autosave logic.
-  const browserSchedule = scheduleWorkspaceSave;
+  // Reuse editor change notifications but persist desktop tabs ONLY through
+  // the Tauri app-data session. Browser storage would duplicate private files.
   scheduleWorkspaceSave = function () {
-    browserSchedule();
     scheduleSession();
   };
 
@@ -214,6 +212,20 @@
   async function restore() {
     try {
       const data = await invoke('desktop_restore');
+      if (!(data.tabs && data.tabs.length) && !(data.launchFiles || []).length &&
+          typeof restoreWorkspace === 'function' && restoreWorkspace()) {
+        // One-time migration from older desktop previews that used browser storage.
+        // These copies are UNBOUND drafts; never assume a path from the browser.
+        for (const tab of tabs) {
+          tab.nativePath = null;
+          tab.nativeRev = null;
+          tab.nativeEol = 'lf';
+          if (!tab.readonly) tab.dirty = true;
+        }
+        isDirty = !!current()?.dirty;
+        renderTabs();
+        workspaceNotice('Older desktop drafts were recovered from browser storage. Save As to choose their file locations.');
+      }
       if (data.tabs && data.tabs.length) {
         const recoveryCopies = [];
         const restored = data.tabs.map((item, index) => restoredTab(item, index + 1, recoveryCopies));
