@@ -54,6 +54,19 @@
   scheduleWorkspaceSave = function () {
     scheduleSession();
   };
+  // Browser recovery controls still exist in the shared HTML. Disable their
+  // persistence path in the native shell; only Rust may store document drafts.
+  persistWorkspace = function () {};
+  refreshRecoveryControl = function () {
+    const row = document.getElementById('workspace-recovery-row');
+    if (row) row.hidden = true;
+  };
+  const webRecovery = document.getElementById('btn-recover-workspace');
+  if (webRecovery) webRecovery.addEventListener('click', event => {
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    workspaceNotice('Desktop drafts are restored from the native session.');
+  }, true);
 
   function showDocument(doc) {
     if (!doc || !doc.path) return;
@@ -225,16 +238,43 @@
       if (!(data.tabs && data.tabs.length) && !(data.launchFiles || []).length &&
           typeof restoreWorkspace === 'function' && restoreWorkspace()) {
         // One-time migration from older desktop previews that used browser storage.
-        // These copies are UNBOUND drafts; never assume a path from the browser.
+        // Import additional conflict backups as unbound tabs without deleting them.
+        const backupCopies = typeof availableWorkspaceRecoveries === 'function'
+          ? availableWorkspaceRecoveries() : [];
         for (const tab of tabs) {
           tab.nativePath = null;
           tab.nativeRev = null;
           tab.nativeEol = 'lf';
           if (!tab.readonly) tab.dirty = true;
         }
+        const signatures = new Set(tabs.map(tab => [tab.name, tab.content].join('\u0000')));
+        let importedBackups = 0;
+        for (const backup of backupCopies) {
+          try {
+            const payload = JSON.parse(backup.raw);
+            for (const oldTab of payload.tabs || []) {
+              if (tabs.length >= 60) break;
+              if (!oldTab || oldTab.readonly || typeof oldTab.content !== 'string') continue;
+              const name = typeof oldTab.name === 'string' ? oldTab.name : 'recovery.md';
+              const signature = [name, oldTab.content].join('\u0000');
+              if (signatures.has(signature)) continue;
+              signatures.add(signature);
+              tabs.push({
+                id: nextTabId++, name, label: (oldTab.label || name) + ' · recovery',
+                browserTitle: '', content: oldTab.content, handle: null, dirty: true,
+                readonly: false, nativePath: null, nativeRev: null, nativeEol: 'lf'
+              });
+              importedBackups++;
+            }
+          } catch (error) {
+            // Keep malformed legacy backup intact for troubleshooting.
+          }
+        }
         isDirty = !!current()?.dirty;
         renderTabs();
-        workspaceNotice('Older desktop drafts were recovered from browser storage. Save As to choose their file locations.');
+        workspaceNotice('Older desktop drafts were recovered as native drafts' +
+          (importedBackups ? ' (including ' + importedBackups + ' separate backup tabs)' : '') +
+          '. Use Save As to choose file locations.');
       }
       if (data.tabs && data.tabs.length) {
         const recoveryCopies = [];

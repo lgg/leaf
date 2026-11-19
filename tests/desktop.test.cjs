@@ -211,3 +211,13 @@ test('binary privacy diagnostic labels reveal no raw host folders', () => {
   assert.ok(!categories.join(',').includes('SampleUser'));
   assert.ok(!categories.join(',').includes('D:'));
 });
+
+test('desktop intercepts legacy browser recovery UI without persisting native files to localStorage', () => {
+  const bridge = fs.readFileSync(path.join(root,'desktop','desktop-bridge.js'), 'utf8').replace(/\r\n/g,'\n');
+  assert.ok(bridge.includes('persistWorkspace = function () {};'));
+  assert.ok(bridge.includes('refreshRecoveryControl = function () {'));
+  assert.ok(bridge.includes("event.stopImmediatePropagation();"));
+  assert.ok(bridge.includes("const backupCopies = typeof availableWorkspaceRecoveries"));
+  assert.ok(bridge.includes("nativePath: null, nativeRev: null, nativeEol: 'lf'"));
+  assert.ok(!bridge.includes('browserSchedule()'));
+});

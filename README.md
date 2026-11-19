@@ -32,7 +32,7 @@ Leaf desktop uses the **same editor** with a small, separate Rust/Tauri layer. T
 - Native saves preserve standard Windows CRLF line endings when the original file used CRLF.
 - An interrupted or failed save retains the unsaved editor text; a disk-conflict warning never silently overwrites external changes.
 - File associations register Markdown and plain text with the Windows installer. File paths passed at launch can be opened on startup.
-- Tabs, order, custom labels and per-document titles persist in local app settings. Unlike the web/PWA, desktop file text is not duplicated into browser localStorage; recovery drafts live in the native session. On restart, Leaf reads real files again from disk. Unsaved drafts can be recovered explicitly; missing files become recovery drafts that must be saved to a new location.
+- Tabs, order, custom labels and per-document titles persist in local app settings. Unlike the web/PWA, desktop file text is not duplicated into browser localStorage; recovery drafts live in the native session. Drafts from an older desktop preview are imported as unbound recovery tabs without rewriting legacy browser storage. On restart, Leaf reads real files again from disk. Unsaved drafts can be recovered explicitly; missing files become recovery drafts that must be saved to a new location.
 - Drag and drop existing Markdown/text files onto the desktop window; only actual OS-dropped paths are authorized. Export all documents as a native ZIP file.
 - Check published GitHub releases from the desktop About panel on demand; review release notes and download manually. No forced updates.
 - Web/email links in Markdown previews open in the OS default application; unsafe link schemes are rejected.
