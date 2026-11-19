@@ -733,13 +733,21 @@
     background: var(--surface);
     border: 1px solid var(--border);
     border-radius: 12px;
-    padding: 36px 48px;
+    padding: 30px 28px 24px;
     font-family: 'JetBrains Mono', monospace;
     color: var(--text);
-    min-width: 280px;
+    width: min(440px, calc(100vw - 24px));
+    min-width: 0;
+    max-height: calc(100dvh - 24px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
     box-shadow: 0 8px 40px rgba(0,0,0,0.4);
     position: relative;
   }
+  #settings-modal::-webkit-scrollbar { display: block; width: 5px; }
+  #settings-modal::-webkit-scrollbar-thumb { background: var(--border); border-radius: 8px; }
   #settings-modal h3 {
     font-size: 11px;
     font-weight: 600;
@@ -784,6 +792,49 @@
     cursor: pointer;
     opacity: 0.8;
   }
+  #settings-modal .settings-document-row label {
+    width: 96px;
+    flex: 0 0 96px;
+  }
+  #settings-modal .settings-document-row { min-width: 0; }
+  #settings-modal .settings-recovery {
+    min-width: 0;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 10px;
+    margin-top: 12px;
+    padding: 10px 0 0;
+    border-top: 1px solid var(--border);
+  }
+  #settings-modal .settings-recovery[hidden] { display: none; }
+  #settings-modal .settings-recovery span {
+    flex: 1 1 170px;
+    min-width: 0;
+    overflow-wrap: anywhere;
+    color: var(--muted);
+    opacity: .85;
+    font-size: 10px;
+    line-height: 1.5;
+  }
+  #btn-recover-workspace {
+    flex: 0 0 auto;
+    max-width: 100%;
+    font: 10px 'JetBrains Mono', monospace;
+    color: var(--text);
+    border: 1px solid var(--border);
+    background: var(--bg);
+    border-radius: 5px;
+    padding: 7px 10px;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    text-align: center;
+  }
+  #btn-recover-workspace:hover, #btn-recover-workspace:focus-visible {
+    border-color: var(--accent);
+    background: var(--surface);
+    outline-offset: 2px;
+  }
   #settings-tab-label, #settings-browser-title {
     min-width: 0;
     flex: 1;
@@ -795,7 +846,18 @@
     color: var(--text);
     font: 11px 'JetBrains Mono', monospace;
   }
-  .settings-help { font-size: 10px; color: var(--muted); opacity: 0.8; }
+  .settings-help {
+    font-size: 10px;
+    line-height: 1.6;
+    color: var(--muted);
+    opacity: 0.8;
+    overflow-wrap: anywhere;
+    margin-top: 6px;
+  }
+  @media (max-width: 480px) {
+    #settings-modal { padding: 27px 16px 18px; }
+    #settings-modal .settings-document-row label { width: 86px; flex-basis: 86px; }
+  }
   .settings-divider {
     border: none;
     border-top: 1px solid var(--border);
@@ -852,9 +914,9 @@
 
   /* ── Settings theme list ── */
   .settings-theme-list {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 2px 8px;
   }
   .settings-theme-item {
     display: flex;
@@ -1040,7 +1102,24 @@
 <!-- Settings Modal -->
 <div id="settings-overlay" style="display:none">
   <div id="settings-modal">
-    <button id="btn-settings-close" title="Close">×</button>
+    <button id="btn-settings-close" title="Close" aria-label="Close settings">×</button>
+    <div class="settings-section">
+      <h3>Current document</h3>
+      <div class="settings-row settings-document-row">
+        <label for="settings-tab-label">tab label</label>
+        <input id="settings-tab-label" type="text" placeholder="Same as filename" autocomplete="off" spellcheck="false" title="Label of the tab inside Leaf">
+      </div>
+      <div class="settings-row settings-document-row">
+        <label for="settings-browser-title">browser title</label>
+        <input id="settings-browser-title" type="text" placeholder="Automatic title" autocomplete="off" spellcheck="false" title="Browser tab title when this document is active">
+      </div>
+      <p class="settings-help">These titles are independent of the filename in the toolbar.</p>
+      <div id="workspace-recovery-row" class="settings-recovery" hidden>
+        <span>Another browser window's draft was saved separately.</span>
+        <button id="btn-recover-workspace" type="button" aria-label="Restore latest recovery copy">restore backup</button>
+      </div>
+    </div>
+    <hr class="settings-divider">
     <div class="settings-section">
       <h3>Appearance</h3>
       <div class="settings-theme-list">
@@ -1146,20 +1225,7 @@
         <label for="chk-smart-punct">smart punctuation</label>
       </div>
     </div>
-    <hr class="settings-divider">
-    <div class="settings-section">
-      <h3>Current document</h3>
-      <div class="settings-row">
-        <label for="settings-tab-label">tab label</label>
-        <input id="settings-tab-label" type="text" placeholder="Same as filename" autocomplete="off" spellcheck="false" title="Label of the tab inside Leaf">
-      </div>
-      <div class="settings-row">
-        <label for="settings-browser-title">browser title</label>
-        <input id="settings-browser-title" type="text" placeholder="Automatic title" autocomplete="off" spellcheck="false" title="Browser tab title when this document is active">
-      </div>
-      <p class="settings-help">These are independent of the Markdown filename above.</p>
-      <button id="btn-recover-workspace" type="button" title="Restore a separately saved workspace from another Leaf window">restore recovery copy</button>
-    </div>
+
   </div>
 </div>
 
