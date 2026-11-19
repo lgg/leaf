@@ -1246,9 +1246,8 @@
 
 <script>
 const README_CONTENT = `LEAF: A MARKDOWN EDITOR
-Vibe coded by Dan (c) 2026
-Original: https://github.com/uncle-jasper/leaf
-updated by lgg: https://github.com/lgg/leaf
+Vibe coded by Dan (c) 2026 — https://github.com/uncle-jasper/leaf
+updated by lgg — https://github.com/lgg/leaf
 Version 1.7 (lgg fork)
 
 ================================================================================
@@ -1284,7 +1283,8 @@ OPTION 1 - Open directly in a browser
 Double-click editor.html. Works in any modern browser.
 
 OPTION 2 - Install as a PWA (Chrome / Edge)
-Open https://uncle-jasper.github.io/leaf/editor.html in Chrome or Edge.
+Open https://lgg.github.io/leaf/editor.html (fork) in Chrome or Edge.
+Original author: https://uncle-jasper.github.io/leaf/editor.html
 An install button will appear in the address bar or browser menu.
 Click it to install Leaf as a standalone app with its own window and icon.
 Once installed, Leaf works fully offline.
@@ -1297,11 +1297,13 @@ THE INTERFACE
 TOOLBAR (top strip)
   Filename field        Set the name of your file before saving
   save                  Downloads your file (or saves in place in Chrome)
+  all .md               Exports all open, editable documents as one .zip of
+                        separate Markdown (.md) files
   open                  Load an existing .txt or .md file
   write / split / prev  Switch between write, split, and preview modes
   Theme menu            Choose your color theme
-  Font menu             Choose your writing font
-  Size menu             Choose your font size
+  Font settings         Choose the writing font under Settings > Appearance
+  Size settings         Choose the font size under Settings > Appearance
   autohide              Hides toolbar while typing; hover top of screen to show
   focus                 Fullscreen focus mode (Esc or Ctrl+Shift+F to exit)
   ...                   About Leaf
@@ -1309,6 +1311,10 @@ TOOLBAR (top strip)
 TAB BAR (below toolbar)
   Shows open files below the toolbar. Click to switch, + to open new,
   x to close. In focus mode, the tab bar is hidden.
+  Double-click a tab label to rename it without changing the Markdown filename.
+  Settings > Current document is the first section of the settings dialog.
+  There, the in-app tab label and browser title are independent of the Markdown
+  filename. Each document remembers both fields.
 
   In autohide mode, the toolbar hides when you click into the editor.
   Move your mouse to the top of the screen to reveal it. The tab bar
@@ -1319,11 +1325,13 @@ TAB BAR (below toolbar)
 STATUS BAR
   Shows live word count, character count, line count, and cursor position.
   When text is selected, shows the word and character count of the selection.
+  Each counter can be hidden independently under Settings > Status bar.
+  When all five counters are disabled, the entire status bar disappears.
   Fades out in focus mode and reappears on hover.
   Displays a random welcome message on launch.
   Shows milestone messages at 100, 250, 500, 1000, 2000, and 5000 words.
   Shows a quiet idle nudge after 3 minutes of inactivity.
-  All status messages can be disabled via the toggle in the About modal.
+  All status messages can be disabled under Settings > Editor.
 
 
 ================================================================================
@@ -1331,14 +1339,11 @@ THEMES
 ================================================================================
 
   parchment   Warm cream (default)
-  sepia       Rich warm brown — like an old photograph
   paper       Cool white with a slight blue-grey tint
-  ash         Neutral grey — overcast, focused, no colour cast
-  sage        Soft green — unmistakably a green environment
   dark        Near-black with cool grey text
+  black       Pure black (#000000) with a grey (#c8c8c8) caret and monospace font
   moss        Dark green
   slate       Dark blue-grey
-  dusk        Warm dark — deep brown-black with terracotta accents
   terminal    Black with dimmed green phosphor text. Includes an optional
               CRT mode ([CRT] in toolbar) — a fun retro nod to the monochrome
               green monitors of the 80s. Rumor has it there's another color
@@ -1354,7 +1359,9 @@ FONTS
 ================================================================================
 
 The iA Writer fonts are embedded in the HTML file and work offline.
-All other fonts require an internet connection.
+JetBrains Mono, Inconsolata, Share Tech Mono, Roboto Mono and Open Sans need
+an internet connection for their web fonts (with local fallback). System fonts
+Arial and Times New Roman work offline when installed on the device.
 
   iA Writer Mono      Classic monospaced typewriter feel (default)
   iA Writer Duo       Proportional with a monospace structure
@@ -1362,6 +1369,10 @@ All other fonts require an internet connection.
   JetBrains Mono      Clean developer monospace
   Inconsolata         Clean, neutral console font
   Share Tech Mono     Softer retro monospace
+  Roboto Mono         Clean, readable monospaced font
+  Open Sans           Modern proportional sans-serif
+  Times New Roman     Classic system serif font
+  Arial               Classic system sans-serif font
 
 
 ================================================================================
@@ -1370,13 +1381,8 @@ KEYBOARD SHORTCUTS
 
   Ctrl+S          Save file
   Ctrl+B          Bold selected text (**text**)
-  Ctrl+Shift+B    Bold+italic selected text (***text***)
   Ctrl+I          Italic selected text (*text*)
-  Ctrl+Shift+X    Strikethrough selected text (~~text~~)
-  Ctrl+\`         Inline code selected text (\`text\`)
   Ctrl+K          Wrap selection in link [text](url)
-  Ctrl+G          Jump to next heading (wraps around)
-  Ctrl+,          Open settings
   Ctrl+1          Heading 1 (toggle)
   Ctrl+2          Heading 2 (toggle)
   Ctrl+3          Heading 3 (toggle)
@@ -1404,9 +1410,33 @@ a saved confirmation.
 In Brave and other browsers, each save downloads the file. Name the file
 using the filename field before saving.
 
-Leaf also autosaves your work to browser storage every 30 seconds. If Leaf
-is closed unexpectedly and you reopen it, you will be offered the chance to
-restore your last autosaved draft.
+Each text change schedules a browser-local save, debounced for 350 ms of
+inactivity; uninterrupted typing is flushed at least once every 2 seconds.
+Identical snapshots are not written again. Hiding or closing the browser tab
+flushes outstanding edits synchronously. This avoids disk writes per keystroke.
+
+All open documents, their filenames, in-app labels, browser titles, content,
+dirty states and active tab are restored automatically on the same site/browser.
+Older single-document autosaves can still be restored.
+
+If independent Leaf browser windows edit the same workspace, Leaf detects
+external changes and writes separate recovery copies to avoid silently
+overwriting another window's work. Settings > Current document only shows the
+"restore backup" action when a valid recovery copy exists. Restoring it keeps
+the previous main workspace as a separate backup. The modal scrolls on small
+screens, and all controls are accessible.
+
+The page is served fresh online with a cached offline fallback. If an older
+PWA version is still open, reload the page to apply updated settings controls.
+LocalStorage is not a replacement for an exported file backup.
+
+The writing hint ("Start writing… markdown is supported.") can be disabled
+in Settings > Editor. Appearance and visibility preferences are saved as well.
+
+IMPORTANT: Browser data can be erased by the user, by private/incognito mode or
+by browser cleanup. Download important files as .md or .txt for durable backups.
+Storage is per browser + website origin: a local file, the upstream GitHub Pages
+site and your own fork's GitHub Pages site have separate localStorage.
 
 
 ================================================================================
@@ -1423,63 +1453,23 @@ Write 500 words to earn your freedom early.
 
 
 ================================================================================
-CHANGELOG
+SETTINGS — FORK UPDATE
 ================================================================================
 
-v1.7
-  - Theme selector moved from toolbar to settings modal — toolbar now shows
-    the current theme name as a quiet label that opens settings when clicked
-  - Font and font size moved to settings modal under Appearance
-  - CRT mode toggle moved to settings modal — appears only when terminal
-    theme is active
-  - Settings modal reorganised into Appearance, Status bar, and Editor
-    sections
-  - Theme list in settings shows a colour swatch next to each theme name
-  - Settings modal and Ctrl+, blocked during Just Write mode
+Settings open with Ctrl+, or the "settings" toolbar control. Section order:
+  1. Current document — in-app tab label, browser tab title and recovery
+     action (only when a backup exists)
+  2. Appearance — themes, custom colors, fonts and font size
+  3. Status bar — five independent visibility toggles
+  4. Editor — writing hint, status messages and smart punctuation
 
-v1.6
-  - New theme: sepia — rich warm brown, noticeably deeper than parchment
-  - New theme: ash — fully desaturated mid-grey, like an overcast sky
-  - New theme: sage — distinctly green light theme
-  - New theme: dusk — warm dark with deep brown-black background and
-    terracotta accents; the dark counterpart to parchment
+Each setting is saved in the browser-local "leaf-editor-settings" localStorage
+entry. Draft workspaces use a separate key. Browser cleanup, incognito mode,
+storage quota failures, and other websites' storage cannot be controlled by Leaf.
 
-v1.5.7
-  - Ctrl+Shift+X wraps selected text in strikethrough (~~text~~)
-  - Ctrl+Shift+B wraps selected text in bold+italic (***text***)
-  - Strikethrough now renders correctly in preview and split view
-  - Line count moved to left side of status bar with other document stats
-  - Milestone messages no longer lost if the status bar is busy when they
-    fire — they retry on the next keystroke instead
-  - Pasting text now seeds milestones like loading a file — milestones
-    already exceeded by pasted content are suppressed; the next milestone
-    you cross by writing will still fire
-  - Smart quotes detection made more robust across browsers
-  - Auto-close backticks option removed
-  - Settings button label changed to text to match toolbar style
-
-v1.5.8
-  - New theme: dusk — warm dark with deep brown-black background and
-    terracotta accents; the dark counterpart to parchment
-
-v1.5.6
-  - Settings modal added (Ctrl+,) — replaces the toggles that were in the
-    About modal, which is now credits-only
-  - Status bar customisation: character count, line count, reading time, and
-    cursor position can each be shown or hidden from settings
-  - Reading time moves to the centre of the status bar; fades out gracefully
-    when a status message fires and returns when the message clears
-  - autocorrect and autocapitalize attributes added to editor for mobile
-    Safari support
-
-v1.5.5
-  - Ctrl+\` wraps selected text in inline code backticks
-  - Ctrl+G jumps to the next heading in the document (wraps around)
-  - Smart punctuation option: -- converts to em dash, straight quotes
-    convert to curly quotes (off by default, toggle in About)
-  - Auto-close pairs option: typing * or \` inserts a matching closing
-    character and places the cursor between them (off by default, toggle
-    in About)
+================================================================================
+CHANGELOG
+================================================================================
 
 v1.5.4
   - Theme dropdown no longer collapses the toolbar when scrolling through
@@ -1552,7 +1542,7 @@ v1.2.2
   - Sync toggle button (⇅/↕) on the split divider — click to lock or free scrolling
   - Last pane scrolled determines sync position when re-enabling scroll lock
   - Scroll sync preference remembered between sessions
-  - Browser title bar shortened to "Leaf: A Markdown Editor" 
+  - Browser title bar shortened to "Leaf: A Markdown Editor"
 
 v1.2.1
   - Welcome message toggle persists correctly between sessions
@@ -1616,6 +1606,24 @@ v1.0
   - Windows Chrome launcher (Leaf.bat)
   - Mac Platypus launcher
 
+
+================================================================================
+FORK NOTES (lgg/leaf)
+================================================================================
+
+- Word count can now be hidden; hiding all counters removes the status bar.
+- Black theme, grey caret and monospaced writing font.
+- Optional writing hint, remembered after reload.
+- All open tabs and filenames are now restored after reopening the browser.
+- Settings are stored per website in localStorage.
+- ZIP export of multiple Markdown files (issue #1).
+- Independent internal/browser tab names per document (issue #2).
+- Additional fonts: Roboto Mono, Open Sans, Times New Roman and Arial.
+- Original: Dan / https://github.com/uncle-jasper/leaf
+- updated by lgg / https://github.com/lgg/leaf
+
+When GitHub Pages is enabled for the main branch of this fork, open:
+https://lgg.github.io/leaf/editor.html
 
 ================================================================================
 LEAF IS A SINGLE HTML FILE. NO DATA EVER LEAVES YOUR COMPUTER.
