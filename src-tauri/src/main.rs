@@ -301,13 +301,15 @@ fn main() {
             if webview.label() != "main" { return; }
             if let tauri::WebviewEvent::DragDrop(tauri::DragDropEvent::Drop { paths, .. }) = event {
                 let state = webview.state::<DesktopState>();
-                if let Ok(mut allowed) = state.dropped.lock() {
-                    allowed.clear();
-                    for path in paths {
-                        if !is_text(path) { continue; }
-                        if let Ok(canonical) = fs::canonicalize(path) {
-                            allowed.insert(canonical.to_string_lossy().to_string());
-                        }
+                let mut allowed = match state.dropped.lock() {
+                    Ok(guard) => guard,
+                    Err(_) => return,
+                };
+                allowed.clear();
+                for path in paths {
+                    if !is_text(path) { continue; }
+                    if let Ok(canonical) = fs::canonicalize(path) {
+                        allowed.insert(canonical.to_string_lossy().to_string());
                     }
                 }
             }
