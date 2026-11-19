@@ -193,6 +193,35 @@ async fn desktop_save(
 }
 
 #[tauri::command]
+fn desktop_open_path(path: String, state: State<'_, DesktopState>) -> Result<Document, String> {
+    // Used only for explicit OS drag-and-drop; filenames must be Markdown/text.
+    let doc = read_document(Path::new(&path))?;
+    remember(&state, &doc)?;
+    Ok(doc)
+}
+
+#[tauri::command]
+async fn desktop_export_zip(app: tauri::AppHandle, bytes: Vec<u8>) -> Result<bool, String> {
+    if bytes.len() > 32 * 1024 * 1024 { return Err("ZIP export exceeds 32 MB.".into()); }
+    let handle = app.clone();
+    let picked = tauri::async_runtime::spawn_blocking(move || {
+        handle.dialog().file().add_filter("ZIP archive", &["zip"])
+            .set_file_name("leaf-markdown-files.zip").blocking_save_file()
+    }).await.map_err(|_| "ZIP export dialog failed.".to_string())?;
+    match picked {
+        Some(selected) => {
+            let path = selected.into_path().map_err(|_| "Unsupported export location.".to_string())?;
+            if path.extension().and_then(|s| s.to_str()).map(|s| s.to_ascii_lowercase()).as_deref() != Some("zip") {
+                return Err("Choose a .zip filename.".into());
+            }
+            atomic_write(&path, &bytes)?;
+            Ok(true)
+        }
+        None => Ok(false),
+    }
+}
+
+#[tauri::command]
 fn desktop_restore(app: tauri::AppHandle, state: State<'_, DesktopState>) -> Result<Restored, String> {
     let session = read_session(&app);
     let mut tabs = Vec::new();
@@ -249,7 +278,7 @@ fn main() {
         .plugin(tauri_plugin_dialog::init())
         .manage(DesktopState::default())
         .invoke_handler(tauri::generate_handler![
-            desktop_open_dialog, desktop_save, desktop_restore, desktop_save_session
+            desktop_open_dialog, desktop_open_path, desktop_export_zip, desktop_save, desktop_restore, desktop_save_session
         ])
         .run(tauri::generate_context!())
         .expect("Leaf desktop could not start");

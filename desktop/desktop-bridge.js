@@ -102,6 +102,20 @@
     }
   }
 
+  async function exportZip() {
+    saveActiveTabState();
+    const files = getMarkdownExportEntries(tabs);
+    if (!files.length) return false;
+    try {
+      const blob = makeMarkdownZip(files);
+      const bytes = Array.from(new Uint8Array(await blob.arrayBuffer()));
+      return !!(await invoke('desktop_export_zip', {bytes}));
+    } catch (error) {
+      alert('Could not export Markdown ZIP: ' + safeError(error));
+      return false;
+    }
+  }
+
   async function save(saveAs) {
     const tab = current();
     if (!tab || tab.readonly) return false;
@@ -213,7 +227,7 @@
     }
   }
 
-  window.leafDesktop = {open, save: () => save(false), saveAs: () => save(true)};
+  window.leafDesktop = {open, exportZip, save: () => save(false), saveAs: () => save(true)};
 
   const saveAsButton = document.getElementById('btn-desktop-save-as');
   if (saveAsButton) saveAsButton.addEventListener('click', () => save(true));
@@ -253,6 +267,22 @@
         await win.destroy();
       } catch (error) {
         alert('Cannot save the recovery session. Leaf remains open: ' + safeError(error));
+      }
+    }).catch(() => {});
+  }
+
+  // OS-native drop event: unlike browser File API, this retains the real file path.
+  if (tauri.webview && tauri.webview.getCurrentWebview) {
+    tauri.webview.getCurrentWebview().onDragDropEvent(async event => {
+      if (event.payload.type !== 'drop') return;
+      for (const path of event.payload.paths || []) {
+        if (!/\.(md|txt)$/i.test(path)) continue;
+        try {
+          const doc = await invoke('desktop_open_path', {path});
+          showDocument(doc);
+        } catch (error) {
+          alert('Could not open dropped file: ' + safeError(error));
+        }
       }
     }).catch(() => {});
   }

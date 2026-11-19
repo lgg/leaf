@@ -17,7 +17,7 @@ test('desktop source bridge parses and implements OS file entry points', () => {
   const source = fs.readFileSync(path.join(root, 'desktop', 'desktop-bridge.js'), 'utf8');
   assert.doesNotThrow(() => new Function(source));
   for (const token of ['desktop_open_dialog','desktop_save','desktop_restore',
-    'desktop_save_session', 'nativePath', 'expectedRevision', 'onCloseRequested']) {
+    'desktop_save_session', 'desktop_open_path', 'desktop_export_zip', 'nativePath', 'expectedRevision', 'onCloseRequested']) {
     assert.ok(source.includes(token), token);
   }
 });
