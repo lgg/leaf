@@ -1478,455 +1478,90 @@
     <p class="about-credit">Vibe coded by <a href="https://github.com/uncle-jasper" target="_blank" rel="noopener noreferrer">Dan</a> · <a href="https://github.com/uncle-jasper/leaf" target="_blank" rel="noopener noreferrer">original repository</a></p>
     <p class="about-credit">updated by <a href="https://github.com/lgg" target="_blank" rel="noopener noreferrer">lgg</a> · <a href="https://github.com/lgg/leaf" target="_blank" rel="noopener noreferrer">fork repository</a></p>
     <p class="about-copy">© 2026</p>
-    <p class="about-version"><span style="font-size:13px;">v1.9.0-lgg.1</span> · <a href="#" onclick="openReadmeTab(); return false;" style="font-size:11px; color:var(--accent); opacity:0.7; text-decoration:none;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.7'">changelog</a></p>
+    <p class="about-version"><span style="font-size:13px;">v1.10.0-lgg.1</span> · <a href="#" onclick="openReadmeTab(); return false;" style="font-size:11px; color:var(--accent); opacity:0.7; text-decoration:none;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.7'">README</a> · <a href="https://github.com/lgg/leaf/blob/main/CHANGELOG.md" target="_blank" rel="noopener noreferrer" style="font-size:11px; color:var(--accent); opacity:0.7; text-decoration:none;">changelog</a></p>
+    <p class="about-copy" style="margin:10px 0 0;font-size:12px;">Desktop edition · <a href="https://github.com/lgg/leaf/releases" target="_blank" rel="noopener noreferrer" style="color:var(--accent)">Windows downloads &amp; release notes</a> (when available)</p>
     <p style="margin-top:4px; font-size:11px;"><a href="https://buymeacoffee.com/dandanmian" target="_blank" style="color:var(--accent); opacity:0.7; text-decoration:none;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.7'">☕ buy me a coffee</a></p>
   </div>
 </div>
 
 <script>
-const README_CONTENT = `LEAF: A MARKDOWN EDITOR
-Vibe coded by Dan (c) 2026 — https://github.com/uncle-jasper/leaf
-updated by lgg — https://github.com/lgg/leaf
-Version 1.9.0-lgg.1 (lgg fork; based on upstream v1.7)
-
-================================================================================
-WHAT IS LEAF?
-================================================================================
-
-Leaf is a lightweight, distraction-free writing tool that runs entirely in your
-web browser as a single HTML file. There's nothing to install, no account to
-create, and no internet connection required. Just open the file and write.
-
-The fonts (iA Writer Mono, Duo, and Quattro) are embedded directly in the HTML
-file, so they work offline and look identical on every machine.
-
-
-================================================================================
-FILES IN THIS PACKAGE
-================================================================================
-
-  editor.html               The editor itself
-  leaf.webmanifest          PWA manifest (for browser installation)
-  sw.js                     Service worker (for offline PWA support)
-  leaf-icon-192.png         App icon (192px)
-  leaf-icon-512.png         App icon (512px)
-
-Keep all files in the same folder.
-
-
-================================================================================
-GETTING STARTED
-================================================================================
-
-OPTION 1 - Open directly in a browser
-Double-click editor.html. Works in any modern browser.
-
-OPTION 2 - Install as a PWA (Chrome / Edge)
-Open https://lgg.github.io/leaf/editor.html (fork) in Chrome or Edge.
-Original author: https://uncle-jasper.github.io/leaf/editor.html
-An install button will appear in the address bar or browser menu.
-Click it to install Leaf as a standalone app with its own window and icon.
-Once installed, Leaf can run offline after the first successful online visit
-has registered and populated the service worker cache. If you use external
-Google Fonts, an offline fallback font may be displayed instead.
-
-OPTION 3 - Install on iPhone / iPad
-In Safari, open https://lgg.github.io/leaf/editor.html, use Share >
-Add to Home Screen and enable Open as Web App where offered. Open the
-installed Leaf app once while online before relying on offline access.
-
-OPTION 4 - Install on Android
-Open the same page in Chrome, then use the browser's Install app or
-Add to Home Screen command. Open it once online to pre-cache the editor.
-Some browsers offer only a shortcut rather than a standalone install.
-
-MOBILE WRITING MODE
-On phones and touch tablets (up to 1366 CSS px wide), Leaf hides the desktop
-toolbar and tabs automatically. By default, only the writing surface is shown.
-
-  - Tap the invisible area at the BOTTOM of the screen to reveal the dock.
-  - The dock provides: Documents, Write/Preview, Save, and More actions.
-  - After about 4 seconds with no action, the dock automatically hides.
-  - Documents opens a bottom sheet for switching, creating or closing tabs.
-  - More includes opening a file, exporting Markdown ZIP, settings, and About.
-  - The dock stays clear of the on-screen keyboard while typing.
-  - The optional top document title and mobile status bar are OFF by default.
-  - Settings > Editor > Mobile display can show either of them and disable
-    automatic dock hiding to keep the bottom controls visible all the time.
-  - Settings > Current document includes a filename field so mobile users
-    can edit the saved Markdown filename independently from document labels.
-
-There is no account, cloud synchronization or automatic transfer between
-mobile, web and desktop. Use Markdown export for durable copies of drafts.
-Remote fonts can fall back to bundled/system fonts when completely offline.
-
-
-================================================================================
-THE INTERFACE
-================================================================================
-
-TOOLBAR (top strip)
-  Filename field        Set the name of your file before saving
-  save                  Downloads your file (or saves in place in Chrome)
-  all .md               Exports all open, editable documents as one .zip of
-                        separate Markdown (.md) files
-  open                  Load an existing .txt or .md file
-  write / split / prev  Switch between write, split, and preview modes
-  Theme menu            Choose your color theme
-  Font settings         Choose the writing font under Settings > Appearance
-  Size settings         Choose the font size under Settings > Appearance
-  autohide              Hides toolbar while typing; hover top of screen to show
-  focus                 Fullscreen focus mode (Esc or Ctrl+Shift+F to exit)
-  ...                   About Leaf
-
-TAB BAR (below toolbar)
-  Shows open files below the toolbar. Click to switch, + to open new,
-  x to close. In focus mode, the tab bar is hidden.
-  Double-click a tab label to rename it without changing the Markdown filename.
-  Settings > Current document is the first section of the settings dialog.
-  There, the in-app tab label and browser title are independent of the Markdown
-  filename. Each document remembers both fields.
-
-  In autohide mode, the toolbar hides when you click into the editor.
-  Move your mouse to the top of the screen to reveal it. The tab bar
-  stays visible and can be pinned (⊙) so it never fades, or unpinned
-  (⦿) to let it fade after a few seconds. Pin state is remembered
-  between sessions.
-
-STATUS BAR
-  Shows live word count, character count, line count, and cursor position.
-  When text is selected, shows the word and character count of the selection.
-  Each counter can be hidden independently under Settings > Status bar.
-  When all five counters are disabled, the entire status bar disappears.
-  Fades out in focus mode and reappears on hover.
-  Displays a random welcome message on launch.
-  Shows milestone messages at 100, 250, 500, 1000, 2000, and 5000 words.
-  Shows a quiet idle nudge after 3 minutes of inactivity.
-  All status messages can be disabled under Settings > Editor.
-
-
-================================================================================
-THEMES
-================================================================================
-
-  parchment   Warm cream (default)
-  paper       Cool white with a slight blue-grey tint
-  dark        Near-black with cool grey text
-  black       Pure black (#000000) with a grey (#c8c8c8) caret and monospace font
-  moss        Dark green
-  slate       Dark blue-grey
-  terminal    Black with dimmed green phosphor text. Includes an optional
-              CRT mode ([CRT] in toolbar) — a fun retro nod to the monochrome
-              green monitors of the 80s. Rumor has it there's another color
-              hiding in there somewhere.
-  custom      Pick your own colors using the color picker or hex code input
-
-Settings (theme, font, size, autohide, pin state) are remembered between
-sessions.
-
-
-================================================================================
-FONTS
-================================================================================
-
-The iA Writer fonts are embedded in the HTML file and work offline.
-JetBrains Mono, Inconsolata, Share Tech Mono, Roboto Mono and Open Sans need
-an internet connection for their web fonts (with local fallback). System fonts
-Arial and Times New Roman work offline when installed on the device.
-
-  iA Writer Mono      Classic monospaced typewriter feel (default)
-  iA Writer Duo       Proportional with a monospace structure
-  iA Writer Quattro   Most proportional of the three, very readable
-  JetBrains Mono      Clean developer monospace
-  Inconsolata         Clean, neutral console font
-  Share Tech Mono     Softer retro monospace
-  Roboto Mono         Clean, readable monospaced font
-  Open Sans           Modern proportional sans-serif
-  Times New Roman     Classic system serif font
-  Arial               Classic system sans-serif font
-
-
-================================================================================
-KEYBOARD SHORTCUTS
-================================================================================
-
-  Ctrl+S          Save file
-  Ctrl+B          Bold selected text (**text**)
-  Ctrl+I          Italic selected text (*text*)
-  Ctrl+K          Wrap selection in link [text](url)
-  Ctrl+1          Heading 1 (toggle)
-  Ctrl+2          Heading 2 (toggle)
-  Ctrl+3          Heading 3 (toggle)
-  Ctrl+4          Heading 4 (toggle)
-  Ctrl+Shift+J    Toggle Just Write mode
-  Ctrl+Shift+F    Toggle focus mode
-  Ctrl+Shift+P    Toggle preview mode
-  Ctrl+Shift+S    Toggle split view
-  Ctrl+N          New tab
-  Ctrl+W          Close current tab
-  Ctrl+[          Previous tab
-  Ctrl+]          Next tab
-  Esc             Exit focus mode / close About dialog
-  Tab             Insert two spaces
-
-
-================================================================================
-SAVING
-================================================================================
-
-In Chrome, the first save opens a Save As dialog. Every subsequent save
-writes silently to the same file with no dialog. The status bar flashes
-a saved confirmation.
-
-In Brave and other browsers, each save downloads the file. Name the file
-using the filename field before saving.
-
-Each text change schedules a browser-local save, debounced for 350 ms of
-inactivity; uninterrupted typing is flushed at least once every 2 seconds.
-Identical snapshots are not written again. Hiding or closing the browser tab
-flushes outstanding edits synchronously. This avoids disk writes per keystroke.
-
-All open documents, their filenames, in-app labels, browser titles, content,
-dirty states and active tab are restored automatically on the same site/browser.
-Older single-document autosaves can still be restored.
-
-If independent Leaf browser windows edit the same workspace, Leaf detects
-external changes and writes separate recovery copies to avoid silently
-overwriting another window's work. Settings > Current document only shows the
-"restore backup" action when a valid recovery copy exists. Restoring it keeps
-the previous main workspace as a separate backup. The modal scrolls on small
-screens, and all controls are accessible.
-
-The page is served fresh online with a cached offline fallback. If an older
-PWA version is still open, reload the page to apply updated settings controls.
-LocalStorage is not a replacement for an exported file backup.
-
-The writing hint ("Start writing… markdown is supported.") can be disabled
-in Settings > Editor. Appearance and visibility preferences are saved as well.
-
-IMPORTANT: Browser data can be erased by the user, by private/incognito mode or
-by browser cleanup. Download important files as .md or .txt for durable backups.
-Storage is per browser + website origin: a local file, the upstream GitHub Pages
-site and your own fork's GitHub Pages site have separate localStorage.
-
-
-================================================================================
-JUST WRITE MODE
-================================================================================
-
-Leaf is, at its core, a writing tool. Just Write mode is a reminder of that.
-
-Press Ctrl+Shift+J to lock your theme and font for 30 minutes, even across
-sessions. The idea is simple: stop tweaking, start writing. No fiddling with
-colors. No hunting for the perfect font. No excuses.
-
-Write 500 words to earn your freedom early.
-
-
-================================================================================
-SETTINGS — FORK UPDATE
-================================================================================
-
-On desktop, settings open with Ctrl+, or the "settings" toolbar control.
-On phones/tablets, tap the bottom edge > More > Settings.
-Section order:
-  1. Current document — in-app tab label, browser tab title and recovery
-     action (only when a backup exists)
-  2. Appearance — themes, custom colors, fonts and font size
-  3. Status bar — five independent visibility toggles
-  4. Editor — writing hint, status messages, smart punctuation and three
-     mobile display toggles (heading, status bar, auto-hide dock)
-
-Each setting is saved in the browser-local "leaf-editor-settings" localStorage
-entry. Draft workspaces use a separate key. Browser cleanup, incognito mode,
-storage quota failures, and other websites' storage cannot be controlled by Leaf.
-
-================================================================================
-CHANGELOG
-================================================================================
-
-v1.9.0-lgg.1 — lgg fork (2026-11-19)
-  - Minimal phone and touch-tablet editor with no permanent top toolbar or tabs
-  - Invisible bottom tap area to reveal a one-handed action dock; auto-hide
-  - Touch-friendly bottom sheets for documents and additional actions
-  - Keyboard-aware bottom controls and safe-area padding for iOS/Android
-  - Optional document heading, status bar and auto-hide mode, all persisted
-  - Editable filename in settings for mobile file export
-  - Kept full desktop interface unchanged
-
-v1.8.0-lgg.1 — lgg fork (2026-11-19)
-  - Fork version now displayed consistently in About, README and changelog
-  - Proper PWA service-worker registration and Android/desktop install prompt
-  - Existing cache-first assets available offline after first online visit
-  - iPhone / iPad home screen installation and offline use documented
-  - Previous fork features: responsive settings, independent tab titles,
-    350ms/2s bounded autosave, multi-document recovery, ZIP Markdown export,
-    hidden status counters, black theme and four added fonts
-  - Original upstream release history below is preserved as supplied
-
-UPSTREAM BASELINE: v1.7 (uncle-jasper/leaf)
-  - Historical upstream changelog entries continue below; no upstream versions
-    have been renumbered in this fork.
-
-v1.5.4
-  - Theme dropdown no longer collapses the toolbar when scrolling through
-    options in autohide mode
-  - Milestone messages no longer fire when closing a tab and switching to
-    the previous one
-  - Just Write sessions now expire correctly even when you're on a different
-    tab at the time
-  - Active Just Write tab is now marked with italic text in the tab bar
-  - About modal restored: version, changelog link, and donation link
-  - README tab is now read-only
-
-v1.5.3
-  - Opening a file no longer overwrites the current tab if it has content —
-    the file opens in a new tab instead
-  - Milestone messages no longer fire for words already present when loading
-    a document — only milestones earned during the current session fire
-  - Theme selector replaced with a custom dropdown — no more white flash
-    when the cursor leaves the menu on Linux and Windows
-  - Just Write mode hardened: word count progress is tied to the tab where
-    the session started, the original word baseline survives page reloads,
-    the release message now always shows even if a milestone message is
-    mid-scroll, and opening the README during a session is blocked
-
-v1.5.2
-  - Added donation link to About modal ;)
-
-v1.5.1
-  - About modal close button replaced with a quiet × in the corner
-  - iOS/Safari fix: status bar no longer creeps upward while typing on-screen keyboard
-  - All status messages now correctly respect the "show status messages" toggle —
-    Just Write and CRT messages were bypassing it
-  - Word count milestone messages now fire only once per session — no longer
-    refire when word count dips below a threshold and climbs back up
-
-v1.5
-  - Just Write mode (Ctrl+Shift+J) — for when you need to stop fiddling and
-    actually write. Locks your theme and font for 30 minutes, even across
-    sessions. Write 500 words to earn your freedom early.
-  - A secret amber CRT mode can be unlocked... Anybody up for a game of Contra?
-  - Custom theme colors no longer bleed into other themes when switching
-  - Custom theme colors now persist between sessions
-  - 24px option added to font size selector
-  - Bulleted and numbered lists now hang-indent in preview and split mode
-
-v1.4.1
-  - Bottom scroll padding added so the last line never sits flush against the status bar
-
-v1.4
-  - Word count milestone messages (100, 250, 500, 1000, 2000, 5000 words)
-  - Idle nudge messages after 3 minutes of inactivity
-  - All status messages controlled by a single toggle in the About modal
-  - Editor padding removed top and bottom — text runs flush to toolbar and status bar
-  - Scroll position now shared across all three modes (write, split, preview)
-  - Split view starts at the top of the document on first entry each session
-  - First-time users now correctly land on parchment theme
-  - Focus mode status bar background fixed
-
-v1.3
-  - CRT mode for terminal theme: scanlines, phosphor glow, screen flicker, vignette, pixel text rendering
-  - Underscore cursor in terminal theme for authentic 80s word processor feel
-  - [CRT] toggle in toolbar — only visible in terminal theme, strikethrough when disabled
-  - CRT preference remembered between sessions
-  - Subtle always-on phosphor glow in terminal theme even when CRT is off
-
-v1.2.2
-  - Ctrl+Shift+S toggles split view
-  - Split view scroll sync: editor and preview scroll together in real time
-  - Scroll sync snaps preview into position when entering split mode
-  - Sync toggle button (⇅/↕) on the split divider — click to lock or free scrolling
-  - Last pane scrolled determines sync position when re-enabling scroll lock
-  - Scroll sync preference remembered between sessions
-  - Browser title bar shortened to "Leaf: A Markdown Editor"
-
-v1.2.1
-  - Welcome message toggle persists correctly between sessions
-  - Tab bar pin state remembered between sessions and across autohide toggles
-  - Theme selector correctly shows saved theme on launch
-  - Parchment set as default theme on first launch
-
-v1.2
-  - Random retro-style welcome message scrolls in the status bar on launch
-  - Welcome message can be disabled via toggle in the About modal
-  - Ctrl+Shift+P toggles preview mode
-  - Ctrl+N opens a new tab
-  - Ctrl+W closes the current tab
-  - Ctrl+1 through Ctrl+4 insert and toggle heading levels
-  - Ctrl+K wraps selection in a markdown link [text](url)
-  - Tab bar pin/unpin in autohide mode (⊙/⦿)
-  - Two-stage autohide reveal: mid zone shows tabs, top edge shows toolbar
-  - Tab bar fades gracefully after inactivity in unpinned autohide mode
-  - Pin state remembered between sessions
-  - Toolbar hides only when clicking into editor (not immediately on toggle)
-  - Paper theme updated to cool white with blue-grey tint
-  - Parchment set as default theme on first launch
-  - Tab name syncs correctly after renaming and saving
-  - Tab bar surface color matches status bar
-  - Placeholder text now adapts to each theme color
-
-v1.1
-
-  - Tabs: multiple files open simultaneously in a single window
-  - Tab bar hides in focus mode, stays visible in autohide mode
-  - Autosave every 30 seconds to browser storage with restore on reopen
-  - Unsaved changes warning when closing the window
-  - Silent save-in-place using File System Access API (Chrome/Edge)
-  - Numbered list auto-continue on Enter (increments number automatically)
-  - Bullet list auto-continue on Enter (adds dash); double Enter exits list
-  - Numbered and bulleted lists render correctly in preview mode
-  - Custom theme hex code input added alongside color picker
-  - Custom theme colors now persist across sessions
-  - Selection highlight color matches current theme accent
-  - Editor background color fixed on mobile browsers
-  - iA Writer Mono, Duo, and Quattro fonts embedded directly in the file
-  - Replaced Space Mono with Inconsolata in font list
-  - Dark theme changed from blue-black to neutral grey-black
-  - Default font changed to iA Writer Mono
-  - Default font size changed to 18px
-  - Editor text wraps correctly when window is narrower than 68 characters
-  - Top and bottom padding reduced to 24px
-  - About popup added (... button in toolbar) with icon, version, and credit
-  - Secret easter egg added
-
-v1.0
-  - Initial release
-  - Markdown editor with write, split, and preview modes
-  - Themes: parchment, paper, dark, moss, slate, terminal, custom
-  - Font and size selection
-  - Focus mode with toolbar peek on mouse-to-top
-  - Autohide toolbar mode
-  - Status bar with word, character, line count and cursor position
-  - Selection word count
-  - PWA support with offline caching
-  - Windows Chrome launcher (Leaf.bat)
-  - Mac Platypus launcher
-
-
-================================================================================
-FORK NOTES (lgg/leaf)
-================================================================================
-
-- Word count can now be hidden; hiding all counters removes the status bar.
-- Black theme, grey caret and monospaced writing font.
-- Optional writing hint, remembered after reload.
-- All open tabs and filenames are now restored after reopening the browser.
-- Settings are stored per website in localStorage.
-- ZIP export of multiple Markdown files (issue #1).
-- Independent internal/browser tab names per document (issue #2).
-- Additional fonts: Roboto Mono, Open Sans, Times New Roman and Arial.
-- Mobile full-screen writing and touch-accessible bottom controls (v1.9.0-lgg.1).
-- Original: Dan / https://github.com/uncle-jasper/leaf
-- updated by lgg / https://github.com/lgg/leaf
-
-The fork is published through GitHub Pages at:
-https://lgg.github.io/leaf/editor.html
-
-================================================================================
-LEAF IS A SINGLE HTML FILE. NO DATA EVER LEAVES YOUR COMPUTER.
-================================================================================
-`;
+const README_CONTENT = `# Leaf — distraction-free Markdown editor
+
+**Fork version: v1.10.0-lgg.1** · Based on [uncle-jasper/leaf](https://github.com/uncle-jasper/leaf) v1.7 · Maintained by [lgg](https://github.com/lgg).
+
+Leaf is a focused, offline-capable Markdown and plain-text editor. It runs as a lightweight, single HTML file in a browser, installs as a PWA on phones, and has an **independent Tauri v2 desktop edition** that can edit real files on disk. No account, sync server, analytics or unnecessary background process.
+
+**[Open Leaf in your browser](https://lgg.github.io/leaf/editor.html)** · **[Desktop downloads and release notes](https://github.com/lgg/leaf/releases)** · [Source repository](https://github.com/lgg/leaf)
+
+> Desktop release assets appear on GitHub Releases only after the Windows build and functional checks pass. The desktop source may be ahead of published release downloads.
+
+## Web editor and mobile PWA
+
+- **Browser:** open [editor.html](https://lgg.github.io/leaf/editor.html). The standalone \`editor.html\` can also be downloaded and opened locally without a build step.
+- **iPhone/iPad:** Safari → Share → Add to Home Screen; select **Open as Web App** if offered.
+- **Android:** Chrome → **Install app** or **Add to Home Screen**.
+- **Offline:** load once with internet, let the service worker cache the editor, then reopen without internet. Web fonts may fall back to bundled/system fonts.
+- **Data:** browser drafts and preferences live in that browser's own localStorage; they do not synchronize across devices. Export important Markdown files for durable backups.
+
+### Distraction-free mobile layout
+
+On phones and touch tablets, Leaf hides the desktop header, tabs and status bar by default. Tap the lower edge to reveal a four-action dock; it hides automatically after roughly four seconds. **Docs** switches/creates/closes documents, **View** toggles preview, **Save** exports the active document, and **More** offers Open, Export all, Settings, Focus and About. Under **Settings → Editor → Mobile display**, you may show the document heading/status bar or keep the dock visible. Safe-area padding and on-screen keyboard placement are accounted for.
+
+The PWA has source-level automated regression tests. Final physical-device verification of iOS/Android install, offline behavior, rotation and keyboards is still a separate manual acceptance step.
+
+## Desktop edition — Windows (Tauri v2)
+
+Leaf desktop uses the **same editor** with a small, separate Rust/Tauri layer. The web page and PWA **do not load any Tauri scripts, Rust binaries or desktop dependencies**. Desktop builds use the OS WebView (WebView2 on Windows), not an Electron/Chromium bundle.
+
+- **Open** existing \`.md\` / \`.txt\` files through the native OS picker; \`Ctrl+O\` works too.
+- **Save** (\`Ctrl+S\`) writes **back to the original file** after checking that it has not changed outside Leaf.
+- **Save As** (\`Ctrl+Shift+S\`) chooses a new destination with the native OS dialog.
+- Native saves preserve standard Windows CRLF line endings when the original file used CRLF.
+- An interrupted or failed save retains the unsaved editor text; a disk-conflict warning never silently overwrites external changes.
+- File associations register Markdown and plain text with the Windows installer. File paths passed at launch can be opened on startup.
+- Tabs, order, custom labels and per-document titles persist in local app settings. Unlike the web/PWA, desktop file text is not duplicated into browser localStorage; recovery drafts live in the native session. On restart, Leaf reads real files again from disk. Unsaved drafts can be recovered explicitly; missing files become recovery drafts that must be saved to a new location.
+- Drag and drop existing Markdown/text files onto the desktop window; only actual OS-dropped paths are authorized. Export all documents as a native ZIP file.
+- Check published GitHub releases from the desktop About panel on demand; review release notes and download manually. No forced updates.
+- Web/email links in Markdown previews open in the OS default application; unsafe link schemes are rejected.
+- File operations are restricted to text extensions and exposed through explicit native commands. The browser/PWA remains sandboxed.
+
+**Limits:** The desktop edition currently targets **Windows**. A signed unattended updater, macOS signing/notarization and macOS CI require separate signing credentials / an appropriately provisioned macOS runner. No automatic download or forced update is enabled: use the GitHub Releases link to review downloads and release notes manually.
+
+### Build with already-provisioned Windows tools
+
+The GitHub Actions workflow uses **only** the existing self-hosted runner with label \`leaf-runner-ci\`; it has no system-package, Rust-toolchain, Node or Docker installation steps. The workflow checks tool availability and does not print local PC paths intentionally.
+
+For manual builds, with Node.js, Rust/Cargo, Microsoft C++ build tools and Windows WebView2 prerequisites already present:
+
+\`\`\`powershell
+node --test tests/leaf.test.cjs tests/desktop.test.cjs
+node desktop/stage.cjs
+cargo test --manifest-path src-tauri/Cargo.toml
+cargo build --release --manifest-path src-tauri/Cargo.toml
+\`\`\`
+
+The Windows executable is produced under the Rust target output (not committed). CI remaps local Rust/Cargo source directories and rejects generated executables that still expose user or runner paths (including UTF-16). A fail-closed, length-preserving sanitizer can redact **one** unambiguous Rust \`.rs\` source-location string from unsigned PE read-only data; it refuses ambiguous paths, executable code sections and signed files. The independent strict binary privacy scan must still pass after this step. Treat test artifacts as unaccepted previews until the manual Windows GUI checklist is complete. CI uses built-in Windows PowerShell to produce an additional portable ZIP — no installer dependencies are downloaded. NSIS installer creation is intentionally disabled until the complete existing NSIS/Tauri toolchain is verified, because Tauri may download missing bundler components. The desktop staging directory and generated Windows icon are ignored by Git.
+
+Builds can download normal Cargo dependency crates during compilation; the workflow never installs or upgrades system software or toolchains. Cargo may need network access for a first build.
+
+## Editor features shared across browser, PWA and desktop
+
+- Focused Markdown writing and preview; configurable themes, black mode, fonts and font size.
+- Five independently toggleable status counters and optional empty-page hint.
+- Multiple document tabs with **independent filename, tab label and window title**.
+- Debounced autosave of browser drafts (350 ms / maximum 2 s while typing), local recovery copies and protection against simultaneous browser workspaces.
+- Export active Markdown/text documents or a ZIP of all editable tabs.
+- Keyboard shortcuts, settings persistence, focus / Just Write modes.
+
+For deeper implementation notes, see [desktop architecture](docs/DESKTOP.md), [settings audit](docs/SETTINGS_AUDIT.md) and [changelog](CHANGELOG.md). The in-app About dialog includes links to this repository and desktop releases.
+
+## Verification and release policy
+
+Run \`node --test tests/leaf.test.cjs tests/desktop.test.cjs\` to exercise the dependency-free web regression suite and the desktop integration checks. The Windows runner separately runs Rust unit tests and an actual release-mode build. A successful compile does **not** replace manual checks of OS dialogs, disk conflicts, recovery, file associations and installer behavior. Desktop release publication remains gated on verified artifacts and the remaining signing / platform decisions.
+
+## Credits
+
+**Original Leaf by Dan** — [uncle-jasper/leaf](https://github.com/uncle-jasper/leaf). **Fork updated by lgg** — [lgg/leaf](https://github.com/lgg/leaf). This is an independent fork, not the original author's deployment.`;
 
 // ── Just Write mode ──────────────────────────────────────
 const JUST_WRITE_KEY     = 'leaf-just-write-state';
@@ -2078,6 +1713,8 @@ let focusHintTimer  = null;
 let smartPunctEnabled = false;
 
 // ── Markdown parser (preview pane only) ──────────────────
+// Escaping rendered attributes is critical in a desktop WebView with native commands.
+// Markdown source is already HTML-escaped before the following replacements.
 function markdownAttr(value) {
   return String(value).replace(/"/g,'&quot;').replace(/'/g,'&#39;')
     .replace(/[\u0000-\u001f]/g,'');
@@ -2442,6 +2079,7 @@ function finishDocumentSave(tabId, savedText, handle, filename) {
 }
 
 async function saveFile() {
+  if (window.leafDesktop) return window.leafDesktop.save();
   const tabId = activeTabId;
   const filename = document.getElementById('filename-input').value || 'untitled.txt';
   const contents = editor.value;
@@ -2647,6 +2285,7 @@ function makeMarkdownZip(entries) {
 }
 
 function exportAllMarkdown() {
+  if (window.leafDesktop) return window.leafDesktop.exportZip();
   saveActiveTabState(); // Capture the active document, including its last keystroke.
   const files = getMarkdownExportEntries(tabs);
   if (!files.length) return;
@@ -2707,6 +2346,7 @@ document.getElementById('file-open').addEventListener('change', e => {
 });
 
 document.getElementById('btn-open').addEventListener('click', () => {
+  if (window.leafDesktop) return window.leafDesktop.open();
   document.getElementById('file-open').click();
 });
 
@@ -3469,7 +3109,7 @@ function openReadmeTab() {
   if (justWriteActive) return;
   document.getElementById('about-overlay').style.display = 'none';
   saveActiveTabState();
-  const tab = { id: nextTabId++, name: 'README.txt', content: README_CONTENT, handle: null, dirty: false, readonly: true };
+  const tab = { id: nextTabId++, name: 'README.md', content: README_CONTENT, handle: null, dirty: false, readonly: true };
   tabs.push(tab);
   switchTab(tab.id);
   requestAnimationFrame(() => {
@@ -3486,14 +3126,15 @@ async function closeTab(id) {
   // Check for unsaved changes
   if (tab.dirty || (id === activeTabId && isDirty)) {
     const answer = confirm('Save "' + tab.name + '" before closing?');
-    // Declining Save is not the same as authorizing deletion of the draft.
+    // The first prompt offers Save. Declining it must not silently destroy
+    // an unsaved draft on desktop, web or PWA.
     if (!answer && !confirm('Discard unsaved changes in "' + tab.name + '"?')) return;
     if (answer) {
       // Switch to it and save
       switchTab(id);
       if (!await saveFile()) return;
-      // A native file picker or web file-handle write is asynchronous.
-      // Keep the tab if editing continued while that write was pending.
+      // The OS picker / disk write is asynchronous. If typing continued while
+      // awaiting Save, do not close and lose edits that were never persisted.
       const afterSave = tabs.find(item => item.id === id);
       if (!afterSave || afterSave.dirty || (id === activeTabId && isDirty)) {
         workspaceNotice('This document changed during saving. Save again before closing it.');
@@ -4260,7 +3901,7 @@ async function installPWA() {
   }
 }
 
-if ('serviceWorker' in navigator &&
+if (!window.__TAURI__ && 'serviceWorker' in navigator &&
     (location.protocol === 'https:' || location.hostname === 'localhost')) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('./sw.js', { scope: './' })

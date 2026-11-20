@@ -1,54 +1,77 @@
 # Leaf — distraction-free Markdown editor
 
-**Fork version: v1.9.0-lgg.1** · Based on upstream **v1.7**. Original historical version numbering remains in [README.txt](README.txt); newer fork changes are recorded in [CHANGELOG.md](CHANGELOG.md).
+**Fork version: v1.10.0-lgg.1** · Based on [uncle-jasper/leaf](https://github.com/uncle-jasper/leaf) v1.7 · Maintained by [lgg](https://github.com/lgg).
 
-Lightweight, single-file writing tool with multiple documents, focus mode, themes, offline support and local draft recovery.
+Leaf is a focused, offline-capable Markdown and plain-text editor. It runs as a lightweight, single HTML file in a browser, installs as a PWA on phones, and has an **independent Tauri v2 desktop edition** that can edit real files on disk. No account, sync server, analytics or unnecessary background process.
 
-**Original by [Dan](https://github.com/uncle-jasper)** — [uncle-jasper/leaf](https://github.com/uncle-jasper/leaf).  
-**updated by [lgg](https://github.com/lgg)** — [lgg/leaf](https://github.com/lgg/leaf).
+**[Open Leaf in your browser](https://lgg.github.io/leaf/editor.html)** · **[Desktop downloads and release notes](https://github.com/lgg/leaf/releases)** · [Source repository](https://github.com/lgg/leaf)
 
-## Open editor
+> Desktop release assets appear on GitHub Releases only after the Windows build and functional checks pass. The desktop source may be ahead of published release downloads.
 
-[Open the lgg fork online](https://lgg.github.io/leaf/editor.html) *(GitHub Pages deployment from `main`)* · [Original author's editor](https://uncle-jasper.github.io/leaf/editor.html)
+## Web editor and mobile PWA
 
-You can also download `editor.html` and open it in a browser; no build tools or account are required.
+- **Browser:** open [editor.html](https://lgg.github.io/leaf/editor.html). The standalone `editor.html` can also be downloaded and opened locally without a build step.
+- **iPhone/iPad:** Safari → Share → Add to Home Screen; select **Open as Web App** if offered.
+- **Android:** Chrome → **Install app** or **Add to Home Screen**.
+- **Offline:** load once with internet, let the service worker cache the editor, then reopen without internet. Web fonts may fall back to bundled/system fonts.
+- **Data:** browser drafts and preferences live in that browser's own localStorage; they do not synchronize across devices. Export important Markdown files for durable backups.
 
-## Install as an offline mobile PWA
+### Distraction-free mobile layout
 
-- **iPhone / iPad:** Open the fork URL in Safari, tap **Share → Add to Home Screen**, and select **Open as Web App** if offered.
-- **Android:** Open the fork URL in Chrome and use **Install app** or **Add to Home Screen** from the menu.
-- **Offline:** The first successful online visit registers a service worker and caches the editor, manifest and icons. After it completes, the installed app can launch without internet. Some remote fonts may fall back to bundled/system fonts.
-- **Data:** Documents and settings are local to that browser/PWA installation and do **not** sync between devices. They may be removed if website data is cleared. Export important drafts as Markdown backups.
+On phones and touch tablets, Leaf hides the desktop header, tabs and status bar by default. Tap the lower edge to reveal a four-action dock; it hides automatically after roughly four seconds. **Docs** switches/creates/closes documents, **View** toggles preview, **Save** exports the active document, and **More** offers Open, Export all, Settings, Focus and About. Under **Settings → Editor → Mobile display**, you may show the document heading/status bar or keep the dock visible. Safe-area padding and on-screen keyboard placement are accounted for.
 
-### Mobile writing experience
+The PWA has source-level automated regression tests. Final physical-device verification of iOS/Android install, offline behavior, rotation and keyboards is still a separate manual acceptance step.
 
-On iPhone, Android and touch tablets, Leaf uses a **distraction-free writing canvas** by default. The desktop header and tabs are hidden, and the status bar is hidden on mobile even when desktop counters are enabled.
+## Desktop edition — Windows (Tauri v2)
 
-**Tap the bottom edge** to reveal a four-action dock. It automatically disappears after about four seconds:
+Leaf desktop uses the **same editor** with a small, separate Rust/Tauri layer. The web page and PWA **do not load any Tauri scripts, Rust binaries or desktop dependencies**. Desktop builds use the OS WebView (WebView2 on Windows), not an Electron/Chromium bundle.
 
-- **Docs**: create, switch or close documents in a bottom sheet.
-- **View**: toggle Markdown writing/preview.
-- **Save**: download/save the active document.
-- **More**: open Markdown, export all documents as a ZIP, settings, focus and About.
+- **Open** existing `.md` / `.txt` files through the native OS picker; `Ctrl+O` works too.
+- **Save** (`Ctrl+S`) writes **back to the original file** after checking that it has not changed outside Leaf.
+- **Save As** (`Ctrl+Shift+S`) chooses a new destination with the native OS dialog.
+- Native saves preserve standard Windows CRLF line endings when the original file used CRLF.
+- An interrupted or failed save retains the unsaved editor text; a disk-conflict warning never silently overwrites external changes.
+- File associations register Markdown and plain text with the Windows installer. File paths passed at launch can be opened on startup.
+- Tabs, order, custom labels and per-document titles persist in local app settings. Unlike the web/PWA, desktop file text is not duplicated into browser localStorage; recovery drafts live in the native session. On restart, Leaf reads real files again from disk. Unsaved drafts can be recovered explicitly; missing files become recovery drafts that must be saved to a new location.
+- Drag and drop existing Markdown/text files onto the desktop window; only actual OS-dropped paths are authorized. Export all documents as a native ZIP file.
+- Check published GitHub releases from the desktop About panel on demand; review release notes and download manually. No forced updates.
+- Web/email links in Markdown previews open in the OS default application; unsafe link schemes are rejected.
+- File operations are restricted to text extensions and exposed through explicit native commands. The browser/PWA remains sandboxed.
 
-Settings → Editor → **Mobile display** lets you turn on the document heading, turn on the mobile status bar, or disable automatic dock hiding. All preferences persist across sessions. Settings → Current document also lets you edit the filename, tab label and browser title separately.
+**Limits:** The desktop edition currently targets **Windows**. A signed unattended updater, macOS signing/notarization and macOS CI require separate signing credentials / an appropriately provisioned macOS runner. No automatic download or forced update is enabled: use the GitHub Releases link to review downloads and release notes manually.
 
-The interface handles safe-area insets and avoids floating controls over the on-screen keyboard. Mobile-specific UI and keyboard behaviors are covered by regression tests, though physical-device checks in Safari/Chrome are still recommended.
+### Build with already-provisioned Windows tools
 
-## Features in the fork
+The GitHub Actions workflow uses **only** the existing self-hosted runner with label `leaf-runner-ci`; it has no system-package, Rust-toolchain, Node or Docker installation steps. The workflow checks tool availability and does not print local PC paths intentionally.
 
-- **Quiet writing:** toggle word, character, line, reading-time and cursor counters separately; the footer vanishes when all are hidden; optionally hide the empty-page hint.
-- **Black theme:** pure black background with a grey caret; monospaced by default.
-- **Fonts:** iA Writer, JetBrains Mono, Inconsolata, Share Tech Mono, Roboto Mono, Open Sans, Times New Roman and Arial.
-- **Autosave:** debounced at 350 ms after changes, flushed at most every 2 s during continuous typing; unchanged snapshots are skipped. Saves also flush on tab hide/close. Drafts, document labels, browser titles and preferences survive browser restarts.
-- **Concurrent editor safety:** when another Leaf window changes the same workspace, edits are stored in a separate recovery copy instead of silently overwriting it.
-- **Multiple documents:** internal tab labels and browser-tab titles can be named independently from Markdown filenames. Double-click an in-app tab to rename it.
-- **Export all:** the `all .md` toolbar button produces a ZIP containing one Markdown file per open editable document, including non-ASCII text and unique filenames.
+For manual builds, with Node.js, Rust/Cargo, Microsoft C++ build tools and Windows WebView2 prerequisites already present:
 
-**Back up important writing:** Browser `localStorage` is convenient but can be cleared by the browser or user. Export files for durable storage. Browser storage is scoped to each website, so drafts made on the upstream author's URL are not shared with this fork's URL.
+```powershell
+node --test tests/leaf.test.cjs tests/desktop.test.cjs
+node desktop/stage.cjs
+cargo test --manifest-path src-tauri/Cargo.toml
+cargo build --release --manifest-path src-tauri/Cargo.toml
+```
 
-For the full shortcut list and upstream details see [README.txt](README.txt). Run the zero-dependency regression suite with `node --test tests/leaf.test.cjs`.
+The Windows executable is produced under the Rust target output (not committed). CI remaps local Rust/Cargo source directories and rejects generated executables that still expose user or runner paths (including UTF-16). A fail-closed, length-preserving sanitizer can redact **one** unambiguous Rust `.rs` source-location string from unsigned PE read-only data; it refuses ambiguous paths, executable code sections and signed files. The independent strict binary privacy scan must still pass after this step. Treat test artifacts as unaccepted previews until the manual Windows GUI checklist is complete. CI uses built-in Windows PowerShell to produce an additional portable ZIP — no installer dependencies are downloaded. NSIS installer creation is intentionally disabled until the complete existing NSIS/Tauri toolchain is verified, because Tauri may download missing bundler components. The desktop staging directory and generated Windows icon are ignored by Git.
 
-## Attribution
+Builds can download normal Cargo dependency crates during compilation; the workflow never installs or upgrades system software or toolchains. Cargo may need network access for a first build.
 
-Leaf remains credited to its original author, Dan. This fork is an independent set of updates by lgg, and is not the original author's deployment.
+## Editor features shared across browser, PWA and desktop
+
+- Focused Markdown writing and preview; configurable themes, black mode, fonts and font size.
+- Five independently toggleable status counters and optional empty-page hint.
+- Multiple document tabs with **independent filename, tab label and window title**.
+- Debounced autosave of browser drafts (350 ms / maximum 2 s while typing), local recovery copies and protection against simultaneous browser workspaces.
+- Export active Markdown/text documents or a ZIP of all editable tabs.
+- Keyboard shortcuts, settings persistence, focus / Just Write modes.
+
+For deeper implementation notes, see [desktop architecture](docs/DESKTOP.md), [settings audit](docs/SETTINGS_AUDIT.md) and [changelog](CHANGELOG.md). The in-app About dialog includes links to this repository and desktop releases.
+
+## Verification and release policy
+
+Run `node --test tests/leaf.test.cjs tests/desktop.test.cjs` to exercise the dependency-free web regression suite and the desktop integration checks. The Windows runner separately runs Rust unit tests and an actual release-mode build. A successful compile does **not** replace manual checks of OS dialogs, disk conflicts, recovery, file associations and installer behavior. Desktop release publication remains gated on verified artifacts and the remaining signing / platform decisions.
+
+## Credits
+
+**Original Leaf by Dan** — [uncle-jasper/leaf](https://github.com/uncle-jasper/leaf). **Fork updated by lgg** — [lgg/leaf](https://github.com/lgg/leaf). This is an independent fork, not the original author's deployment.

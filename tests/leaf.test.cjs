@@ -438,20 +438,17 @@ test('GitHub Pages service worker prefers fresh HTML and keeps an offline fallba
 });
 
 test('fork version matches README, changelog and visible About version', () => {
-  const version='1.9.0-lgg.1';
-  const readme=fs.readFileSync(path.join(__dirname,'..','README.md'),'utf8');
-  const history=fs.readFileSync(path.join(__dirname,'..','README.txt'),'utf8').replace(/\r\n/g, '\n');
+  const version='1.10.0-lgg.1';
+  const readme=fs.readFileSync(path.join(__dirname,'..','README.md'),'utf8').replace(/\r\n/g, '\n');
   const changelog=fs.readFileSync(path.join(__dirname,'..','CHANGELOG.md'),'utf8');
   assert.ok(html.includes('>v'+version+'</span>'));
   assert.ok(readme.includes('v'+version));
-  assert.ok(history.includes('Version '+version));
-  assert.ok(history.includes('UPSTREAM BASELINE: v1.7'));
   assert.ok(changelog.includes('v'+version));
   assert.ok(changelog.includes('uncle-jasper/leaf'));
   const marker='const README_CONTENT = '+String.fromCharCode(96);
   const at=html.indexOf(marker)+marker.length;
-  const end=html.indexOf(String.fromCharCode(96)+';',at);
-  assert.equal(html.slice(at,end),history);
+  const end=html.indexOf(String.fromCharCode(96)+';\n\n// ── Just Write mode',at);
+  assert.equal(html.slice(at,end).replace(/\\`/g, '`').replace(/\\\$\{/g, '${'), readme.trimEnd());
 });
 
 test('mobile markup is minimal, touch accessible and CSS overrides desktop', () => {
@@ -684,6 +681,49 @@ test('preferences, independent tab names, input edits and recovery are wired', (
   assert.ok(js.includes("editor.addEventListener('input', noteEditorEdit)"));
   assert.ok(js.includes("window.addEventListener('pagehide', persistWorkspace)"));
   assert.ok(js.includes("const backups = availableWorkspaceRecoveries()"));
+});
+
+test('About offers desktop releases without adding a native runtime to web', () => {
+  assert.ok(html.includes('href="https://github.com/lgg/leaf/releases"'));
+  assert.ok(html.includes('Windows downloads &amp; release notes'));
+  assert.ok(html.includes('if (window.leafDesktop) return window.leafDesktop.save()'));
+  assert.ok(html.includes('if (window.leafDesktop) return window.leafDesktop.open()'));
+  assert.ok(html.includes("if (!answer && !confirm('Discard unsaved changes in"));
+  assert.ok(html.includes("!confirm('Discard unsaved changes in"));
+});
+
+function markdownSafetyMethods() {
+  const source = html; // Shared top-level editor source; no undefined test root.
+  const start = source.indexOf('function markdownAttr(');
+  const end = source.indexOf('function renderPreview()', start);
+  assert.ok(start >= 0 && end > start, 'Markdown parser source section must exist');
+  return new Function(source.slice(start, end) +
+    '; return {markdownTarget, parseMarkdown};')();
+}
+
+const blockedPreviewUrls = [
+  ['embedded-newline', 'java' + String.fromCharCode(10) + 'script:1'],
+  ['embedded-tab', 'java' + String.fromCharCode(9) + 'script:1'],
+  ['embedded-NUL', 'ja' + String.fromCharCode(0) + 'vascript:1'],
+  ['embedded-CR', 'javascript' + String.fromCharCode(13) + ':1'],
+  ['javascript', 'javascript:1'],
+  ['data', 'data:text/html,1'],
+  ['vbscript', 'vbscript:1']
+];
+for (const [caseName, url] of blockedPreviewUrls) {
+  test('Markdown preview blocks unsafe URL: ' + caseName, () => {
+    const methods = markdownSafetyMethods();
+    assert.equal(methods.markdownTarget(url, false), '#');
+    assert.equal(methods.markdownTarget(url, true), '#');
+    assert.match(methods.parseMarkdown('[click](' + url + ')'), /href="#"/);
+  });
+}
+test('Markdown preview preserves safe absolute and relative URLs', () => {
+  const methods = markdownSafetyMethods();
+  for (const url of ['https://example.org', 'mailto:editor@example.org', 'relative/note.md', '#section']) {
+    assert.equal(methods.markdownTarget(url, false), url);
+  }
+  assert.equal(methods.markdownTarget('mailto:editor@example.org', true), '#');
 });
 
 test('Markdown link and image URL schemes cannot be made executable in preview', () => {

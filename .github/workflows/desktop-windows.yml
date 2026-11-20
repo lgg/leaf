@@ -1,0 +1,268 @@
+name: Leaf desktop Windows — self-hosted
+
+on:
+  push:
+    branches: ['desktop/**']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: leaf-desktop-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  cleanup-known-unsafe-artifacts:
+    # Trusted same-repository pushes only: no PR code runs on the user's machine.
+    if: github.repository == 'lgg/leaf'
+    runs-on: [self-hosted, leaf-runner-ci]
+    permissions:
+      actions: write
+    defaults:
+      run:
+        shell: powershell
+    steps:
+      - name: Purge obsolete Windows previews that may disclose compiler paths
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $headers = @{
+            Authorization = "Bearer $env:GH_TOKEN"
+            Accept = 'application/vnd.github+json'
+            'X-GitHub-Api-Version' = '2022-11-28'
+          }
+          # Only the two known old successful runs, and only their executable archives.
+          foreach ($runId in @(44502496572, 44508372448)) {
+            $uri = "https://api.github.com/repos/lgg/leaf/actions/runs/$runId/artifacts?per_page=100"
+            $artifacts = Invoke-RestMethod -Method GET -Uri $uri -Headers $headers
+            foreach ($artifact in @($artifacts.artifacts)) {
+              if ($artifact.name -notin @('leaf-windows-smoke-test', 'leaf-windows-portable-smoke-test')) { continue }
+              $deleteUri = "https://api.github.com/repos/lgg/leaf/actions/artifacts/$($artifact.id)"
+              Invoke-RestMethod -Method DELETE -Uri $deleteUri -Headers $headers | Out-Null
+              Write-Output "Removed obsolete unsafe Windows preview artifact from run $runId"
+            }
+          }
+          Write-Output 'Historic unsafe Windows preview artifact cleanup complete.'
+
+  windows-desktop:
+    needs: cleanup-known-unsafe-artifacts
+
+    if: github.repository == 'lgg/leaf'
+    runs-on: [self-hosted, leaf-runner-ci]
+    timeout-minutes: 90
+    defaults:
+      run:
+        shell: powershell
+    steps:
+      - name: Mask local directories before commands
+        run: |
+          foreach ($key in @('GITHUB_WORKSPACE','RUNNER_WORKSPACE','RUNNER_TEMP','USERPROFILE','LOCALAPPDATA','APPDATA','TEMP','TMP')) {
+            $value = [Environment]::GetEnvironmentVariable($key)
+            if ($value -and $value.Length -gt 2) { Write-Output "::add-mask::$value" }
+          }
+
+      - name: Verify preinstalled tools (no installations)
+        run: |
+          foreach ($tool in @('git','node','cargo','rustc')) {
+            if (-not (Get-Command $tool -ErrorAction SilentlyContinue)) {
+              throw "Missing preinstalled tool: $tool. No installation attempted."
+            }
+            Write-Output "$tool is available"
+          }
+          node --version
+          rustc --version
+          cargo --version
+
+      - name: Fetch only this trusted repository commit (quiet)
+        run: |
+          git init -q 2>$null
+          if ($LASTEXITCODE -ne 0) { throw "Git initialization failed." }
+          if (-not (git remote)) { git remote add origin https://github.com/lgg/leaf.git }
+          git fetch -q --depth=1 origin $env:GITHUB_SHA 2>$null
+          if ($LASTEXITCODE -ne 0) { throw "Git fetch failed." }
+          git checkout -q --detach FETCH_HEAD 2>$null
+          if ($LASTEXITCODE -ne 0) { throw "Git checkout failed." }
+
+      - name: Run JavaScript regression tests and stage desktop
+        run: |
+          node --test --test-reporter=tap tests/leaf.test.cjs tests/desktop.test.cjs *> "$env:RUNNER_TEMP/leaf-node-tests.log"
+          if ($LASTEXITCODE -ne 0) {
+            # Expose only test names (not assertions, machine paths or stack traces).
+            Get-Content "$env:RUNNER_TEMP/leaf-node-tests.log" |
+              Where-Object { $_ -match '^not ok [0-9]+ - ' } |
+              ForEach-Object {
+                $testName = $_ -replace '^not ok [0-9]+ - ', ''
+                $testName = $testName -replace '[^a-zA-Z0-9 .,()_:/-]', ''
+                Write-Output "::error::Failed test: $testName"
+              }
+            throw "JavaScript regression tests failed. Full diagnostics remain on the runner."
+          }
+          Write-Output "JavaScript regression tests passed"
+          node desktop/stage.cjs *> "$env:RUNNER_TEMP/leaf-desktop-stage.log"
+          if ($LASTEXITCODE -ne 0) {
+            Write-Output "::error::Desktop staging failed. Local diagnostics were not published."
+            throw "Desktop staging failed."
+          }
+          Write-Output "Desktop staging passed"
+
+      - name: Test native Rust code using existing Cargo
+        run: |
+          # Windows PowerShell 5.1 interprets Cargo's normal stderr as an error.
+          $run = Start-Process -FilePath (Get-Command cargo).Source -ArgumentList @('test','--manifest-path','src-tauri/Cargo.toml') -NoNewWindow -Wait -PassThru -RedirectStandardOutput "$env:RUNNER_TEMP/leaf-test-out.log" -RedirectStandardError "$env:RUNNER_TEMP/leaf-test-err.log"
+          if ($run.ExitCode -ne 0) {
+            Get-Content "$env:RUNNER_TEMP/leaf-test-err.log" |
+              Where-Object { $_ -match '^error(\[E[0-9]+\])?:' } |
+              ForEach-Object {
+                $message = $_ -replace '[A-Za-z]:\\[^\s]+', '[local-path]'
+                Write-Output "::error::$message"
+              }
+            throw "Native Rust tests failed. Full diagnostics remain on the runner."
+          }
+          Write-Output "Native Rust tests passed"
+
+      - name: Retain generated Cargo lockfile for reproducibility review
+        uses: actions/upload-artifact@v4
+        with:
+          name: leaf-cargo-lock-review
+          path: src-tauri/Cargo.lock
+          if-no-files-found: error
+          retention-days: 1
+
+      - name: Compile Windows desktop executable with private paths remapped
+        run: |
+          # Cargo unit-separator flags support paths containing spaces.
+          # Rust source, Cargo registry and runner directories must NOT appear
+          # in EXE debug data. Only the RELEASE build gets these remaps.
+          $cargoHome = if ($env:CARGO_HOME) { $env:CARGO_HOME } else { Join-Path $env:USERPROFILE '.cargo' }
+          $rustupHome = if ($env:RUSTUP_HOME) { $env:RUSTUP_HOME } else { Join-Path $env:USERPROFILE '.rustup' }
+          $prefixes = @(
+            @{ Source=$env:GITHUB_WORKSPACE; Target='/leaf-source' }
+            @{ Source=$env:RUNNER_WORKSPACE; Target='/leaf-runner' }
+            @{ Source=$env:RUNNER_TEMP; Target='/leaf-temp' }
+            @{ Source=$cargoHome; Target='/cargo-cache' }
+            @{ Source=$rustupHome; Target='/rust-toolchain' }
+            @{ Source=$env:LOCALAPPDATA; Target='/local-appdata' }
+            @{ Source=$env:APPDATA; Target='/appdata' }
+            @{ Source=$env:USERPROFILE; Target='/user-home' }
+            # Cargo and build-script sources may live under a different Windows
+            # account from USERPROFILE. Map generic, non-identifying roots too.
+          )
+          # Do not replace only a generic Users folder: that would leak the
+          # remaining profile name in file!() panic strings. Discover complete
+          # existing profile roots without ever emitting their names.
+          $profileIndex = 0
+          foreach ($drive in @('C:', 'D:', 'E:', 'F:')) {
+            $root = $drive + '\Users'
+            if (-not (Test-Path -LiteralPath $root)) { continue }
+            foreach ($directory in @(Get-ChildItem -LiteralPath $root -Directory -Force -ErrorAction SilentlyContinue)) {
+              $profileIndex++
+              $prefixes += @{ Source=$directory.FullName; Target="/private-profile-$profileIndex" }
+              $prefixes += @{ Source=(Join-Path $directory.FullName '.cargo'); Target="/private-cargo-$profileIndex" }
+              $prefixes += @{ Source=(Join-Path $directory.FullName '.rustup'); Target="/private-rustup-$profileIndex" }
+            }
+          }
+          if (-not $profileIndex) { throw "No profile roots available for secure Rust path mapping." }
+          # rustc applies the LAST matching remap. Ensure most-specific
+          # cache/workspace roots win over their containing home directories.
+          $prefixes = @($prefixes | Sort-Object { $_.Source.Length })
+          $flags = New-Object 'System.Collections.Generic.List[string]'
+          foreach ($pair in $prefixes) {
+            if (-not $pair.Source) { continue }
+            $source = $pair.Source.TrimEnd([char]92, [char]47)
+            # Windows build tools may hand rustc a verbatim (\\?\\) source path.
+            # Map native, slash-normalized and verbatim forms; never print them.
+            $variants = @($source, $source.Replace([char]92, [char]47))
+            if ($source -match '^[A-Za-z]:[\\/]') {
+              $variants += '\\?\' + $source
+              $variants += '\\?\' + $source.Replace([char]92, [char]47)
+            }
+            foreach ($variant in ($variants | Select-Object -Unique)) {
+              $flags.Add("--remap-path-prefix=$variant=$($pair.Target)")
+            }
+          }
+          # MSVC may embed a full path to the debugging PDB in the PE
+          # CodeView directory, independently of Rust source-path remapping.
+          # Use only the PDB basename; do not expose the machine directory.
+          $hostTarget = (& (Get-Command rustc).Source -vV | Select-String '^host:' | Select-Object -First 1)
+          if ($hostTarget -and $hostTarget.ToString().Contains('windows-msvc')) {
+            $flags.Add('-C')
+            $flags.Add('link-arg=/PDBALTPATH:%_PDB%')
+          }
+          if ($flags.Count -lt 4) { throw "Build path remapping is not configured." }
+          Write-Output "Rust remap rules configured (sanitized count: $($flags.Count))"
+          $env:CARGO_ENCODED_RUSTFLAGS = $flags -join [char]31
+
+          # Fast privacy canary: rustc must actually rewrite the absolute path
+          # emitted by file!(). No source path or compiler diagnostic is printed.
+          $probeSource = Join-Path $env:RUNNER_TEMP 'leaf-privacy-canary.rs'
+          $probeExe = Join-Path $env:RUNNER_TEMP 'leaf-privacy-canary.exe'
+          [IO.File]::WriteAllText($probeSource, 'fn main() { println!("{}", file!()); }')
+          $probeArgs = @($probeSource, '--crate-name', 'leaf_privacy_canary', '--edition=2021', '-o', $probeExe) + $flags.ToArray()
+          & (Get-Command rustc).Source @probeArgs *> "$env:RUNNER_TEMP/leaf-privacy-canary.log"
+          if ($LASTEXITCODE -ne 0 -or -not (Test-Path $probeExe)) {
+            throw "Compiler privacy canary failed. Full diagnostics remain on the runner."
+          }
+          node desktop/check-binary.cjs $probeExe
+          if ($LASTEXITCODE -ne 0) { throw "Rust path remapping canary failed; public binary artifacts remain blocked." }
+          Write-Output "Rust path remapping canary passed"
+
+          # Strip the release symbol table so it cannot retain workstation
+          # source/PDB paths. Keep all diagnostics locally in Cargo test logs.
+          $env:CARGO_PROFILE_RELEASE_STRIP = 'symbols'
+          $run = Start-Process -FilePath (Get-Command cargo).Source -ArgumentList @('build','--release','--manifest-path','src-tauri/Cargo.toml') -NoNewWindow -Wait -PassThru -RedirectStandardOutput "$env:RUNNER_TEMP/leaf-build-out.log" -RedirectStandardError "$env:RUNNER_TEMP/leaf-build-err.log"
+          if ($run.ExitCode -ne 0) {
+            Get-Content "$env:RUNNER_TEMP/leaf-build-err.log" |
+              Where-Object { $_ -match '^error(\[E[0-9]+\])?:' } |
+              ForEach-Object {
+                $message = $_ -replace '[A-Za-z]:\\[^\s]+', '[local-path]'
+                Write-Output "::error::$message"
+              }
+            throw "Windows native build failed. Full diagnostics remain on the runner."
+          }
+          if (-not (Test-Path 'src-tauri/target/release/leaf-desktop.exe')) {
+            throw "Expected Windows binary is missing."
+          }
+          Write-Output "Windows binary compiled successfully"
+
+      - name: Verify compiled EXE contains no private workstation paths
+        run: |
+          # Reject ambiguous metadata; only patch one bounded Rust .rs source
+          # string in unsigned PE read-only data, preserving binary offsets.
+          node desktop/sanitize-binary.cjs src-tauri/target/release/leaf-desktop.exe
+          if ($LASTEXITCODE -ne 0) { throw "Source metadata sanitizer failed; artifact upload blocked." }
+          node desktop/check-binary.cjs src-tauri/target/release/leaf-desktop.exe
+          if ($LASTEXITCODE -ne 0) { throw "Private path scan failed; Windows artifact upload blocked." }
+
+      - name: Package portable Windows build with built-in PowerShell
+        run: |
+          $exe = 'src-tauri/target/release/leaf-desktop.exe'
+          if (-not (Test-Path $exe)) { throw "Portable build executable is missing." }
+          Compress-Archive -LiteralPath $exe -DestinationPath 'src-tauri/target/release/leaf-desktop-portable.zip' -Force
+          if (-not (Test-Path 'src-tauri/target/release/leaf-desktop-portable.zip')) { throw "Portable ZIP packaging failed." }
+          Write-Output "Portable ZIP created without installing or downloading packaging tools."
+
+      - name: NSIS installer prerequisites (informational only)
+        run: |
+          $cli = [bool](Get-Command cargo-tauri -ErrorAction SilentlyContinue)
+          $nsis = [bool](Get-Command makensis.exe -ErrorAction SilentlyContinue)
+          if (-not $cli) { Write-Output "::warning::Tauri CLI is not preinstalled." }
+          if (-not $nsis) { Write-Output "::warning::NSIS MakeNSIS is not available in PATH." }
+          Write-Output "NSIS packaging intentionally disabled until its existing toolchain is explicitly validated: Tauri may auto-download bundler components."
+
+      - name: Retain Windows binary for smoke testing (not a release)
+        uses: actions/upload-artifact@v4
+        with:
+          name: leaf-windows-smoke-test
+          path: src-tauri/target/release/leaf-desktop.exe
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Retain portable ZIP for smoke testing (not a release)
+        uses: actions/upload-artifact@v4
+        with:
+          name: leaf-windows-portable-smoke-test
+          path: src-tauri/target/release/leaf-desktop-portable.zip
+          if-no-files-found: error
+          retention-days: 7

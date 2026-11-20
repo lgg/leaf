@@ -34,11 +34,11 @@
 - **Multiple Leaf windows:** detects external `localStorage` changes and stores divergent edits in a separate recovery entry.
 - **Backup restoration:** explicit restore safeguards previous primary data by archiving a copy before changing it.
 - **Markdown ZIP export:** exports each editable tab as its own UTF-8 Markdown file (one ZIP), with duplicate-safe filenames and CRC32.
-- **PWA cache:** `leaf-lgg-v6`, online network-first HTML plus cache fallback, to avoid serving stale editor JavaScript indefinitely.
+- **PWA cache:** `leaf-lgg-v7`, online network-first HTML plus cache fallback, to avoid serving stale editor JavaScript indefinitely.
 
 ## Regression checks
 
-**14 of 14 pass** in an in-process JavaScript harness executing the repo test cases in `tests/leaf.test.cjs`, including settings round-trip, all serialized preference fields, custom HEX persistence, backup availability and restoration, ZIP structure/UTF-8/CRC, tab-state recovery, autosave coalescing and PWA cache behavior.
+**Historical 14 of 14 passed** in an in-process JavaScript harness executing the repo test cases in `tests/leaf.test.cjs`, including settings round-trip, all serialized preference fields, custom HEX persistence, backup availability and restoration, ZIP structure/UTF-8/CRC, tab-state recovery, autosave coalescing and PWA cache behavior.
 
 To rerun on a machine with Node.js:
 
@@ -46,7 +46,7 @@ To rerun on a machine with Node.js:
 node --test tests/leaf.test.cjs
 ```
 
-Additional structural checks: settings modal `37` opening / `37` closing divs, no duplicate HTML IDs, correct section ordering; embedded About/README text exactly matches `README.txt`.
+Additional structural checks: settings modal `37` opening / `37` closing divs, no duplicate HTML IDs, correct section ordering; embedded in-app help is updated from `README.md` during fork maintenance.
 
 ## What this does **not** prove
 

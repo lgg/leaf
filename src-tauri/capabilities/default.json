@@ -1,0 +1,11 @@
+{
+  "identifier": "main",
+  "description": "Only the bundled main editor may invoke the explicitly registered Rust commands. No unrestricted fs or shell access.",
+  "windows": [
+    "main"
+  ],
+  "permissions": [
+    "core:default",
+    "core:window:allow-destroy"
+  ]
+}
