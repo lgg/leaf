@@ -431,7 +431,7 @@ test('valid custom HEX input saves the choice; invalid input does not', () => {
 
 test('GitHub Pages service worker prefers fresh HTML and keeps an offline fallback', () => {
   const sw=fs.readFileSync(path.join(__dirname,'..','sw.js'),'utf8');
-  assert.ok(sw.includes("const CACHE = 'leaf-lgg-v6'"));
+  assert.ok(sw.includes("const CACHE = 'leaf-lgg-v7'"));
   assert.ok(sw.includes("request.mode === 'navigate'"));
   assert.ok(sw.includes("fetch(request).then(response"));
   assert.ok(sw.includes("caches.match('./editor.html')"));
@@ -684,4 +684,29 @@ test('preferences, independent tab names, input edits and recovery are wired', (
   assert.ok(js.includes("editor.addEventListener('input', noteEditorEdit)"));
   assert.ok(js.includes("window.addEventListener('pagehide', persistWorkspace)"));
   assert.ok(js.includes("const backups = availableWorkspaceRecoveries()"));
+});
+
+test('Markdown link and image URL schemes cannot be made executable in preview', () => {
+  const start = js.indexOf('function markdownAttr(');
+  const end = js.indexOf('function renderPreview()', start);
+  assert.ok(start >= 0 && end > start);
+  const {markdownTarget, parseMarkdown} = new Function(js.slice(start,end) +
+    ';return {markdownTarget,parseMarkdown};')();
+  const forbidden = [
+    'javascript:alert(1)', 'data:text/html,hello', 'vbscript:1',
+    'java' + String.fromCharCode(10) + 'script:alert(1)',
+    'ja' + String.fromCharCode(0) + 'vascript:alert(1)',
+    'java' + String.fromCharCode(9) + 'script:alert(1)'
+  ];
+  for (const url of forbidden) {
+    assert.equal(markdownTarget(url, false), '#');
+    assert.equal(markdownTarget(url, true), '#');
+    assert.match(parseMarkdown('[test](' + url + ')'), /href="#"/);
+  }
+  assert.equal(markdownTarget('https://example.org', false), 'https://example.org');
+  assert.equal(markdownTarget('mailto:writer@example.org', false), 'mailto:writer@example.org');
+  assert.equal(markdownTarget('mailto:writer@example.org', true), '#');
+  assert.equal(markdownTarget('./notes.md', false), './notes.md');
+  assert.match(parseMarkdown('[safe](https://example.org)'), /rel="noopener noreferrer"/);
+  assert.match(parseMarkdown('![alt" onerror="alert(1)](https://example.org/x.png)'), /alt="alt&quot; onerror=&quot;alert\(1\)"/);
 });
