@@ -129,6 +129,14 @@ fn read_session(app: &tauri::AppHandle) -> Session {
 }
 
 fn atomic_write(path: &Path, bytes: &[u8]) -> Result<(), String> {
+    atomic_write_with_revision_guard(path, bytes, None)
+}
+
+// Check the originally observed disk content again immediately before
+// replacing it. This also catches changes made while our temp file was written.
+fn atomic_write_with_revision_guard(
+    path: &Path, bytes: &[u8], expected_revision: Option<&str>,
+) -> Result<(), String> {
     let parent = path.parent().ok_or("Invalid file location.")?;
     let mut temp = tempfile::NamedTempFile::new_in(parent)
         .map_err(|_| "Cannot create a temporary file beside the document.".to_string())?;
@@ -138,6 +146,13 @@ fn atomic_write(path: &Path, bytes: &[u8]) -> Result<(), String> {
     }
     temp.write_all(bytes).and_then(|_| temp.flush()).and_then(|_| temp.as_file().sync_all())
         .map_err(|_| "Could not fully write the temporary file.".to_string())?;
+    if let Some(expected) = expected_revision {
+        let now = fs::read(path).map_err(|_|
+            "File was removed or became unreadable during saving. Your draft is intact.".to_string())?;
+        if digest(&now) != expected {
+            return Err("File changed during saving. Your draft is intact; use Save As.".into());
+        }
+    }
     temp.persist(path).map_err(|_| "Cannot replace the file. Check permissions, locks and available disk space.".to_string())?;
     Ok(())
 }
@@ -173,7 +188,7 @@ fn write_checked(
             return Err("The file changed outside Leaf. Your edits are intact. Use Save As.".into());
         }
     }
-    atomic_write(destination, contents.as_bytes())?;
+    atomic_write_with_revision_guard(destination, contents.as_bytes(), revisions.map(|(expected, _)| expected))?;
     read_document(destination)
 }
 
@@ -561,6 +576,20 @@ mod tests {
         fs::remove_file(&path).unwrap();
         assert!(write_checked(&path, "new", Some((&revision, &revision))).is_err());
         assert!(!path.exists());
+    }
+
+    #[test]
+    fn final_revision_check_blocks_changes_during_temp_write() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("guarded.md");
+        fs::write(&path, b"original").unwrap();
+        let original = read_document(&path).unwrap().revision;
+        fs::write(&path, b"external replacement").unwrap();
+        let result = atomic_write_with_revision_guard(&path, b"unsafe overwrite", Some(&original));
+        assert!(result.is_err());
+        assert_eq!(fs::read_to_string(&path).unwrap(), "external replacement");
+        // Failure leaves no temporary overwrite and preserves the newer file.
+        assert_eq!(read_document(&path).unwrap().content, "external replacement");
     }
 
     #[test]
