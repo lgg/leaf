@@ -42,7 +42,7 @@ Leaf desktop uses the **same editor** with a small, separate Rust/Tauri layer. T
 
 ### Build with already-provisioned Windows tools
 
-The GitHub Actions workflow uses **only** the existing self-hosted runner with label `leaf-runner-ci`; it has no system-package, Rust-toolchain, Node or Docker installation steps. The workflow checks tool availability and does not print local PC paths intentionally.
+The GitHub Actions workflow uses **only** the existing self-hosted runner with label `leaf-runner-ci`; it has no system-package, Rust-toolchain, Node or Docker installation steps. The workflow checks tool availability and does not print local PC paths intentionally. It checks each `desktop/**` push and the exact merged `main` commit; it cannot run on an untrusted `pull_request` event. Previously unsafe CI artifacts were removed, and the one-time privileged cleanup job is no longer part of recurring builds.
 
 For manual builds, with Node.js, Rust/Cargo, Microsoft C++ build tools and Windows WebView2 prerequisites already present:
 
