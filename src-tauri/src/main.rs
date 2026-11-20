@@ -18,6 +18,8 @@ struct DesktopState {
     authorized: Mutex<HashMap<String, String>>,
     // Paths are authorized for drag/drop only by a genuine OS webview event.
     dropped: Mutex<HashSet<String>>,
+    // Prevent overlapping Save calls from checking the same disk revision.
+    write_guard: Mutex<()>,
 }
 
 #[derive(Clone, Serialize)]
@@ -168,6 +170,20 @@ fn write_checked(
     read_document(destination)
 }
 
+
+ // Serialize native writes so a second Save cannot pass the revision check
+ // while the first Save is still replacing the document.
+fn write_serialized(
+    state: &DesktopState,
+    destination: &Path,
+    contents: &str,
+    revisions: Option<(&str, &str)>,
+) -> Result<Document, String> {
+    let _guard = state.write_guard.lock()
+        .map_err(|_| "Native save queue unavailable.".to_string())?;
+    write_checked(destination, contents, revisions)
+}
+
 #[tauri::command]
 async fn desktop_open_dialog(app: tauri::AppHandle, state: State<'_, DesktopState>) -> Result<Option<Document>, String> {
     let handle = app.clone();
@@ -231,7 +247,7 @@ async fn desktop_save(
     };
     let checked = revisions.as_ref().map(|(expected, approved)| (expected.as_str(), approved.as_str()));
     let encoded = apply_line_ending(&content, &line_ending)?;
-    let saved = write_checked(&destination, &encoded, checked)?;
+    let saved = write_serialized(&state, &destination, &encoded, checked)?;
     remember(&state, &saved)?;
     Ok(Some(saved))
 }
@@ -489,6 +505,34 @@ mod tests {
         let result = write_checked(&path, "my edit", Some((&revision, "outdated-tab")));
         assert!(result.is_err());
         assert_eq!(fs::read_to_string(&path).unwrap(), "unchanged");
+    }
+
+    #[test]
+    fn overlapping_native_saves_cannot_both_overwrite_same_revision() {
+        use std::sync::{Arc, Barrier};
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("parallel.md");
+        fs::write(&path, b"original").unwrap();
+        let expected = read_document(&path).unwrap().revision;
+        let state = Arc::new(DesktopState::default());
+        let barrier = Arc::new(Barrier::new(3));
+        let mut handles = Vec::new();
+        for new_text in ["first edit", "second edit"] {
+            let path = path.clone();
+            let state = Arc::clone(&state);
+            let expected = expected.clone();
+            let barrier = Arc::clone(&barrier);
+            handles.push(std::thread::spawn(move || {
+                barrier.wait();
+                write_serialized(&state, &path, new_text,
+                    Some((&expected, &expected)))
+            }));
+        }
+        barrier.wait();
+        let outcomes: Vec<_> = handles.into_iter().map(|job| job.join().unwrap()).collect();
+        assert_eq!(outcomes.iter().filter(|outcome| outcome.is_ok()).count(), 1);
+        let disk = fs::read_to_string(&path).unwrap();
+        assert!(disk == "first edit" || disk == "second edit");
     }
 
     #[test]
