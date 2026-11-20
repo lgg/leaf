@@ -428,3 +428,52 @@ test('opening an already-open file refreshes clean tabs but preserves dirty edit
   const open = bridge.slice(end,bridge.indexOf('\n  async function open(',end));
   assert.ok(open.indexOf('switchTab(existing.id)') < open.indexOf('refreshCleanTabFromDisk(existing, doc)'));
 });
+
+test('native close blocks duplicate requests until recovery is flushed and permits retry on failure', async () => {
+  const bridge = fs.readFileSync(path.join(root,'desktop','desktop-bridge.js'),'utf8');
+  const start = bridge.indexOf('win.onCloseRequested(async event => {');
+  const end = bridge.indexOf('}).catch(() => {});',start);
+  assert.ok(start >= 0 && end > start);
+  const source = bridge.slice(start, end + 2);
+  const create = new Function('win','tabs','confirm','saveActiveTabState','flushSession','alert','safeError',
+    'let closing=false; ' + source + '; return () => closing;');
+  let callback;
+  let discarded = 0;
+  let prevented = 0;
+  let destroyed = 0;
+  let release;
+  const pending = new Promise(resolve => { release = resolve; });
+  const win = {
+    onCloseRequested(handler) { callback = handler; return {catch() {}}; },
+    async destroy() { destroyed++; }
+  };
+  const closing = create(win,[{dirty:true}],() => {discarded++; return true;},
+    () => {},() => pending,() => {},String);
+  const evt = () => ({preventDefault() {prevented++;}});
+  const first = callback(evt());
+  const duplicate = callback(evt());
+  assert.equal(prevented, 2, 'both OS close events must be intercepted');
+  assert.equal(discarded, 1, 'prompt once while a close is pending');
+  assert.equal(destroyed, 0);
+  assert.equal(closing(), true);
+  release();
+  await Promise.all([first,duplicate]);
+  assert.equal(destroyed, 1);
+
+  let secondHandler;
+  let errors = 0;
+  let attempts = 0;
+  const failed = create({
+    onCloseRequested(handler) {secondHandler=handler;return {catch() {}};},
+    async destroy() {throw Error('should not destroy');}
+  },[{dirty:false}],() => true,()=>{},async () => {
+    attempts++;
+    if (attempts === 1) throw Error('session write failed');
+  },()=>{errors++;},String);
+  await secondHandler(evt());
+  assert.equal(errors,1);
+  assert.equal(failed(),false);
+  // The user can attempt to close again after the session error.
+  await secondHandler(evt());
+  assert.equal(attempts,2);
+});
