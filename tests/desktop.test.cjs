@@ -217,7 +217,7 @@ test('merged main and trusted desktop branches use the privacy-gated self-hosted
   assert.ok(yaml.includes("branches: ['main', 'desktop/**']"));
   assert.ok(yaml.includes('workflow_dispatch:'));
   assert.ok(yaml.includes('runs-on: [self-hosted, leaf-runner-ci]'));
-  assert.ok(yaml.includes('permissions:\\n  contents: read'));
+  assert.ok(yaml.includes('permissions:' + String.fromCharCode(10) + '  contents: read'));
   assert.ok(!yaml.includes('actions: write'));
   assert.ok(!yaml.includes('cleanup-known-unsafe-artifacts'));
   assert.ok(!yaml.includes('needs: cleanup-known-unsafe-artifacts'));
