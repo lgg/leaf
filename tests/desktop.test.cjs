@@ -351,3 +351,56 @@ test('Windows linker is configured to avoid embedding absolute PDB paths', () =>
   const build = yaml.indexOf("@('build','--release','--manifest-path'");
   assert.ok(flags > 0 && build > flags);
 });
+
+test('unsigned PE source metadata cleanup only rewrites one read-only Rust path', () => {
+  const {sanitizeRustPathMetadata} = require('../desktop/sanitize-binary.cjs');
+  const {countLeaks} = require('../desktop/check-binary.cjs');
+  function syntheticPe() {
+    const bytes = Buffer.alloc(2048);
+    bytes.write('MZ', 0, 'ascii');
+    bytes.writeUInt32LE(0x80, 0x3c);
+    bytes.write('PE\0\0', 0x80, 'ascii');
+    bytes.writeUInt16LE(1, 0x86); // COFF number of sections
+    bytes.writeUInt16LE(0xe0, 0x94); // PE optional header size
+    bytes.writeUInt16LE(0x20b, 0x98); // x64 PE+
+    const section = 0x80 + 24 + 0xe0;
+    bytes.write('.rdata', section, 'ascii');
+    bytes.writeUInt32LE(0x400, section + 16);
+    bytes.writeUInt32LE(0x200, section + 20);
+    bytes.writeUInt32LE(0x40000040, section + 36);
+    return bytes;
+  }
+  const input = syntheticPe();
+  const path = 'C:' + String.fromCharCode(92) + 'Users' +
+    String.fromCharCode(92) + 'SyntheticUser' + String.fromCharCode(92) +
+    'repository' + String.fromCharCode(92) + 'src' +
+    String.fromCharCode(92) + 'main.rs';
+  input.write(path, 0x280, 'ascii');
+  const fixed = sanitizeRustPathMetadata(input);
+  assert.equal(fixed.replacements, 1);
+  assert.equal(fixed.bytes.length, input.length);
+  assert.equal(countLeaks(fixed.bytes, {}), 0);
+  assert.equal(countLeaks(input, {}), 1);
+  assert.ok(!fixed.bytes.toString('latin1').includes('SyntheticUser'));
+  assert.equal(input.toString('latin1', 0x280, 0x280 + path.length), path);
+  assert.deepEqual(sanitizeRustPathMetadata(fixed.bytes).bytes, fixed.bytes);
+  const executableSection = Buffer.from(input);
+  const section = 0x80 + 24 + 0xe0;
+  executableSection.writeUInt32LE(0x60000020, section + 36);
+  assert.throws(() => sanitizeRustPathMetadata(executableSection), /read-only/);
+  const signed = Buffer.from(input);
+  signed.writeUInt32LE(128, 0x98 + 112 + 4 * 8 + 4);
+  assert.throws(() => sanitizeRustPathMetadata(signed), /signed/);
+  const ambiguous = Buffer.from(input);
+  ambiguous.write(path, 0x400, 'ascii');
+  assert.throws(() => sanitizeRustPathMetadata(ambiguous), /Ambiguous/);
+});
+
+test('privacy-gated PE cleanup must precede the unchanged independent binary scan', () => {
+  const yaml = fs.readFileSync(path.join(root,'.github/workflows/desktop-windows.yml'),'utf8');
+  const sanitizer = yaml.indexOf('node desktop/sanitize-binary.cjs src-tauri/target/release/leaf-desktop.exe');
+  const scanner = yaml.indexOf('node desktop/check-binary.cjs src-tauri/target/release/leaf-desktop.exe');
+  const upload = yaml.indexOf('Retain Windows binary for smoke testing');
+  assert.ok(sanitizer > 0 && scanner > sanitizer && upload > scanner);
+  assert.ok(yaml.includes('if ($LASTEXITCODE -ne 0) { throw "Private path scan failed'));
+});

@@ -228,6 +228,10 @@ jobs:
 
       - name: Verify compiled EXE contains no private workstation paths
         run: |
+          # Reject ambiguous metadata; only patch one bounded Rust .rs source
+          # string in unsigned PE read-only data, preserving binary offsets.
+          node desktop/sanitize-binary.cjs src-tauri/target/release/leaf-desktop.exe
+          if ($LASTEXITCODE -ne 0) { throw "Source metadata sanitizer failed; artifact upload blocked." }
           node desktop/check-binary.cjs src-tauri/target/release/leaf-desktop.exe
           if ($LASTEXITCODE -ne 0) { throw "Private path scan failed; Windows artifact upload blocked." }
 
