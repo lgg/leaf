@@ -692,28 +692,36 @@ test('About offers desktop releases without adding a native runtime to web', () 
   assert.ok(html.includes("!confirm('Discard unsaved changes in"));
 });
 
-test('Markdown preview rejects control-character scheme smuggling in links and images', () => {
-  const html = fs.readFileSync(path.join(root, 'editor.html'), 'utf8');
-  const start = html.indexOf('function markdownAttr(');
-  const end = html.indexOf('function renderPreview()', start);
-  assert.ok(start >= 0 && end > start);
-  const methods = new Function(html.slice(start, end) +
+function markdownSafetyMethods() {
+  const source = fs.readFileSync(path.join(root, 'editor.html'), 'utf8');
+  const start = source.indexOf('function markdownAttr(');
+  const end = source.indexOf('function renderPreview()', start);
+  assert.ok(start >= 0 && end > start, 'Markdown parser source section must exist');
+  return new Function(source.slice(start, end) +
     '; return {markdownTarget, parseMarkdown};')();
-  for (const url of [
-    'java' + String.fromCharCode(10) + 'script:1',
-    'java' + String.fromCharCode(9) + 'script:1',
-    'ja' + String.fromCharCode(0) + 'vascript:1',
-    'javascript' + String.fromCharCode(13) + ':1',
-    'javascript:1', 'data:text/html,1', 'vbscript:1'
-  ]) {
-    assert.equal(methods.markdownTarget(url, false), '#', JSON.stringify(url));
-    assert.equal(methods.markdownTarget(url, true), '#', JSON.stringify(url));
-    const preview = methods.parseMarkdown('[click](' + url + ')');
-    assert.match(preview, /href="#"/, JSON.stringify(url));
+}
+
+const blockedPreviewUrls = [
+  ['embedded-newline', 'java' + String.fromCharCode(10) + 'script:1'],
+  ['embedded-tab', 'java' + String.fromCharCode(9) + 'script:1'],
+  ['embedded-NUL', 'ja' + String.fromCharCode(0) + 'vascript:1'],
+  ['embedded-CR', 'javascript' + String.fromCharCode(13) + ':1'],
+  ['javascript', 'javascript:1'],
+  ['data', 'data:text/html,1'],
+  ['vbscript', 'vbscript:1']
+];
+for (const [caseName, url] of blockedPreviewUrls) {
+  test('Markdown preview blocks unsafe URL: ' + caseName, () => {
+    const methods = markdownSafetyMethods();
+    assert.equal(methods.markdownTarget(url, false), '#');
+    assert.equal(methods.markdownTarget(url, true), '#');
+    assert.match(methods.parseMarkdown('[click](' + url + ')'), /href="#"/);
+  });
+}
+test('Markdown preview preserves safe absolute and relative URLs', () => {
+  const methods = markdownSafetyMethods();
+  for (const url of ['https://example.org', 'mailto:editor@example.org', 'relative/note.md', '#section']) {
+    assert.equal(methods.markdownTarget(url, false), url);
   }
-  assert.equal(methods.markdownTarget('https://example.org', false), 'https://example.org');
-  assert.equal(methods.markdownTarget('mailto:editor@example.org', false), 'mailto:editor@example.org');
   assert.equal(methods.markdownTarget('mailto:editor@example.org', true), '#');
-  assert.equal(methods.markdownTarget('relative/note.md', false), 'relative/note.md');
-  assert.equal(methods.markdownTarget('#section', false), '#section');
 });
