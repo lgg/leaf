@@ -5,7 +5,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 
-const html = fs.readFileSync(path.join(__dirname, '..', 'editor.html'), 'utf8');
+const html = fs.readFileSync(path.join(__dirname, '..', 'editor.html'), 'utf8').replace(/\r\n/g, '\n');
 const from = html.indexOf('<script>') + 8;
 const js = html.slice(from, html.indexOf('</script>', from));
 
