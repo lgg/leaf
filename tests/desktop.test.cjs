@@ -224,3 +224,74 @@ test('only trusted self-hosted workflow runs purge known unsafe historical previ
   assert.ok(yaml.includes('Select-Object -Unique'));
   assert.ok(!yaml.includes('pull_request:'));
 });
+
+test('closing a tab does not discard edits typed while an asynchronous save is in progress', async () => {
+  const html = fs.readFileSync(path.join(root,'editor.html'),'utf8');
+  const start = html.indexOf('async function closeTab(');
+  const end = html.indexOf("\ndocument.getElementById('btn-new-tab')", start);
+  assert.ok(start >= 0 && end > start);
+  const source = html.slice(start,end);
+  assert.ok(source.indexOf('const afterSave = tabs.find') > source.indexOf('await saveFile()'));
+  const openTabs = [{id:1,name:'draft.md',content:'latest edit',dirty:true}];
+  const harness = new Function('tabs','window','confirm','switchTab','saveFile','workspaceNotice',
+    'let activeTabId = 1; let isDirty = true; ' + source +
+    '; return {closeTab, getTabs: () => tabs};')(
+      openTabs, {leafDesktop:true}, () => true, () => {},
+      async () => true, () => {}
+    );
+  await harness.closeTab(1);
+  assert.equal(harness.getTabs().length,1);
+  assert.equal(harness.getTabs()[0].content,'latest edit');
+});
+
+test('native save calls are serialized so concurrent file writes cannot use stale revisions', async () => {
+  const source = fs.readFileSync(path.join(root,'desktop','desktop-bridge.js'),'utf8');
+  const start = source.indexOf('  function queuedSave(');
+  const end = source.indexOf('\n  function restoredTab(', start);
+  assert.ok(start >= 0 && end > start);
+  const code = source.slice(start,end);
+  assert.ok(source.includes('save: () => queuedSave(false)'));
+  assert.ok(source.includes('saveAs: () => queuedSave(true)'));
+  let active = 0;
+  const observed = [];
+  const call = new Function('save', 'let saveQueue = Promise.resolve(); ' + code +
+    '; return queuedSave;')(async saveAs => {
+      active++;
+      assert.equal(active, 1, 'overlapping native writes are forbidden');
+      observed.push(saveAs ? 'save-as-start' : 'save-start');
+      await new Promise(resolve => setImmediate(resolve));
+      observed.push(saveAs ? 'save-as-end' : 'save-end');
+      active--;
+      return true;
+    });
+  assert.deepEqual(await Promise.all([call(false),call(true)]),[true,true]);
+  assert.deepEqual(observed,['save-start','save-end','save-as-start','save-as-end']);
+});
+
+test('privacy-gated smoke-test artifacts remain available for a seven-day manual acceptance window', () => {
+  const yaml = fs.readFileSync(path.join(root,'.github/workflows/desktop-windows.yml'),'utf8');
+  const scan = yaml.indexOf('Verify compiled EXE contains no private workstation paths');
+  const binary = yaml.indexOf('Retain Windows binary for smoke testing');
+  const portable = yaml.indexOf('Retain portable ZIP for smoke testing');
+  assert.ok(scan > 0 && binary > scan && portable > scan);
+  assert.match(yaml.slice(binary, portable), /retention-days: 7/);
+  assert.match(yaml.slice(portable), /retention-days: 7/);
+});
+
+test('privacy diagnostics report only numeric counts, never workstation paths', () => {
+  const {sanitizedLeakCounts} = require('../desktop/check-binary.cjs');
+  const synthetic = 'D:' + String.fromCharCode(92) + 'Users' + String.fromCharCode(92) +
+    'SyntheticPerson' + String.fromCharCode(92) + '.cargo' +
+    String.fromCharCode(92) + 'registry' + String.fromCharCode(92) + 'src';
+  const stats = sanitizedLeakCounts(Buffer.concat([
+    Buffer.from(synthetic,'utf8'), Buffer.from(synthetic,'utf16le'),
+    Buffer.from('/leaf-source/source.rs /cargo-cache/crate.rs', 'utf8')
+  ]));
+  assert.ok(stats.singleByte.profile > 0);
+  assert.ok(stats.singleByte.cargo > 0);
+  assert.ok(stats.utf16.profile > 0 || stats.utf16Offset.profile > 0);
+  assert.ok(stats.singleByte.remappedSource > 0);
+  assert.ok(stats.singleByte.remappedCargo > 0);
+  assert.ok(!JSON.stringify(stats).includes('SyntheticPerson'));
+  assert.ok(!JSON.stringify(stats).includes('Users'));
+});

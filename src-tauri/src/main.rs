@@ -5,7 +5,7 @@ use sha2::{Digest, Sha256};
 use std::{
     collections::{HashMap, HashSet},
     fs,
-    io::Write,
+    io::{Read, Write},
     path::{Path, PathBuf},
     sync::Mutex,
 };
@@ -18,6 +18,8 @@ struct DesktopState {
     authorized: Mutex<HashMap<String, String>>,
     // Paths are authorized for drag/drop only by a genuine OS webview event.
     dropped: Mutex<HashSet<String>>,
+    // Prevent overlapping Save calls from checking the same disk revision.
+    write_guard: Mutex<()>,
 }
 
 #[derive(Clone, Serialize)]
@@ -83,11 +85,39 @@ fn digest(bytes: &[u8]) -> String {
     hex::encode(Sha256::digest(bytes))
 }
 
+// Hash the on-disk revision in bounded chunks to avoid allocating an entire
+// externally grown file while checking its contents just before replacement.
+fn read_revision_bounded(path: &Path) -> Result<String, String> {
+    let mut file = fs::File::open(path)
+        .map_err(|_| "File became inaccessible during saving.".to_string())?;
+    let mut hasher = Sha256::new();
+    let mut chunk = [0_u8; 64 * 1024];
+    let mut total = 0_usize;
+    loop {
+        let read = file.read(&mut chunk)
+            .map_err(|_| "Could not verify file contents during saving.".to_string())?;
+        if read == 0 { break; }
+        total += read;
+        if total > 32 * 1024 * 1024 {
+            return Err("File grew beyond 32 MB during saving. Your draft is intact.".into());
+        }
+        hasher.update(&chunk[..read]);
+    }
+    Ok(hex::encode(hasher.finalize()))
+}
+
 fn read_document(path: &Path) -> Result<Document, String> {
     if !is_text(path) {
         return Err("Only .md and .txt files are supported.".into());
     }
     let canonical = fs::canonicalize(path).map_err(|_| "File was moved, removed or cannot be accessed.".to_string())?;
+    // Reject oversized files before allocating their complete contents.
+    // Recheck after read in case an external process grew the file meanwhile.
+    let size = fs::metadata(&canonical)
+        .map_err(|_| "File metadata is unavailable.".to_string())?.len();
+    if size > 32 * 1024 * 1024 {
+        return Err("Document exceeds the 32 MB safety limit.".into());
+    }
     let bytes = fs::read(&canonical).map_err(|_| "File cannot be read (permission denied or unavailable).".to_string())?;
     if bytes.len() > 32 * 1024 * 1024 {
         return Err("Document exceeds the 32 MB safety limit.".into());
@@ -120,6 +150,14 @@ fn read_session(app: &tauri::AppHandle) -> Session {
 }
 
 fn atomic_write(path: &Path, bytes: &[u8]) -> Result<(), String> {
+    atomic_write_with_revision_guard(path, bytes, None)
+}
+
+// Check the originally observed disk content again immediately before
+// replacing it. This also catches changes made while our temp file was written.
+fn atomic_write_with_revision_guard(
+    path: &Path, bytes: &[u8], expected_revision: Option<&str>,
+) -> Result<(), String> {
     let parent = path.parent().ok_or("Invalid file location.")?;
     let mut temp = tempfile::NamedTempFile::new_in(parent)
         .map_err(|_| "Cannot create a temporary file beside the document.".to_string())?;
@@ -129,6 +167,12 @@ fn atomic_write(path: &Path, bytes: &[u8]) -> Result<(), String> {
     }
     temp.write_all(bytes).and_then(|_| temp.flush()).and_then(|_| temp.as_file().sync_all())
         .map_err(|_| "Could not fully write the temporary file.".to_string())?;
+    if let Some(expected) = expected_revision {
+        let current = read_revision_bounded(path)?;
+        if current != expected {
+            return Err("File changed during saving. Your draft is intact; use Save As.".into());
+        }
+    }
     temp.persist(path).map_err(|_| "Cannot replace the file. Check permissions, locks and available disk space.".to_string())?;
     Ok(())
 }
@@ -164,8 +208,22 @@ fn write_checked(
             return Err("The file changed outside Leaf. Your edits are intact. Use Save As.".into());
         }
     }
-    atomic_write(destination, contents.as_bytes())?;
+    atomic_write_with_revision_guard(destination, contents.as_bytes(), revisions.map(|(expected, _)| expected))?;
     read_document(destination)
+}
+
+
+ // Serialize native writes so a second Save cannot pass the revision check
+ // while the first Save is still replacing the document.
+fn write_serialized(
+    state: &DesktopState,
+    destination: &Path,
+    contents: &str,
+    revisions: Option<(&str, &str)>,
+) -> Result<Document, String> {
+    let _guard = state.write_guard.lock()
+        .map_err(|_| "Native save queue unavailable.".to_string())?;
+    write_checked(destination, contents, revisions)
 }
 
 #[tauri::command]
@@ -231,7 +289,7 @@ async fn desktop_save(
     };
     let checked = revisions.as_ref().map(|(expected, approved)| (expected.as_str(), approved.as_str()));
     let encoded = apply_line_ending(&content, &line_ending)?;
-    let saved = write_checked(&destination, &encoded, checked)?;
+    let saved = write_serialized(&state, &destination, &encoded, checked)?;
     remember(&state, &saved)?;
     Ok(Some(saved))
 }
@@ -425,6 +483,16 @@ mod tests {
         assert!(!is_text(Path::new("note.md.exe")));
     }
     #[test]
+    fn large_file_is_rejected_before_reading_it_into_memory() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("oversize.md");
+        let file = fs::File::create(&path).unwrap();
+        file.set_len(32 * 1024 * 1024 + 1).unwrap();
+        drop(file);
+        let error = read_document(&path).err().expect("oversized file must be rejected");
+        assert_eq!(error, "Document exceeds the 32 MB safety limit.");
+    }
+    #[test]
     fn digest_changes_when_content_changes() {
         assert_ne!(digest(b"draft"), digest(b"edited"));
     }
@@ -492,6 +560,34 @@ mod tests {
     }
 
     #[test]
+    fn overlapping_native_saves_cannot_both_overwrite_same_revision() {
+        use std::sync::{Arc, Barrier};
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("parallel.md");
+        fs::write(&path, b"original").unwrap();
+        let expected = read_document(&path).unwrap().revision;
+        let state = Arc::new(DesktopState::default());
+        let barrier = Arc::new(Barrier::new(3));
+        let mut handles = Vec::new();
+        for new_text in ["first edit", "second edit"] {
+            let path = path.clone();
+            let state = Arc::clone(&state);
+            let expected = expected.clone();
+            let barrier = Arc::clone(&barrier);
+            handles.push(std::thread::spawn(move || {
+                barrier.wait();
+                write_serialized(&state, &path, new_text,
+                    Some((&expected, &expected)))
+            }));
+        }
+        barrier.wait();
+        let outcomes: Vec<_> = handles.into_iter().map(|job| job.join().unwrap()).collect();
+        assert_eq!(outcomes.iter().filter(|outcome| outcome.is_ok()).count(), 1);
+        let disk = fs::read_to_string(&path).unwrap();
+        assert!(disk == "first edit" || disk == "second edit");
+    }
+
+    #[test]
     fn deleted_file_is_not_silently_recreated_on_save() {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("draft.md");
@@ -500,6 +596,33 @@ mod tests {
         fs::remove_file(&path).unwrap();
         assert!(write_checked(&path, "new", Some((&revision, &revision))).is_err());
         assert!(!path.exists());
+    }
+
+    #[test]
+    fn final_revision_check_reads_only_bounded_chunks_from_grown_files() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("grown.md");
+        fs::write(&path, b"original").unwrap();
+        let original = read_document(&path).unwrap().revision;
+        let file = fs::OpenOptions::new().write(true).open(&path).unwrap();
+        file.set_len(32 * 1024 * 1024 + 1).unwrap();
+        drop(file);
+        assert!(atomic_write_with_revision_guard(&path, b"my draft", Some(&original)).is_err());
+        assert_eq!(fs::metadata(&path).unwrap().len(), 32 * 1024 * 1024 + 1);
+    }
+
+    #[test]
+    fn final_revision_check_blocks_changes_during_temp_write() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("guarded.md");
+        fs::write(&path, b"original").unwrap();
+        let original = read_document(&path).unwrap().revision;
+        fs::write(&path, b"external replacement").unwrap();
+        let result = atomic_write_with_revision_guard(&path, b"unsafe overwrite", Some(&original));
+        assert!(result.is_err());
+        assert_eq!(fs::read_to_string(&path).unwrap(), "external replacement");
+        // Failure leaves no temporary overwrite and preserves the newer file.
+        assert_eq!(read_document(&path).unwrap().content, "external replacement");
     }
 
     #[test]

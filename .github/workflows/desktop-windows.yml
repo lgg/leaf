@@ -162,6 +162,8 @@ jobs:
               $flags.Add("--remap-path-prefix=$variant=$($pair.Target)")
             }
           }
+          if ($flags.Count -lt 4) { throw "Build path remapping is not configured." }
+          Write-Output "Rust remap rules configured (sanitized count: $($flags.Count))"
           $env:CARGO_ENCODED_RUSTFLAGS = $flags -join [char]31
           # Strip the release symbol table so it cannot retain workstation
           # source/PDB paths. Keep all diagnostics locally in Cargo test logs.
@@ -208,7 +210,7 @@ jobs:
           name: leaf-windows-smoke-test
           path: src-tauri/target/release/leaf-desktop.exe
           if-no-files-found: error
-          retention-days: 1
+          retention-days: 7
 
       - name: Retain portable ZIP for smoke testing (not a release)
         uses: actions/upload-artifact@v4
@@ -216,4 +218,4 @@ jobs:
           name: leaf-windows-portable-smoke-test
           path: src-tauri/target/release/leaf-desktop-portable.zip
           if-no-files-found: error
-          retention-days: 1
+          retention-days: 7

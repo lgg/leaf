@@ -1721,6 +1721,9 @@ function markdownAttr(value) {
 }
 function markdownTarget(value, image) {
   const target = String(value).trim();
+  // Never strip controls *after* the scheme check: "java\\nscript:"
+  // would otherwise become an executable "javascript:" URL in HTML.
+  if (/[\u0000-\u001f\u007f]/.test(target)) return '#';
   const scheme = target.match(/^([a-zA-Z][a-zA-Z0-9+.-]*):/);
   if (scheme && !['https','http', ...(image ? [] : ['mailto'])].includes(scheme[1].toLowerCase())) {
     return '#';
@@ -3131,6 +3134,13 @@ async function closeTab(id) {
       // Switch to it and save
       switchTab(id);
       if (!await saveFile()) return;
+      // The OS picker / disk write is asynchronous. If typing continued while
+      // awaiting Save, do not close and lose edits that were never persisted.
+      const afterSave = tabs.find(item => item.id === id);
+      if (!afterSave || afterSave.dirty || (id === activeTabId && isDirty)) {
+        workspaceNotice('This document changed during saving. Save again before closing it.');
+        return;
+      }
     }
   }
 

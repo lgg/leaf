@@ -44,6 +44,31 @@ function privatePathCategories(bytes, env = process.env) {
   return [...found].sort();
 }
 
+// Emit numeric diagnostics only. Never include matched bytes, source paths,
+// usernames, directory names or file offsets in public workflow logs.
+function sanitizedLeakCounts(bytes) {
+  const raw = Buffer.isBuffer(bytes) ? bytes : Buffer.from(bytes);
+  const views = {
+    singleByte: raw.toString('latin1'),
+    utf16: raw.toString('utf16le'),
+    utf16Offset: raw.subarray(1).toString('utf16le')
+  };
+  const labels = ['profile', 'runner', 'cargo', 'rustup'];
+  const result = {};
+  for (const [encoding, source] of Object.entries(views)) {
+    const totals = {};
+    for (let i = 0; i < dangerous.length; i++) {
+      const pattern = new RegExp(dangerous[i].source, 'gi');
+      totals[labels[i]] = [...source.matchAll(pattern)].length;
+    }
+    // Remapped compiler paths are safe to disclose as numerical totals only.
+    totals.remappedSource = source.split('/leaf-source').length - 1;
+    totals.remappedCargo = source.split('/cargo-cache').length - 1;
+    result[encoding] = totals;
+  }
+  return result;
+}
+
 function countLeaks(bytes, env = process.env) {
   return privatePathCategories(bytes, env).length;
 }
@@ -64,6 +89,7 @@ if (require.main === module) {
           // Print coarse *category names only*, never paths, excerpts or usernames.
           console.error('Release gate failed: Windows binary contains local path markers. Artifacts will NOT be uploaded.');
           console.error('Sanitized detection categories: ' + privatePathCategories(binary).join(', '));
+          console.error('Redacted byte-format counts: ' + JSON.stringify(sanitizedLeakCounts(binary)));
           process.exitCode = 1;
         } else {
           console.log('Windows binary privacy scan passed: no user/runner absolute-path markers.');
@@ -75,4 +101,4 @@ if (require.main === module) {
     }
   }
 }
-module.exports = {countLeaks, privatePathCategories};
+module.exports = {countLeaks, privatePathCategories, sanitizedLeakCounts};
