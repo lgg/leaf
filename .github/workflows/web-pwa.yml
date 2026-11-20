@@ -1,0 +1,59 @@
+name: Leaf web/PWA regression — self-hosted
+
+on:
+  push:
+    branches:
+      - main
+      - 'security/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: leaf-web-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  browser-regression:
+    if: github.repository == 'lgg/leaf'
+    runs-on: [self-hosted, leaf-runner-ci]
+    timeout-minutes: 10
+    defaults:
+      run:
+        shell: powershell
+    steps:
+      - name: Hide private runner folders
+        run: |
+          foreach ($key in @('GITHUB_WORKSPACE','RUNNER_WORKSPACE','RUNNER_TEMP','USERPROFILE','LOCALAPPDATA','APPDATA','TEMP','TMP')) {
+            $value = [Environment]::GetEnvironmentVariable($key)
+            if ($value -and $value.Length -gt 2) { Write-Output "::add-mask::$value" }
+          }
+
+      - name: Verify existing tools and fetch trusted source
+        run: |
+          foreach ($tool in @('git','node')) {
+            if (-not (Get-Command $tool -ErrorAction SilentlyContinue)) { throw "Missing preinstalled tool: $tool" }
+          }
+          git init -q 2>$null
+          if ($LASTEXITCODE -ne 0) { throw "Git initialization failed." }
+          if (-not (git remote)) { git remote add origin https://github.com/lgg/leaf.git }
+          git fetch -q --depth=1 origin $env:GITHUB_SHA 2>$null
+          if ($LASTEXITCODE -ne 0) { throw "Git fetch failed." }
+          git checkout -q --detach FETCH_HEAD 2>$null
+          if ($LASTEXITCODE -ne 0) { throw "Git checkout failed." }
+
+      - name: Verify browser and offline PWA regression suite
+        run: |
+          node --test --test-reporter=tap tests/leaf.test.cjs *> "$env:RUNNER_TEMP/leaf-web-regression.log"
+          if ($LASTEXITCODE -ne 0) {
+            Get-Content "$env:RUNNER_TEMP/leaf-web-regression.log" |
+              Where-Object { $_ -match '^not ok [0-9]+ - ' } |
+              ForEach-Object {
+                $testName = $_ -replace '^not ok [0-9]+ - ', ''
+                $testName = $testName -replace '[^a-zA-Z0-9 .,()_:/-]', ''
+                Write-Output "::error::Failed test: $testName"
+              }
+            throw "Web/PWA regression failed. Detailed logs are kept only on the runner."
+          }
+          Write-Output "Leaf web/PWA regression suite passed"
