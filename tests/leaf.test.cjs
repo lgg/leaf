@@ -688,7 +688,7 @@ test('About offers desktop releases without adding a native runtime to web', () 
   assert.ok(html.includes('Windows downloads &amp; release notes'));
   assert.ok(html.includes('if (window.leafDesktop) return window.leafDesktop.save()'));
   assert.ok(html.includes('if (window.leafDesktop) return window.leafDesktop.open()'));
-  assert.ok(html.includes('if (!answer && window.leafDesktop &&'));
+  assert.ok(html.includes("if (!answer && !confirm('Discard unsaved changes in"));
   assert.ok(html.includes("!confirm('Discard unsaved changes in"));
 });
 
@@ -724,4 +724,62 @@ test('Markdown preview preserves safe absolute and relative URLs', () => {
     assert.equal(methods.markdownTarget(url, false), url);
   }
   assert.equal(methods.markdownTarget('mailto:editor@example.org', true), '#');
+});
+
+test('Markdown link and image URL schemes cannot be made executable in preview', () => {
+  const start = js.indexOf('function markdownAttr(');
+  const end = js.indexOf('function renderPreview()', start);
+  assert.ok(start >= 0 && end > start);
+  const {markdownTarget, parseMarkdown} = new Function(js.slice(start,end) +
+    ';return {markdownTarget,parseMarkdown};')();
+  const forbidden = [
+    'javascript:alert(1)', 'data:text/html,hello', 'vbscript:1',
+    'java' + String.fromCharCode(10) + 'script:alert(1)',
+    'ja' + String.fromCharCode(0) + 'vascript:alert(1)',
+    'java' + String.fromCharCode(9) + 'script:alert(1)'
+  ];
+  for (const url of forbidden) {
+    assert.equal(markdownTarget(url, false), '#');
+    assert.equal(markdownTarget(url, true), '#');
+    assert.match(parseMarkdown('[test](' + url + ')'), /href="#"/);
+  }
+  assert.equal(markdownTarget('https://example.org', false), 'https://example.org');
+  assert.equal(markdownTarget('mailto:writer@example.org', false), 'mailto:writer@example.org');
+  assert.equal(markdownTarget('mailto:writer@example.org', true), '#');
+  assert.equal(markdownTarget('./notes.md', false), './notes.md');
+  assert.match(parseMarkdown('[safe](https://example.org)'), /rel="noopener noreferrer"/);
+  assert.match(parseMarkdown('![alt" onerror="alert(1)](https://example.org/x.png)'), /alt="alt&quot; onerror=&quot;alert\(1\)"/);
+});
+
+test('closing a web tab cannot lose edits made while its Save dialog was pending', async () => {
+  const start = js.indexOf('async function closeTab(');
+  const end = js.indexOf("\ndocument.getElementById('btn-new-tab')", start);
+  assert.ok(start >= 0 && end > start);
+  const method = js.slice(start, end);
+  const tabs = [{id:1,name:'draft.md',content:'new unsaved edit',dirty:true}];
+  const harness = new Function('tabs','confirm','switchTab','saveFile','workspaceNotice',
+    'let activeTabId=1; let isDirty=true; ' + method +
+    '; return {closeTab, getTabs:()=>tabs};')(
+      tabs, () => true, () => {}, async () => true, () => {}
+    );
+  await harness.closeTab(1);
+  assert.equal(harness.getTabs().length, 1);
+  assert.equal(harness.getTabs()[0].content, 'new unsaved edit');
+});
+
+test('Cancel on the discard prompt retains a dirty browser document', async () => {
+  const start = js.indexOf('async function closeTab(');
+  const end = js.indexOf("\ndocument.getElementById('btn-new-tab')", start);
+  const method = js.slice(start, end);
+  const openTabs = [{id:1,name:'important.md',content:'valuable draft',dirty:true}];
+  let prompts = 0;
+  const harness = new Function('tabs','confirm','switchTab','saveFile','workspaceNotice',
+    'let activeTabId=1; let isDirty=true; ' + method +
+    '; return {closeTab,getTabs:()=>tabs};')(
+      openTabs, () => { prompts++; return false; }, () => {}, async () => true, () => {}
+    );
+  await harness.closeTab(1);
+  assert.equal(prompts, 2);
+  assert.equal(harness.getTabs().length, 1);
+  assert.equal(harness.getTabs()[0].content, 'valuable draft');
 });
