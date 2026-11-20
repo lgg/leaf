@@ -404,3 +404,25 @@ test('privacy-gated PE cleanup must precede the unchanged independent binary sca
   assert.ok(sanitizer > 0 && scanner > sanitizer && upload > scanner);
   assert.ok(yaml.includes('if ($LASTEXITCODE -ne 0) { throw "Private path scan failed'));
 });
+
+test('opening an already-open file refreshes clean tabs but preserves dirty edits', () => {
+  const bridge = fs.readFileSync(path.join(root,'desktop','desktop-bridge.js'),'utf8');
+  const start = bridge.indexOf('  function refreshCleanTabFromDisk(');
+  const end = bridge.indexOf('\n  function showDocument(', start);
+  assert.ok(start >= 0 && end > start);
+  const refresh = new Function(bridge.slice(start,end) +
+    ';return refreshCleanTabFromDisk;')();
+  const disk = {path:'synthetic.md',name:'synthetic.md',content:'new disk text',revision:'next-revision',lineEnding:'crlf'};
+  const clean = {content:'old text',name:'synthetic.md',nativeRev:'old-revision',nativeEol:'lf',dirty:false};
+  assert.equal(refresh(clean,disk),true);
+  assert.equal(clean.content,'new disk text');
+  assert.equal(clean.nativeRev,'next-revision');
+  assert.equal(clean.nativeEol,'crlf');
+  assert.equal(refresh(clean,disk),false);
+  const dirty = {content:'valuable unsaved edits',nativeRev:'old-revision',dirty:true};
+  assert.equal(refresh(dirty,disk),false);
+  assert.equal(dirty.content,'valuable unsaved edits');
+  assert.equal(dirty.nativeRev,'old-revision');
+  const open = bridge.slice(end,bridge.indexOf('\n  async function open(',end));
+  assert.ok(open.indexOf('switchTab(existing.id)') < open.indexOf('refreshCleanTabFromDisk(existing, doc)'));
+});
