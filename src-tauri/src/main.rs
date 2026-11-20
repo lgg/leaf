@@ -5,7 +5,7 @@ use sha2::{Digest, Sha256};
 use std::{
     collections::{HashMap, HashSet},
     fs,
-    io::Write,
+    io::{Read, Write},
     path::{Path, PathBuf},
     sync::Mutex,
 };
@@ -85,6 +85,27 @@ fn digest(bytes: &[u8]) -> String {
     hex::encode(Sha256::digest(bytes))
 }
 
+// Hash the on-disk revision in bounded chunks to avoid allocating an entire
+// externally grown file while checking its contents just before replacement.
+fn read_revision_bounded(path: &Path) -> Result<String, String> {
+    let mut file = fs::File::open(path)
+        .map_err(|_| "File became inaccessible during saving.".to_string())?;
+    let mut hasher = Sha256::new();
+    let mut chunk = [0_u8; 64 * 1024];
+    let mut total = 0_usize;
+    loop {
+        let read = file.read(&mut chunk)
+            .map_err(|_| "Could not verify file contents during saving.".to_string())?;
+        if read == 0 { break; }
+        total += read;
+        if total > 32 * 1024 * 1024 {
+            return Err("File grew beyond 32 MB during saving. Your draft is intact.".into());
+        }
+        hasher.update(&chunk[..read]);
+    }
+    Ok(hex::encode(hasher.finalize()))
+}
+
 fn read_document(path: &Path) -> Result<Document, String> {
     if !is_text(path) {
         return Err("Only .md and .txt files are supported.".into());
@@ -147,9 +168,8 @@ fn atomic_write_with_revision_guard(
     temp.write_all(bytes).and_then(|_| temp.flush()).and_then(|_| temp.as_file().sync_all())
         .map_err(|_| "Could not fully write the temporary file.".to_string())?;
     if let Some(expected) = expected_revision {
-        let now = fs::read(path).map_err(|_|
-            "File was removed or became unreadable during saving. Your draft is intact.".to_string())?;
-        if digest(&now) != expected {
+        let current = read_revision_bounded(path)?;
+        if current != expected {
             return Err("File changed during saving. Your draft is intact; use Save As.".into());
         }
     }
@@ -576,6 +596,19 @@ mod tests {
         fs::remove_file(&path).unwrap();
         assert!(write_checked(&path, "new", Some((&revision, &revision))).is_err());
         assert!(!path.exists());
+    }
+
+    #[test]
+    fn final_revision_check_reads_only_bounded_chunks_from_grown_files() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("grown.md");
+        fs::write(&path, b"original").unwrap();
+        let original = read_document(&path).unwrap().revision;
+        let file = fs::OpenOptions::new().write(true).open(&path).unwrap();
+        file.set_len(32 * 1024 * 1024 + 1).unwrap();
+        drop(file);
+        assert!(atomic_write_with_revision_guard(&path, b"my draft", Some(&original)).is_err());
+        assert_eq!(fs::metadata(&path).unwrap().len(), 32 * 1024 * 1024 + 1);
     }
 
     #[test]
