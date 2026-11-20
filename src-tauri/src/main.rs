@@ -90,6 +90,13 @@ fn read_document(path: &Path) -> Result<Document, String> {
         return Err("Only .md and .txt files are supported.".into());
     }
     let canonical = fs::canonicalize(path).map_err(|_| "File was moved, removed or cannot be accessed.".to_string())?;
+    // Reject oversized files before allocating their complete contents.
+    // Recheck after read in case an external process grew the file meanwhile.
+    let size = fs::metadata(&canonical)
+        .map_err(|_| "File metadata is unavailable.".to_string())?.len();
+    if size > 32 * 1024 * 1024 {
+        return Err("Document exceeds the 32 MB safety limit.".into());
+    }
     let bytes = fs::read(&canonical).map_err(|_| "File cannot be read (permission denied or unavailable).".to_string())?;
     if bytes.len() > 32 * 1024 * 1024 {
         return Err("Document exceeds the 32 MB safety limit.".into());
@@ -439,6 +446,16 @@ mod tests {
         assert!(is_text(Path::new("note.txt")));
         assert!(!is_text(Path::new("note.html")));
         assert!(!is_text(Path::new("note.md.exe")));
+    }
+    #[test]
+    fn large_file_is_rejected_before_reading_it_into_memory() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("oversize.md");
+        let file = fs::File::create(&path).unwrap();
+        file.set_len(32 * 1024 * 1024 + 1).unwrap();
+        drop(file);
+        assert_eq!(read_document(&path).unwrap_err(),
+            "Document exceeds the 32 MB safety limit.");
     }
     #[test]
     fn digest_changes_when_content_changes() {
