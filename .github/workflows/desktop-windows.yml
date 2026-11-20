@@ -182,6 +182,14 @@ jobs:
               $flags.Add("--remap-path-prefix=$variant=$($pair.Target)")
             }
           }
+          # MSVC may embed a full path to the debugging PDB in the PE
+          # CodeView directory, independently of Rust source-path remapping.
+          # Use only the PDB basename; do not expose the machine directory.
+          $hostTarget = (& (Get-Command rustc).Source -vV | Select-String '^host:' | Select-Object -First 1)
+          if ($hostTarget -and $hostTarget.ToString().Contains('windows-msvc')) {
+            $flags.Add('-C')
+            $flags.Add('link-arg=/PDBALTPATH:%_PDB%')
+          }
           if ($flags.Count -lt 4) { throw "Build path remapping is not configured." }
           Write-Output "Rust remap rules configured (sanitized count: $($flags.Count))"
           $env:CARGO_ENCODED_RUSTFLAGS = $flags -join [char]31

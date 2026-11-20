@@ -325,3 +325,29 @@ test('Rust path remap selection never leaves a bare Windows profile username beh
   assert.ok(yaml.indexOf('Sort-Object { $_.Source.Length }') <
     yaml.indexOf('foreach ($pair in $prefixes)'));
 });
+
+test('profile-path diagnostics distinguish a PDB linker record without exposing identities', () => {
+  const {sanitizedProfilePathKinds} = require('../desktop/check-binary.cjs');
+  const prefix = 'C:' + String.fromCharCode(92) + 'Users' + String.fromCharCode(92) +
+    'ExamplePerson' + String.fromCharCode(92);
+  const codeView = Buffer.concat([
+    Buffer.from('RSDS'), Buffer.alloc(20),
+    Buffer.from(prefix + 'leaf-desktop.pdb'), Buffer.from([0])
+  ]);
+  const rustSource = Buffer.from(prefix + 'src' + String.fromCharCode(92) + 'lib.rs');
+  const summary = sanitizedProfilePathKinds(Buffer.concat([codeView,rustSource]));
+  assert.equal(summary.codeViewPdb, 1);
+  assert.ok(summary.rustSource >= 1);
+  assert.ok(!JSON.stringify(summary).includes('ExamplePerson'));
+  assert.ok(!JSON.stringify(summary).includes('leaf-desktop'));
+});
+
+test('Windows linker is configured to avoid embedding absolute PDB paths', () => {
+  const yaml = fs.readFileSync(path.join(root,'.github/workflows/desktop-windows.yml'),'utf8');
+  assert.ok(yaml.includes("Select-String '^host:'"));
+  assert.ok(yaml.includes("Contains('windows-msvc')"));
+  assert.ok(yaml.includes('link-arg=/PDBALTPATH:%_PDB%'));
+  const flags = yaml.indexOf('link-arg=/PDBALTPATH:%_PDB%');
+  const build = yaml.indexOf("@('build','--release','--manifest-path'");
+  assert.ok(flags > 0 && build > flags);
+});

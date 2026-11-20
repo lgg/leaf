@@ -69,6 +69,26 @@ function sanitizedLeakCounts(bytes) {
   return result;
 }
 
+// Classify a residual profile path without emitting its content, name,
+// source offset, or filename. One leftover CodeView PDB can otherwise disclose
+// the Windows account even after every crate source path is remapped.
+function sanitizedProfilePathKinds(bytes) {
+  const raw = Buffer.isBuffer(bytes) ? bytes : Buffer.from(bytes);
+  const ascii = raw.toString('latin1');
+  const counts = {codeViewPdb: 0, otherPdb: 0, rustSource: 0, buildMetadata: 0, other: 0};
+  for (const match of ascii.matchAll(/[a-z]:[\\/](?:users|documents and settings)[\\/]/gi)) {
+    const offset = match.index;
+    const text = ascii.slice(offset, offset + 512).split(/[\\x00-\\x1f]/, 1)[0];
+    const codeView = offset >= 24 && raw.toString('ascii', offset - 24, offset - 20) === 'RSDS';
+    if (codeView) counts.codeViewPdb++;
+    else if (/\\.pdb(?:$|[^a-z0-9])/i.test(text)) counts.otherPdb++;
+    else if (/\\.rs(?:$|[^a-z0-9])/i.test(text)) counts.rustSource++;
+    else if (/\\.(?:toml|json|exe|dll)(?:$|[^a-z0-9])/i.test(text)) counts.buildMetadata++;
+    else counts.other++;
+  }
+  return counts;
+}
+
 function countLeaks(bytes, env = process.env) {
   return privatePathCategories(bytes, env).length;
 }
@@ -90,6 +110,7 @@ if (require.main === module) {
           console.error('Release gate failed: Windows binary contains local path markers. Artifacts will NOT be uploaded.');
           console.error('Sanitized detection categories: ' + privatePathCategories(binary).join(', '));
           console.error('Redacted byte-format counts: ' + JSON.stringify(sanitizedLeakCounts(binary)));
+          console.error('Redacted profile source kinds: ' + JSON.stringify(sanitizedProfilePathKinds(binary)));
           process.exitCode = 1;
         } else {
           console.log('Windows binary privacy scan passed: no user/runner absolute-path markers.');
@@ -101,4 +122,4 @@ if (require.main === module) {
     }
   }
 }
-module.exports = {countLeaks, privatePathCategories, sanitizedLeakCounts};
+module.exports = {countLeaks, privatePathCategories, sanitizedLeakCounts, sanitizedProfilePathKinds};
