@@ -162,6 +162,8 @@ jobs:
               $flags.Add("--remap-path-prefix=$variant=$($pair.Target)")
             }
           }
+          if ($flags.Count -lt 4) { throw "Build path remapping is not configured." }
+          Write-Output "Rust remap rules configured (sanitized count: $($flags.Count))"
           $env:CARGO_ENCODED_RUSTFLAGS = $flags -join [char]31
           # Strip the release symbol table so it cannot retain workstation
           # source/PDB paths. Keep all diagnostics locally in Cargo test logs.

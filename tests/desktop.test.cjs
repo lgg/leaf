@@ -277,3 +277,21 @@ test('privacy-gated smoke-test artifacts remain available for a seven-day manual
   assert.match(yaml.slice(binary, portable), /retention-days: 7/);
   assert.match(yaml.slice(portable), /retention-days: 7/);
 });
+
+test('privacy diagnostics report only numeric counts, never workstation paths', () => {
+  const {sanitizedLeakCounts} = require('../desktop/check-binary.cjs');
+  const synthetic = 'D:' + String.fromCharCode(92) + 'Users' + String.fromCharCode(92) +
+    'SyntheticPerson' + String.fromCharCode(92) + '.cargo' +
+    String.fromCharCode(92) + 'registry' + String.fromCharCode(92) + 'src';
+  const stats = sanitizedLeakCounts(Buffer.concat([
+    Buffer.from(synthetic,'utf8'), Buffer.from(synthetic,'utf16le'),
+    Buffer.from('/leaf-source/source.rs /cargo-cache/crate.rs', 'utf8')
+  ]));
+  assert.ok(stats.singleByte.profile > 0);
+  assert.ok(stats.singleByte.cargo > 0);
+  assert.ok(stats.utf16.profile > 0 || stats.utf16Offset.profile > 0);
+  assert.ok(stats.singleByte.remappedSource > 0);
+  assert.ok(stats.singleByte.remappedCargo > 0);
+  assert.ok(!JSON.stringify(stats).includes('SyntheticPerson'));
+  assert.ok(!JSON.stringify(stats).includes('Users'));
+});
