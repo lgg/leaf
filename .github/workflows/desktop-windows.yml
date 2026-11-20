@@ -13,7 +13,42 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  cleanup-known-unsafe-artifacts:
+    # Trusted same-repository pushes only: no PR code runs on the user's machine.
+    if: github.repository == 'lgg/leaf'
+    runs-on: [self-hosted, leaf-runner-ci]
+    permissions:
+      actions: write
+    defaults:
+      run:
+        shell: powershell
+    steps:
+      - name: Purge obsolete Windows previews that may disclose compiler paths
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $headers = @{
+            Authorization = "Bearer $env:GH_TOKEN"
+            Accept = 'application/vnd.github+json'
+            'X-GitHub-Api-Version' = '2022-11-28'
+          }
+          # Only the two known old successful runs, and only their executable archives.
+          foreach ($runId in @(44502496572, 44508372448)) {
+            $uri = "https://api.github.com/repos/lgg/leaf/actions/runs/$runId/artifacts?per_page=100"
+            $artifacts = Invoke-RestMethod -Method GET -Uri $uri -Headers $headers
+            foreach ($artifact in @($artifacts.artifacts)) {
+              if ($artifact.name -notin @('leaf-windows-smoke-test', 'leaf-windows-portable-smoke-test')) { continue }
+              $deleteUri = "https://api.github.com/repos/lgg/leaf/actions/artifacts/$($artifact.id)"
+              Invoke-RestMethod -Method DELETE -Uri $deleteUri -Headers $headers | Out-Null
+              Write-Output "Removed obsolete unsafe Windows preview artifact from run $runId"
+            }
+          }
+          Write-Output 'Historic unsafe Windows preview artifact cleanup complete.'
+
   windows-desktop:
+    needs: cleanup-known-unsafe-artifacts
+
     if: github.repository == 'lgg/leaf'
     runs-on: [self-hosted, leaf-runner-ci]
     timeout-minutes: 90
@@ -116,10 +151,15 @@ jobs:
           foreach ($pair in $prefixes) {
             if (-not $pair.Source) { continue }
             $source = $pair.Source.TrimEnd([char]92, [char]47)
-            $flags.Add("--remap-path-prefix=$source=$($pair.Target)")
-            $forward = $source.Replace([char]92, [char]47)
-            if ($forward -ne $source) {
-              $flags.Add("--remap-path-prefix=$forward=$($pair.Target)")
+            # Windows build tools may hand rustc a verbatim (\\?\\) source path.
+            # Map native, slash-normalized and verbatim forms; never print them.
+            $variants = @($source, $source.Replace([char]92, [char]47))
+            if ($source -match '^[A-Za-z]:[\\/]') {
+              $variants += '\\?\' + $source
+              $variants += '\\?\' + $source.Replace([char]92, [char]47)
+            }
+            foreach ($variant in ($variants | Select-Object -Unique)) {
+              $flags.Add("--remap-path-prefix=$variant=$($pair.Target)")
             }
           }
           $env:CARGO_ENCODED_RUSTFLAGS = $flags -join [char]31

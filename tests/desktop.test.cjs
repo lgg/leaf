@@ -211,3 +211,16 @@ test('binary privacy diagnostic labels reveal no raw host folders', () => {
   assert.ok(!categories.join(',').includes('SampleUser'));
   assert.ok(!categories.join(',').includes('D:'));
 });
+
+test('only trusted self-hosted workflow runs purge known unsafe historical previews', () => {
+  const yaml = fs.readFileSync(path.join(root, '.github/workflows/desktop-windows.yml'), 'utf8');
+  assert.ok(yaml.includes('cleanup-known-unsafe-artifacts:'));
+  assert.ok(yaml.includes('needs: cleanup-known-unsafe-artifacts'));
+  assert.ok(yaml.includes('runs-on: [self-hosted, leaf-runner-ci]'));
+  assert.ok(yaml.includes('actions: write'));
+  assert.ok(yaml.includes('44502496572, 44508372448'));
+  assert.ok(yaml.includes("artifact.name -notin @('leaf-windows-smoke-test', 'leaf-windows-portable-smoke-test')"));
+  assert.ok(yaml.includes('Method DELETE'));
+  assert.ok(yaml.includes('Select-Object -Unique'));
+  assert.ok(!yaml.includes('pull_request:'));
+});
