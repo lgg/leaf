@@ -5,7 +5,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 
-const html = fs.readFileSync(path.join(__dirname, '..', 'editor.html'), 'utf8');
+const html = fs.readFileSync(path.join(__dirname, '..', 'editor.html'), 'utf8').replace(/\r\n/g, '\n');
 const from = html.indexOf('<script>') + 8;
 const js = html.slice(from, html.indexOf('</script>', from));
 
@@ -431,7 +431,7 @@ test('valid custom HEX input saves the choice; invalid input does not', () => {
 
 test('GitHub Pages service worker prefers fresh HTML and keeps an offline fallback', () => {
   const sw=fs.readFileSync(path.join(__dirname,'..','sw.js'),'utf8');
-  assert.ok(sw.includes("const CACHE = 'leaf-lgg-v6'"));
+  assert.ok(sw.includes("const CACHE = 'leaf-lgg-v7'"));
   assert.ok(sw.includes("request.mode === 'navigate'"));
   assert.ok(sw.includes("fetch(request).then(response"));
   assert.ok(sw.includes("caches.match('./editor.html')"));
@@ -440,7 +440,7 @@ test('GitHub Pages service worker prefers fresh HTML and keeps an offline fallba
 test('fork version matches README, changelog and visible About version', () => {
   const version='1.9.0-lgg.1';
   const readme=fs.readFileSync(path.join(__dirname,'..','README.md'),'utf8');
-  const history=fs.readFileSync(path.join(__dirname,'..','README.txt'),'utf8');
+  const history=fs.readFileSync(path.join(__dirname,'..','README.txt'),'utf8').replace(/\r\n/g, '\n');
   const changelog=fs.readFileSync(path.join(__dirname,'..','CHANGELOG.md'),'utf8');
   assert.ok(html.includes('>v'+version+'</span>'));
   assert.ok(readme.includes('v'+version));
@@ -684,4 +684,62 @@ test('preferences, independent tab names, input edits and recovery are wired', (
   assert.ok(js.includes("editor.addEventListener('input', noteEditorEdit)"));
   assert.ok(js.includes("window.addEventListener('pagehide', persistWorkspace)"));
   assert.ok(js.includes("const backups = availableWorkspaceRecoveries()"));
+});
+
+test('Markdown link and image URL schemes cannot be made executable in preview', () => {
+  const start = js.indexOf('function markdownAttr(');
+  const end = js.indexOf('function renderPreview()', start);
+  assert.ok(start >= 0 && end > start);
+  const {markdownTarget, parseMarkdown} = new Function(js.slice(start,end) +
+    ';return {markdownTarget,parseMarkdown};')();
+  const forbidden = [
+    'javascript:alert(1)', 'data:text/html,hello', 'vbscript:1',
+    'java' + String.fromCharCode(10) + 'script:alert(1)',
+    'ja' + String.fromCharCode(0) + 'vascript:alert(1)',
+    'java' + String.fromCharCode(9) + 'script:alert(1)'
+  ];
+  for (const url of forbidden) {
+    assert.equal(markdownTarget(url, false), '#');
+    assert.equal(markdownTarget(url, true), '#');
+    assert.match(parseMarkdown('[test](' + url + ')'), /href="#"/);
+  }
+  assert.equal(markdownTarget('https://example.org', false), 'https://example.org');
+  assert.equal(markdownTarget('mailto:writer@example.org', false), 'mailto:writer@example.org');
+  assert.equal(markdownTarget('mailto:writer@example.org', true), '#');
+  assert.equal(markdownTarget('./notes.md', false), './notes.md');
+  assert.match(parseMarkdown('[safe](https://example.org)'), /rel="noopener noreferrer"/);
+  assert.match(parseMarkdown('![alt" onerror="alert(1)](https://example.org/x.png)'), /alt="alt&quot; onerror=&quot;alert\(1\)"/);
+});
+
+test('closing a web tab cannot lose edits made while its Save dialog was pending', async () => {
+  const start = js.indexOf('async function closeTab(');
+  const end = js.indexOf("\ndocument.getElementById('btn-new-tab')", start);
+  assert.ok(start >= 0 && end > start);
+  const method = js.slice(start, end);
+  const tabs = [{id:1,name:'draft.md',content:'new unsaved edit',dirty:true}];
+  const harness = new Function('tabs','confirm','switchTab','saveFile','workspaceNotice',
+    'let activeTabId=1; let isDirty=true; ' + method +
+    '; return {closeTab, getTabs:()=>tabs};')(
+      tabs, () => true, () => {}, async () => true, () => {}
+    );
+  await harness.closeTab(1);
+  assert.equal(harness.getTabs().length, 1);
+  assert.equal(harness.getTabs()[0].content, 'new unsaved edit');
+});
+
+test('Cancel on the discard prompt retains a dirty browser document', async () => {
+  const start = js.indexOf('async function closeTab(');
+  const end = js.indexOf("\ndocument.getElementById('btn-new-tab')", start);
+  const method = js.slice(start, end);
+  const openTabs = [{id:1,name:'important.md',content:'valuable draft',dirty:true}];
+  let prompts = 0;
+  const harness = new Function('tabs','confirm','switchTab','saveFile','workspaceNotice',
+    'let activeTabId=1; let isDirty=true; ' + method +
+    '; return {closeTab,getTabs:()=>tabs};')(
+      openTabs, () => { prompts++; return false; }, () => {}, async () => true, () => {}
+    );
+  await harness.closeTab(1);
+  assert.equal(prompts, 2);
+  assert.equal(harness.getTabs().length, 1);
+  assert.equal(harness.getTabs()[0].content, 'valuable draft');
 });

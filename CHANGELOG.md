@@ -2,6 +2,9 @@
 
 ## v1.9.0-lgg.1 — 2026-11-19
 
+- Security maintenance (2026-11-20): escaped Markdown preview attributes and denied unsafe/obfuscated link and image URI schemes without changing the editor's storage model.
+- Fixed a browser/PWA tab-close race: editing while asynchronous Save is pending no longer discards the newer unsaved text.
+
 - Added a minimal responsive writing interface for mobile phones and touch tablets.
 - Replaced desktop top toolbar/tabs on touch screens with a bottom tap-to-reveal dock (Docs, Preview, Save, More).
 - Added touch-friendly document and action sheets with accessible labels and 44px+ controls.
