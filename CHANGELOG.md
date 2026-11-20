@@ -4,6 +4,7 @@
 
 - Added a separate Tauri v2 Windows desktop application with native Markdown/text file open, Save and Save As.
 - Added revision-aware saves, atomic temporary writes and explicit conflict protection for externally modified files.
+- Prevented obfuscated dangerous link/image URL schemes from being transformed into executable URLs when rendering Markdown.
 - Added persisted desktop sessions, real file reopening, missing-file recovery and unsaved draft prompts.
 - Added native-launch file handling, Windows file association metadata and GitHub Releases navigation.
 - Added desktop-only asset staging and self-hosted Windows build validation; no Rust/Tauri runtime in web/PWA.

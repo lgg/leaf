@@ -691,3 +691,27 @@ test('About offers desktop releases without adding a native runtime to web', () 
   assert.ok(html.includes('if (!answer && window.leafDesktop &&'));
   assert.ok(html.includes("!confirm('Discard unsaved changes in"));
 });
+
+test('Markdown preview rejects control-character scheme smuggling in links and images', () => {
+  const html = fs.readFileSync(path.join(root, 'editor.html'), 'utf8');
+  const start = html.indexOf('function markdownAttr(');
+  const end = html.indexOf('function renderPreview()', start);
+  assert.ok(start >= 0 && end > start);
+  const methods = new Function(html.slice(start, end) +
+    '; return {markdownTarget, parseMarkdown};')();
+  for (const tricky of [
+    'java\\nscript:1', 'java\\tscript:1', 'ja\\u0000vascript:1',
+    'javascript\\r:1', 'javascript:1', 'data:text/html,1', 'vbscript:1'
+  ]) {
+    const url = tricky.replace(/\\n/g, '\\n').replace(/\\t/g, '\\t').replace(/\\r/g, '\\r').replace(/\\u0000/g, '\\u0000');
+    assert.equal(methods.markdownTarget(url, false), '#', JSON.stringify(url));
+    assert.equal(methods.markdownTarget(url, true), '#', JSON.stringify(url));
+    const preview = methods.parseMarkdown('[click](' + url + ')');
+    assert.match(preview, /href="#"/, JSON.stringify(url));
+  }
+  assert.equal(methods.markdownTarget('https://example.org', false), 'https://example.org');
+  assert.equal(methods.markdownTarget('mailto:editor@example.org', false), 'mailto:editor@example.org');
+  assert.equal(methods.markdownTarget('mailto:editor@example.org', true), '#');
+  assert.equal(methods.markdownTarget('relative/note.md', false), 'relative/note.md');
+  assert.equal(methods.markdownTarget('#section', false), '#section');
+});
