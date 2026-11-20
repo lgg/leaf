@@ -298,8 +298,11 @@ test('privacy diagnostics report only numeric counts, never workstation paths', 
 
 test('Windows CI verifies Rust path remapping before expensive native compilation', () => {
   const yaml = fs.readFileSync(path.join(root, '.github/workflows/desktop-windows.yml'), 'utf8');
-  assert.ok(yaml.includes("Source='C:\\Users'"));
-  assert.ok(yaml.includes("Source='D:\\Users'"));
+  assert.ok(yaml.includes("$profileIndex = 0"));
+  assert.ok(yaml.includes('Get-ChildItem -LiteralPath $root -Directory -Force'));
+  assert.ok(yaml.includes('Sort-Object { $_.Source.Length }'));
+  assert.ok(yaml.includes("Join-Path $directory.FullName '.cargo'"));
+  assert.ok(!yaml.includes("Target='/sanitized-profiles-c'"));
   assert.ok(yaml.includes('leaf-privacy-canary.rs'));
   assert.ok(yaml.includes('leaf-privacy-canary.exe'));
   assert.ok(yaml.includes('fn main() { println!("{}", file!()); }'));
@@ -309,4 +312,16 @@ test('Windows CI verifies Rust path remapping before expensive native compilatio
   assert.ok(yaml.includes('node desktop/check-binary.cjs $probeExe'));
   assert.ok(yaml.includes('node desktop/check-binary.cjs src-tauri/target/release/leaf-desktop.exe'));
   assert.ok(!yaml.includes('pull_request:'));
+});
+
+test('Rust path remap selection never leaves a bare Windows profile username behind', () => {
+  const yaml = fs.readFileSync(path.join(root,'.github/workflows/desktop-windows.yml'), 'utf8');
+  assert.ok(yaml.includes('Source=$directory.FullName'));
+  assert.ok(yaml.includes('Target="/private-profile-$profileIndex"'));
+  assert.ok(yaml.includes('Target="/private-cargo-$profileIndex"'));
+  assert.ok(yaml.includes('Target="/private-rustup-$profileIndex"'));
+  // File paths are supplied as runtime variables, not hardcoded workstation paths.
+  assert.ok(!yaml.includes('Source=\'C:\\Users\''));
+  assert.ok(yaml.indexOf('Sort-Object { $_.Source.Length }') <
+    yaml.indexOf('foreach ($pair in $prefixes)'));
 });

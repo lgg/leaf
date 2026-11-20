@@ -148,11 +148,25 @@ jobs:
             @{ Source=$env:USERPROFILE; Target='/user-home' }
             # Cargo and build-script sources may live under a different Windows
             # account from USERPROFILE. Map generic, non-identifying roots too.
-            @{ Source='C:\Users'; Target='/sanitized-profiles-c' }
-            @{ Source='D:\Users'; Target='/sanitized-profiles-d' }
-            @{ Source='C:\_work'; Target='/sanitized-runner-c' }
-            @{ Source='D:\_work'; Target='/sanitized-runner-d' }
           )
+          # Do not replace only a generic Users folder: that would leak the
+          # remaining profile name in file!() panic strings. Discover complete
+          # existing profile roots without ever emitting their names.
+          $profileIndex = 0
+          foreach ($drive in @('C:', 'D:', 'E:', 'F:')) {
+            $root = $drive + '\Users'
+            if (-not (Test-Path -LiteralPath $root)) { continue }
+            foreach ($directory in @(Get-ChildItem -LiteralPath $root -Directory -Force -ErrorAction SilentlyContinue)) {
+              $profileIndex++
+              $prefixes += @{ Source=$directory.FullName; Target="/private-profile-$profileIndex" }
+              $prefixes += @{ Source=(Join-Path $directory.FullName '.cargo'); Target="/private-cargo-$profileIndex" }
+              $prefixes += @{ Source=(Join-Path $directory.FullName '.rustup'); Target="/private-rustup-$profileIndex" }
+            }
+          }
+          if (-not $profileIndex) { throw "No profile roots available for secure Rust path mapping." }
+          # rustc applies the LAST matching remap. Ensure most-specific
+          # cache/workspace roots win over their containing home directories.
+          $prefixes = @($prefixes | Sort-Object { $_.Source.Length })
           $flags = New-Object 'System.Collections.Generic.List[string]'
           foreach ($pair in $prefixes) {
             if (-not $pair.Source) { continue }
