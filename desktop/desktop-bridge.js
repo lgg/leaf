@@ -391,18 +391,21 @@
   if (tauri.window && tauri.window.getCurrentWindow) {
     const win = tauri.window.getCurrentWindow();
     win.onCloseRequested(async event => {
-      if (closing) return;
+      // Always stop the OS default close, even if another close request arrives
+      // while the recovery session is still being written.
       event.preventDefault();
+      if (closing) return;
       saveActiveTabState();
       if (tabs.some(tab => tab.dirty) &&
           !confirm('Unsaved edits exist. Leaf will keep recovery drafts. Exit without saving them to disk?')) {
         return;
       }
+      closing = true; // Guard before awaiting the asynchronous session write.
       try {
         await flushSession();
-        closing = true;
         await win.destroy();
       } catch (error) {
+        closing = false; // Let the user retry after a failed session write.
         alert('Cannot save the recovery session. Leaf remains open: ' + safeError(error));
       }
     }).catch(() => {});

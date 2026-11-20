@@ -106,6 +106,21 @@ fn read_revision_bounded(path: &Path) -> Result<String, String> {
     Ok(hex::encode(hasher.finalize()))
 }
 
+// A file can grow after its metadata is checked. Never allocate more than
+// the supported document limit even if another process appends indefinitely.
+const MAX_DOCUMENT_BYTES: usize = 32 * 1024 * 1024;
+
+fn read_document_bytes_bounded(reader: impl Read) -> Result<Vec<u8>, String> {
+    let mut bytes = Vec::new();
+    reader.take(MAX_DOCUMENT_BYTES as u64 + 1)
+        .read_to_end(&mut bytes)
+        .map_err(|_| "File cannot be read (permission denied or unavailable).".to_string())?;
+    if bytes.len() > MAX_DOCUMENT_BYTES {
+        return Err("Document exceeds the 32 MB safety limit.".into());
+    }
+    Ok(bytes)
+}
+
 fn read_document(path: &Path) -> Result<Document, String> {
     if !is_text(path) {
         return Err("Only .md and .txt files are supported.".into());
@@ -118,10 +133,11 @@ fn read_document(path: &Path) -> Result<Document, String> {
     if size > 32 * 1024 * 1024 {
         return Err("Document exceeds the 32 MB safety limit.".into());
     }
-    let bytes = fs::read(&canonical).map_err(|_| "File cannot be read (permission denied or unavailable).".to_string())?;
-    if bytes.len() > 32 * 1024 * 1024 {
-        return Err("Document exceeds the 32 MB safety limit.".into());
-    }
+    // Do not use fs::read here: a file growing after the metadata check may
+    // otherwise grow an unbounded Vec before the post-read size guard runs.
+    let file = fs::File::open(&canonical)
+        .map_err(|_| "File cannot be read (permission denied or unavailable).".to_string())?;
+    let bytes = read_document_bytes_bounded(file)?;
     let revision = digest(&bytes);
     let content = String::from_utf8(bytes).map_err(|_| "File is not UTF-8 text. Export it as UTF-8 before opening.".to_string())?;
     let name = canonical.file_name().map(|x| x.to_string_lossy().to_string()).unwrap_or_else(|| "untitled.md".into());
@@ -482,6 +498,17 @@ mod tests {
         assert!(!is_text(Path::new("note.html")));
         assert!(!is_text(Path::new("note.md.exe")));
     }
+    #[test]
+    fn an_externally_growing_file_reader_is_bounded_even_if_it_never_ends() {
+        // std::io::repeat never reaches EOF. The read MUST terminate by the
+        // size limit rather than exhausting memory or waiting indefinitely.
+        let error = read_document_bytes_bounded(std::io::repeat(b'x'))
+            .err().expect("unbounded reader must be rejected");
+        assert_eq!(error, "Document exceeds the 32 MB safety limit.");
+        let small = read_document_bytes_bounded(std::io::Cursor::new(b"ok".to_vec())).unwrap();
+        assert_eq!(small.as_slice(), b"ok");
+    }
+
     #[test]
     fn large_file_is_rejected_before_reading_it_into_memory() {
         let dir = tempfile::tempdir().unwrap();
