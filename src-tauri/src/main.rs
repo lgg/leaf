@@ -505,8 +505,8 @@ mod tests {
         let error = read_document_bytes_bounded(std::io::repeat(b'x'))
             .err().expect("unbounded reader must be rejected");
         assert_eq!(error, "Document exceeds the 32 MB safety limit.");
-        assert_eq!(read_document_bytes_bounded(std::io::Cursor::new(b"ok".to_vec())).unwrap(),
-            b"ok");
+        let small = read_document_bytes_bounded(std::io::Cursor::new(b"ok".to_vec())).unwrap();
+        assert_eq!(small.as_slice(), b"ok");
     }
 
     #[test]
