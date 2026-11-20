@@ -224,3 +224,22 @@ test('only trusted self-hosted workflow runs purge known unsafe historical previ
   assert.ok(yaml.includes('Select-Object -Unique'));
   assert.ok(!yaml.includes('pull_request:'));
 });
+
+test('closing a tab does not discard edits typed while an asynchronous save is in progress', async () => {
+  const html = fs.readFileSync(path.join(root,'editor.html'),'utf8');
+  const start = html.indexOf('async function closeTab(');
+  const end = html.indexOf("\ndocument.getElementById('btn-new-tab')", start);
+  assert.ok(start >= 0 && end > start);
+  const source = html.slice(start,end);
+  assert.ok(source.indexOf('const afterSave = tabs.find') > source.indexOf('await saveFile()'));
+  const openTabs = [{id:1,name:'draft.md',content:'latest edit',dirty:true}];
+  const harness = new Function('tabs','window','confirm','switchTab','saveFile','workspaceNotice',
+    'let activeTabId = 1; let isDirty = true; ' + source +
+    '; return {closeTab, getTabs: () => tabs};')(
+      openTabs, {leafDesktop:true}, () => true, () => {},
+      async () => true, () => {}
+    );
+  await harness.closeTab(1);
+  assert.equal(harness.getTabs().length,1);
+  assert.equal(harness.getTabs()[0].content,'latest edit');
+});

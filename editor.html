@@ -3131,6 +3131,13 @@ async function closeTab(id) {
       // Switch to it and save
       switchTab(id);
       if (!await saveFile()) return;
+      // The OS picker / disk write is asynchronous. If typing continued while
+      // awaiting Save, do not close and lose edits that were never persisted.
+      const afterSave = tabs.find(item => item.id === id);
+      if (!afterSave || afterSave.dirty || (id === activeTabId && isDirty)) {
+        workspaceNotice('This document changed during saving. Save again before closing it.');
+        return;
+      }
     }
   }
 
