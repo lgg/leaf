@@ -469,8 +469,8 @@ mod tests {
         let file = fs::File::create(&path).unwrap();
         file.set_len(32 * 1024 * 1024 + 1).unwrap();
         drop(file);
-        assert_eq!(read_document(&path).unwrap_err(),
-            "Document exceeds the 32 MB safety limit.");
+        let error = read_document(&path).err().expect("oversized file must be rejected");
+        assert_eq!(error, "Document exceeds the 32 MB safety limit.");
     }
     #[test]
     fn digest_changes_when_content_changes() {
