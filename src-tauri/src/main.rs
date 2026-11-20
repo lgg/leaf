@@ -109,6 +109,15 @@ fn read_document(path: &Path) -> Result<Document, String> {
         return Err("Only .md and .txt files are supported.".into());
     }
     let canonical = fs::canonicalize(path).map_err(|_| "File was moved, removed or cannot be accessed.".to_string())?;
+    let metadata = fs::metadata(&canonical).map_err(|_| "File metadata cannot be read.".to_string())?;
+    if !metadata.is_file() {
+        return Err("Choose a regular Markdown or text file.".into());
+    }
+    // Check the file size BEFORE loading it: dropping a multi-GB document
+    // must not allocate enormous memory just to reject the file.
+    if metadata.len() > 32 * 1024 * 1024 {
+        return Err("Document exceeds the 32 MB safety limit.".into());
+    }
     let bytes = fs::read(&canonical).map_err(|_| "File cannot be read (permission denied or unavailable).".to_string())?;
     if bytes.len() > 32 * 1024 * 1024 {
         return Err("Document exceeds the 32 MB safety limit.".into());
@@ -473,6 +482,15 @@ mod tests {
         assert_eq!(decoded.tabs[0].label, "Draft");
         assert_eq!(decoded.tabs[0].draft.as_deref(), Some("hello"));
     }
+    #[test]
+    fn large_documents_are_rejected_before_memory_allocation() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("oversized.md");
+        let file = fs::File::create(&path).unwrap();
+        file.set_len(32 * 1024 * 1024 + 1).unwrap();
+        assert!(read_document(&path).is_err());
+    }
+
     #[test]
     fn os_dropped_file_access_is_one_shot() {
         let state = DesktopState::default();
