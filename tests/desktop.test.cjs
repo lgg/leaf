@@ -243,3 +243,27 @@ test('closing a tab does not discard edits typed while an asynchronous save is i
   assert.equal(harness.getTabs().length,1);
   assert.equal(harness.getTabs()[0].content,'latest edit');
 });
+
+test('native save calls are serialized so concurrent file writes cannot use stale revisions', async () => {
+  const source = fs.readFileSync(path.join(root,'desktop','desktop-bridge.js'),'utf8');
+  const start = source.indexOf('  function queuedSave(');
+  const end = source.indexOf('\n  function restoredTab(', start);
+  assert.ok(start >= 0 && end > start);
+  const code = source.slice(start,end);
+  assert.ok(source.includes('save: () => queuedSave(false)'));
+  assert.ok(source.includes('saveAs: () => queuedSave(true)'));
+  let active = 0;
+  const observed = [];
+  const call = new Function('save', 'let saveQueue = Promise.resolve(); ' + code +
+    '; return queuedSave;')(async saveAs => {
+      active++;
+      assert.equal(active, 1, 'overlapping native writes are forbidden');
+      observed.push(saveAs ? 'save-as-start' : 'save-start');
+      await new Promise(resolve => setImmediate(resolve));
+      observed.push(saveAs ? 'save-as-end' : 'save-end');
+      active--;
+      return true;
+    });
+  assert.deepEqual(await Promise.all([call(false),call(true)]),[true,true]);
+  assert.deepEqual(observed,['save-start','save-end','save-as-start','save-as-end']);
+});

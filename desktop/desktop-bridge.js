@@ -7,6 +7,7 @@
   let restoring = true;
   let sessionTimer = null;
   let pendingSession = Promise.resolve();
+  let saveQueue = Promise.resolve();
   let closing = false;
 
   function current() { return getActiveTab(); }
@@ -151,6 +152,15 @@
     }
   }
 
+  // Native Save and Save As may wait for OS dialogs or filesystem writes.
+  // Serialize requests to avoid two overlapping saves with the same revision.
+  // A queued request captures the latest editor state when it actually starts.
+  function queuedSave(saveAs) {
+    const operation = saveQueue.catch(() => {}).then(() => save(saveAs));
+    saveQueue = operation.catch(() => {});
+    return operation;
+  }
+
   function restoredTab(item, id, recoveryCopies) {
     const saved = item.saved;
     const disk = item.disk;
@@ -275,10 +285,10 @@
     }
   }
 
-  window.leafDesktop = {open, exportZip, save: () => save(false), saveAs: () => save(true)};
+  window.leafDesktop = {open, exportZip, save: () => queuedSave(false), saveAs: () => queuedSave(true)};
 
   const saveAsButton = document.getElementById('btn-desktop-save-as');
-  if (saveAsButton) saveAsButton.addEventListener('click', () => save(true));
+  if (saveAsButton) saveAsButton.addEventListener('click', () => queuedSave(true));
 
   document.addEventListener('keydown', event => {
     if (!(event.ctrlKey || event.metaKey)) return;
@@ -287,7 +297,7 @@
       event.preventDefault();
       event.stopImmediatePropagation();
       if (key === 'o') open();
-      else save(true);
+      else queuedSave(true);
     }
   }, true);
 
