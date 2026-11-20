@@ -699,11 +699,13 @@ test('Markdown preview rejects control-character scheme smuggling in links and i
   assert.ok(start >= 0 && end > start);
   const methods = new Function(html.slice(start, end) +
     '; return {markdownTarget, parseMarkdown};')();
-  for (const tricky of [
-    'java\\nscript:1', 'java\\tscript:1', 'ja\\u0000vascript:1',
-    'javascript\\r:1', 'javascript:1', 'data:text/html,1', 'vbscript:1'
+  for (const url of [
+    'java' + String.fromCharCode(10) + 'script:1',
+    'java' + String.fromCharCode(9) + 'script:1',
+    'ja' + String.fromCharCode(0) + 'vascript:1',
+    'javascript' + String.fromCharCode(13) + ':1',
+    'javascript:1', 'data:text/html,1', 'vbscript:1'
   ]) {
-    const url = tricky.replace(/\\n/g, '\\n').replace(/\\t/g, '\\t').replace(/\\r/g, '\\r').replace(/\\u0000/g, '\\u0000');
     assert.equal(methods.markdownTarget(url, false), '#', JSON.stringify(url));
     assert.equal(methods.markdownTarget(url, true), '#', JSON.stringify(url));
     const preview = methods.parseMarkdown('[click](' + url + ')');
