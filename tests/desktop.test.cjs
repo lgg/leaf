@@ -295,3 +295,18 @@ test('privacy diagnostics report only numeric counts, never workstation paths', 
   assert.ok(!JSON.stringify(stats).includes('SyntheticPerson'));
   assert.ok(!JSON.stringify(stats).includes('Users'));
 });
+
+test('Windows CI verifies Rust path remapping before expensive native compilation', () => {
+  const yaml = fs.readFileSync(path.join(root, '.github/workflows/desktop-windows.yml'), 'utf8');
+  assert.ok(yaml.includes("Source='C:\\Users'"));
+  assert.ok(yaml.includes("Source='D:\\Users'"));
+  assert.ok(yaml.includes('leaf-privacy-canary.rs'));
+  assert.ok(yaml.includes('leaf-privacy-canary.exe'));
+  assert.ok(yaml.includes('fn main() { println!("{}", file!()); }'));
+  const probe = yaml.indexOf('Rust path remapping canary passed');
+  const build = yaml.indexOf("@('build','--release','--manifest-path'");
+  assert.ok(probe > 0 && build > probe, 'fail early before the full Windows release build');
+  assert.ok(yaml.includes('node desktop/check-binary.cjs $probeExe'));
+  assert.ok(yaml.includes('node desktop/check-binary.cjs src-tauri/target/release/leaf-desktop.exe'));
+  assert.ok(!yaml.includes('pull_request:'));
+});

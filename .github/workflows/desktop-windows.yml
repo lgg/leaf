@@ -146,6 +146,12 @@ jobs:
             @{ Source=$env:LOCALAPPDATA; Target='/local-appdata' }
             @{ Source=$env:APPDATA; Target='/appdata' }
             @{ Source=$env:USERPROFILE; Target='/user-home' }
+            # Cargo and build-script sources may live under a different Windows
+            # account from USERPROFILE. Map generic, non-identifying roots too.
+            @{ Source='C:\Users'; Target='/sanitized-profiles-c' }
+            @{ Source='D:\Users'; Target='/sanitized-profiles-d' }
+            @{ Source='C:\_work'; Target='/sanitized-runner-c' }
+            @{ Source='D:\_work'; Target='/sanitized-runner-d' }
           )
           $flags = New-Object 'System.Collections.Generic.List[string]'
           foreach ($pair in $prefixes) {
@@ -165,6 +171,21 @@ jobs:
           if ($flags.Count -lt 4) { throw "Build path remapping is not configured." }
           Write-Output "Rust remap rules configured (sanitized count: $($flags.Count))"
           $env:CARGO_ENCODED_RUSTFLAGS = $flags -join [char]31
+
+          # Fast privacy canary: rustc must actually rewrite the absolute path
+          # emitted by file!(). No source path or compiler diagnostic is printed.
+          $probeSource = Join-Path $env:RUNNER_TEMP 'leaf-privacy-canary.rs'
+          $probeExe = Join-Path $env:RUNNER_TEMP 'leaf-privacy-canary.exe'
+          [IO.File]::WriteAllText($probeSource, 'fn main() { println!("{}", file!()); }')
+          $probeArgs = @($probeSource, '--crate-name', 'leaf_privacy_canary', '--edition=2021', '-o', $probeExe) + $flags.ToArray()
+          & (Get-Command rustc).Source @probeArgs *> "$env:RUNNER_TEMP/leaf-privacy-canary.log"
+          if ($LASTEXITCODE -ne 0 -or -not (Test-Path $probeExe)) {
+            throw "Compiler privacy canary failed. Full diagnostics remain on the runner."
+          }
+          node desktop/check-binary.cjs $probeExe
+          if ($LASTEXITCODE -ne 0) { throw "Rust path remapping canary failed; public binary artifacts remain blocked." }
+          Write-Output "Rust path remapping canary passed"
+
           # Strip the release symbol table so it cannot retain workstation
           # source/PDB paths. Keep all diagnostics locally in Cargo test logs.
           $env:CARGO_PROFILE_RELEASE_STRIP = 'symbols'
