@@ -710,3 +710,19 @@ test('Markdown link and image URL schemes cannot be made executable in preview',
   assert.match(parseMarkdown('[safe](https://example.org)'), /rel="noopener noreferrer"/);
   assert.match(parseMarkdown('![alt" onerror="alert(1)](https://example.org/x.png)'), /alt="alt&quot; onerror=&quot;alert\(1\)"/);
 });
+
+test('closing a web tab cannot lose edits made while its Save dialog was pending', async () => {
+  const start = js.indexOf('async function closeTab(');
+  const end = js.indexOf("\ndocument.getElementById('btn-new-tab')", start);
+  assert.ok(start >= 0 && end > start);
+  const method = js.slice(start, end);
+  const tabs = [{id:1,name:'draft.md',content:'new unsaved edit',dirty:true}];
+  const harness = new Function('tabs','confirm','switchTab','saveFile','workspaceNotice',
+    'let activeTabId=1; let isDirty=true; ' + method +
+    '; return {closeTab, getTabs:()=>tabs};')(
+      tabs, () => true, () => {}, async () => true, () => {}
+    );
+  await harness.closeTab(1);
+  assert.equal(harness.getTabs().length, 1);
+  assert.equal(harness.getTabs()[0].content, 'new unsaved edit');
+});

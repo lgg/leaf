@@ -3490,6 +3490,13 @@ async function closeTab(id) {
       // Switch to it and save
       switchTab(id);
       if (!await saveFile()) return;
+      // A native file picker or web file-handle write is asynchronous.
+      // Keep the tab if editing continued while that write was pending.
+      const afterSave = tabs.find(item => item.id === id);
+      if (!afterSave || afterSave.dirty || (id === activeTabId && isDirty)) {
+        workspaceNotice('This document changed during saving. Save again before closing it.');
+        return;
+      }
     }
   }
 
