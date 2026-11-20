@@ -78,12 +78,12 @@ function sanitizedProfilePathKinds(bytes) {
   const counts = {codeViewPdb: 0, otherPdb: 0, rustSource: 0, buildMetadata: 0, other: 0};
   for (const match of ascii.matchAll(/[a-z]:[\\/](?:users|documents and settings)[\\/]/gi)) {
     const offset = match.index;
-    const text = ascii.slice(offset, offset + 512).split(/[\\x00-\\x1f]/, 1)[0];
+    const text = ascii.slice(offset, offset + 512).split(/[\x00-\x1f]/, 1)[0];
     const codeView = offset >= 24 && raw.toString('ascii', offset - 24, offset - 20) === 'RSDS';
     if (codeView) counts.codeViewPdb++;
-    else if (/\\.pdb(?:$|[^a-z0-9])/i.test(text)) counts.otherPdb++;
-    else if (/\\.rs(?:$|[^a-z0-9])/i.test(text)) counts.rustSource++;
-    else if (/\\.(?:toml|json|exe|dll)(?:$|[^a-z0-9])/i.test(text)) counts.buildMetadata++;
+    else if (/\.pdb(?:$|[^a-z0-9])/i.test(text)) counts.otherPdb++;
+    else if (/\.rs(?:$|[^a-z0-9])/i.test(text)) counts.rustSource++;
+    else if (/\.(?:toml|json|exe|dll)(?:$|[^a-z0-9])/i.test(text)) counts.buildMetadata++;
     else counts.other++;
   }
   return counts;
