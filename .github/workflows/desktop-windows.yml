@@ -208,7 +208,7 @@ jobs:
           name: leaf-windows-smoke-test
           path: src-tauri/target/release/leaf-desktop.exe
           if-no-files-found: error
-          retention-days: 1
+          retention-days: 7
 
       - name: Retain portable ZIP for smoke testing (not a release)
         uses: actions/upload-artifact@v4
@@ -216,4 +216,4 @@ jobs:
           name: leaf-windows-portable-smoke-test
           path: src-tauri/target/release/leaf-desktop-portable.zip
           if-no-files-found: error
-          retention-days: 1
+          retention-days: 7

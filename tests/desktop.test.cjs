@@ -267,3 +267,13 @@ test('native save calls are serialized so concurrent file writes cannot use stal
   assert.deepEqual(await Promise.all([call(false),call(true)]),[true,true]);
   assert.deepEqual(observed,['save-start','save-end','save-as-start','save-as-end']);
 });
+
+test('privacy-gated smoke-test artifacts remain available for a seven-day manual acceptance window', () => {
+  const yaml = fs.readFileSync(path.join(root,'.github/workflows/desktop-windows.yml'),'utf8');
+  const scan = yaml.indexOf('Verify compiled EXE contains no private workstation paths');
+  const binary = yaml.indexOf('Retain Windows binary for smoke testing');
+  const portable = yaml.indexOf('Retain portable ZIP for smoke testing');
+  assert.ok(scan > 0 && binary > scan && portable > scan);
+  assert.match(yaml.slice(binary, portable), /retention-days: 7/);
+  assert.match(yaml.slice(portable), /retention-days: 7/);
+});
