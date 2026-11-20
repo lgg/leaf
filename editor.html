@@ -3486,6 +3486,8 @@ async function closeTab(id) {
   // Check for unsaved changes
   if (tab.dirty || (id === activeTabId && isDirty)) {
     const answer = confirm('Save "' + tab.name + '" before closing?');
+    // Declining Save is not the same as authorizing deletion of the draft.
+    if (!answer && !confirm('Discard unsaved changes in "' + tab.name + '"?')) return;
     if (answer) {
       // Switch to it and save
       switchTab(id);

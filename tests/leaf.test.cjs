@@ -726,3 +726,20 @@ test('closing a web tab cannot lose edits made while its Save dialog was pending
   assert.equal(harness.getTabs().length, 1);
   assert.equal(harness.getTabs()[0].content, 'new unsaved edit');
 });
+
+test('Cancel on the discard prompt retains a dirty browser document', async () => {
+  const start = js.indexOf('async function closeTab(');
+  const end = js.indexOf("\ndocument.getElementById('btn-new-tab')", start);
+  const method = js.slice(start, end);
+  const openTabs = [{id:1,name:'important.md',content:'valuable draft',dirty:true}];
+  let prompts = 0;
+  const harness = new Function('tabs','confirm','switchTab','saveFile','workspaceNotice',
+    'let activeTabId=1; let isDirty=true; ' + method +
+    '; return {closeTab,getTabs:()=>tabs};')(
+      openTabs, () => { prompts++; return false; }, () => {}, async () => true, () => {}
+    );
+  await harness.closeTab(1);
+  assert.equal(prompts, 2);
+  assert.equal(harness.getTabs().length, 1);
+  assert.equal(harness.getTabs()[0].content, 'valuable draft');
+});
