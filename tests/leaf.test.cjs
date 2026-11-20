@@ -693,7 +693,7 @@ test('About offers desktop releases without adding a native runtime to web', () 
 });
 
 function markdownSafetyMethods() {
-  const source = fs.readFileSync(path.join(root, 'editor.html'), 'utf8');
+  const source = html; // Shared top-level editor source; no undefined test root.
   const start = source.indexOf('function markdownAttr(');
   const end = source.indexOf('function renderPreview()', start);
   assert.ok(start >= 0 && end > start, 'Markdown parser source section must exist');
