@@ -56,12 +56,38 @@
     scheduleSession();
   };
 
+  // A second OS Open must refresh a clean tab after an external disk edit.
+  // Dirty documents always win: never clobber the user's unsaved changes.
+  function refreshCleanTabFromDisk(tab, doc) {
+    if (tab.dirty || tab.nativeRev === doc.revision) return false;
+    tab.content = doc.content;
+    tab.name = doc.name;
+    tab.nativeRev = doc.revision;
+    tab.nativeEol = doc.lineEnding || 'lf';
+    return true;
+  }
+
   function showDocument(doc) {
     if (!doc || !doc.path) return;
     saveActiveTabState();
     const existing = tabs.find(tab => tab.nativePath === doc.path);
     if (existing) {
+      // Switch FIRST: switchTab snapshots the previously active editor.
+      // Refreshing before switching would overwrite the freshly read content.
       switchTab(existing.id);
+      if (refreshCleanTabFromDisk(existing, doc)) {
+        editor.value = existing.content;
+        document.getElementById('filename-input').value = existing.name;
+        isDirty = false;
+        lastSavedContent = existing.content;
+        updateStats();
+        if (currentMode !== 'write') renderPreview();
+        renderTabs();
+        scheduleSession();
+        workspaceNotice('Updated this clean tab from the current file on disk.');
+      } else if (existing.dirty && existing.nativeRev !== doc.revision) {
+        workspaceNotice('File changed outside Leaf. Unsaved edits remain intact; use Save As to preserve them.');
+      }
       return;
     }
     let tab = current();
