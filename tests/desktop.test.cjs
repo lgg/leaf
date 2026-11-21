@@ -477,3 +477,25 @@ test('native close blocks duplicate requests until recovery is flushed and permi
   await secondHandler(evt());
   assert.equal(attempts,2);
 });
+
+test('a failed desktop restore blocks native session writes and prevents closing with unsaved drafts', async () => {
+  const bridge = fs.readFileSync(path.join(root,'desktop','desktop-bridge.js'),'utf8');
+  assert.ok(bridge.includes('sessionRecoveryBlocked = true'));
+  assert.ok(bridge.includes('if (restoring || sessionRecoveryBlocked) return pendingSession'));
+  assert.ok(bridge.includes('if (restoring || sessionRecoveryBlocked) return;'));
+  const start = bridge.indexOf('  async function flushSession() {');
+  const end = bridge.indexOf('\n  // Reuse editor change notifications', start);
+  assert.ok(start >= 0 && end > start);
+  const code = bridge.slice(start,end);
+  const factory = new Function('tabs','saveActiveTabState','clearTimeout','storeSession',
+    'let sessionTimer=null;let sessionRecoveryBlocked=true;' + code + ';return flushSession;');
+  let attempts=0;
+  const dirty = factory([{readonly:false,dirty:true,nativePath:null,content:'draft'}],
+    ()=>{},()=>{},()=>{attempts++;return Promise.resolve();});
+  await assert.rejects(dirty(),/Use Save As/);
+  assert.equal(attempts,0);
+  const clean = factory([{readonly:false,dirty:false,nativePath:'synthetic.md',content:'saved'}],
+    ()=>{},()=>{},()=>{attempts++;return Promise.resolve();});
+  await clean();
+  assert.equal(attempts,0,'unreadable original recovery file must not be overwritten');
+});

@@ -7,7 +7,7 @@ use std::{
     fs,
     io::{Read, Write},
     path::{Path, PathBuf},
-    sync::Mutex,
+    sync::{atomic::{AtomicBool, Ordering}, Mutex},
 };
 use tauri::{Manager, State};
 use tauri_plugin_dialog::DialogExt;
@@ -20,6 +20,8 @@ struct DesktopState {
     dropped: Mutex<HashSet<String>>,
     // Prevent overlapping Save calls from checking the same disk revision.
     write_guard: Mutex<()>,
+    // A corrupt existing recovery session must never be replaced by a blank one.
+    session_restore_failed: AtomicBool,
 }
 
 #[derive(Clone, Serialize)]
@@ -158,11 +160,33 @@ fn session_file(app: &tauri::AppHandle) -> Result<PathBuf, String> {
     Ok(dir.join("session-v1.json"))
 }
 
-fn read_session(app: &tauri::AppHandle) -> Session {
-    session_file(app).ok()
-        .and_then(|path| fs::read_to_string(path).ok())
-        .and_then(|contents| serde_json::from_str::<Session>(&contents).ok())
-        .unwrap_or_default()
+// The user-writable session can be malformed or grow while it is being read.
+// Keep restoration bounded to the same limit enforced for session writes.
+const MAX_SESSION_BYTES: usize = 64 * 1024 * 1024;
+
+fn read_session_bounded(reader: impl Read) -> Option<Session> {
+    let mut bytes = Vec::new();
+    reader.take(MAX_SESSION_BYTES as u64 + 1).read_to_end(&mut bytes).ok()?;
+    if bytes.len() > MAX_SESSION_BYTES { return None; }
+    serde_json::from_slice::<Session>(&bytes).ok()
+}
+
+fn read_session(app: &tauri::AppHandle) -> Result<Session, String> {
+    let path = session_file(app)?;
+    match fs::File::open(path) {
+        Ok(file) => read_session_bounded(file).ok_or_else(|| {
+            "Recovery session is unreadable or exceeds 64 MB. The original file is preserved.".into()
+        }),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(Session::default()),
+        Err(_) => Err("Recovery session cannot be accessed. The original file is preserved.".into()),
+    }
+}
+
+fn protect_failed_restore(state: &DesktopState, result: Result<Session, String>) -> Result<Session, String> {
+    if result.is_err() {
+        state.session_restore_failed.store(true, Ordering::SeqCst);
+    }
+    result
 }
 
 fn atomic_write(path: &Path, bytes: &[u8]) -> Result<(), String> {
@@ -379,7 +403,7 @@ async fn desktop_export_zip(app: tauri::AppHandle, bytes: Vec<u8>) -> Result<boo
 
 #[tauri::command]
 fn desktop_restore(app: tauri::AppHandle, state: State<'_, DesktopState>) -> Result<Restored, String> {
-    let session = read_session(&app);
+    let session = protect_failed_restore(&state, read_session(&app))?;
     let mut tabs = Vec::new();
     for saved in session.tabs.into_iter().take(60) {
         if let Some(ref path) = saved.path {
@@ -412,6 +436,9 @@ fn desktop_save_session(
     state: State<'_, DesktopState>,
     session: Session,
 ) -> Result<(), String> {
+    if state.session_restore_failed.load(Ordering::SeqCst) {
+        return Err("Original recovery session must be preserved. Save drafts with Save As; repair the session separately.".into());
+    }
     if session.tabs.len() > 60 { return Err("Too many open tabs for session recovery.".into()); }
     {
         let allowed = state.authorized.lock().map_err(|_| "File registry unavailable.".to_string())?;
@@ -523,6 +550,37 @@ mod tests {
     fn digest_changes_when_content_changes() {
         assert_ne!(digest(b"draft"), digest(b"edited"));
     }
+    #[test]
+    fn failed_session_restore_prevents_overwriting_the_unreadable_original() {
+        let state = DesktopState::default();
+        assert!(!state.session_restore_failed.load(Ordering::SeqCst));
+        let failed = protect_failed_restore(&state, Err("corrupt session".into()));
+        assert!(failed.is_err());
+        assert!(state.session_restore_failed.load(Ordering::SeqCst));
+    }
+
+    #[test]
+    fn session_restoration_is_bounded_even_for_a_never_ending_reader() {
+        // A file may grow after metadata is inspected; even a reader that
+        // never reaches EOF must stop after MAX_SESSION_BYTES + 1.
+        assert!(read_session_bounded(std::io::repeat(b' ')).is_none());
+    }
+
+    #[test]
+    fn session_restoration_accepts_valid_json_and_preserves_invalid_files_for_manual_recovery() {
+        let source = Session { active_index: 0, tabs: vec![SessionTab {
+            path: None, name: "recovery.md".into(), label: "Recovery".into(),
+            browser_title: "Recovered draft".into(), dirty: true,
+            draft: Some("safe text".into()), revision: None,
+        }] };
+        let bytes = serde_json::to_vec(&source).unwrap();
+        let saved = read_session_bounded(std::io::Cursor::new(bytes)).unwrap();
+        assert_eq!(saved.tabs.len(), 1);
+        assert_eq!(saved.tabs[0].draft.as_deref(), Some("safe text"));
+        assert_eq!(saved.tabs[0].browser_title, "Recovered draft");
+        assert!(read_session_bounded(std::io::Cursor::new(b"{invalid".as_slice())).is_none());
+    }
+
     #[test]
     fn sessions_round_trip_without_losing_metadata() {
         let source = Session { active_index: 0, tabs: vec![SessionTab {
