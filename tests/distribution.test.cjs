@@ -34,3 +34,26 @@ test('builds stay self-hosted and never automatically distribute unverified bina
   assert.match(win, /inputs\.build_installer/);
   assert.doesNotMatch(win, /ubuntu-latest|macos-latest|windows-latest/);
 });
+
+test('Windows 10/11 preview installer requires no new runner installations and is integrity-gated', () => {
+  const win = read('.github/workflows/desktop-windows.yml');
+  const release = read('.github/workflows/windows-preview-release.yml');
+  const installer = read('desktop/windows-installer.cs');
+  const builder = read('desktop/build-windows-installer.ps1');
+  assert.match(installer, /ExpectedSha256/);
+  assert.match(installer, /VerifyPayload/);
+  assert.match(installer, /Registry.CurrentUser.CreateSubKey/);
+  assert.match(installer, /Environment.SpecialFolder.LocalApplicationData/);
+  assert.match(builder, /CSharpCodeProvider/);
+  assert.match(builder, /IncludeDebugInformation = \$false/);
+  assert.match(win, /Retain unsigned Windows user installer for Release/);
+  assert.ok(win.indexOf('Verify compiled EXE contains no private workstation paths') < win.indexOf('Build unsigned Windows 10\/11 user installer'));
+  assert.match(release, /workflow_run:/);
+  assert.match(release, /head_branch == 'main'/);
+  assert.match(release, /leaf-runner-ci/);
+  assert.match(release, /leaf-windows-user-setup/);
+  assert.match(release, /Leaf-Windows-10-11-x64-Portable.zip/);
+  assert.match(release, /Leaf-Windows-10-11-x64-Setup.exe/);
+  assert.match(release, /prerelease=\$true/);
+  assert.doesNotMatch(release, /ubuntu-latest|macos-latest|windows-latest/);
+});
