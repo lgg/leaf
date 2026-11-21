@@ -1,6 +1,6 @@
 # Leaf — distraction-free Markdown editor
 
-**Fork version: v1.10.0-lgg.1** · Based on [uncle-jasper/leaf](https://github.com/uncle-jasper/leaf) v1.7 · Maintained by [lgg](https://github.com/lgg).
+**Fork version: v1.10.1-lgg.1** · Based on [uncle-jasper/leaf](https://github.com/uncle-jasper/leaf) v1.7 · Maintained by [lgg](https://github.com/lgg).
 
 Leaf is a focused, offline-capable Markdown and plain-text editor. It runs as a lightweight, single HTML file in a browser, installs as a PWA on phones, and has an **independent Tauri v2 desktop edition** that can edit real files on disk. No account, sync server, analytics or unnecessary background process.
 
@@ -59,7 +59,9 @@ Builds can download normal Cargo dependency crates during compilation; the workf
 
 ## Editor features shared across browser, PWA and desktop
 
-- Focused Markdown writing and preview; configurable themes, black mode, fonts and font size.
+- Focused Markdown writing and preview; configurable themes, black mode, fonts and exact positive-integer pixel sizes (from 1px upward), with a separate visually clamped slider from 6–128px.
+- Styled Choose File button without the native file-picker input showing in the toolbar.
+- Independent persistent focus-mode setting for auto-hiding the whole top bar, with top-edge hover reveal.
 - Five independently toggleable status counters and optional empty-page hint.
 - Multiple document tabs with **independent filename, tab label and window title**.
 - Debounced autosave of browser drafts (350 ms / maximum 2 s while typing), local recovery copies and protection against simultaneous browser workspaces.

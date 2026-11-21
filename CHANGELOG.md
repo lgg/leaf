@@ -1,5 +1,12 @@
 # Leaf — fork changelog
 
+## v1.10.1-lgg.1 — 2026-11-21 (Windows 10/11 desktop release refresh)
+
+- Styled file picker replaces the visible default Windows/WebView file control.
+- Independent saved focus-mode top-bar auto-hide preference, with hover-to-reveal for toolbar and document tabs.
+- Editable positive-integer font size (1px or greater) with a styled Save button; 6–128px slider clamps visually without overwriting larger or smaller text values.
+- Regression tests, matching README/About version, Windows setup/portable builds and safer bounded release artifact uploads.
+
 ## v1.10.0-lgg.1 — 2026-11-19 (desktop integration branch; not released)
 
 - Added a separate Tauri v2 Windows desktop application with native Markdown/text file open, Save and Save As.

@@ -438,7 +438,7 @@ test('GitHub Pages service worker prefers fresh HTML and keeps an offline fallba
 });
 
 test('fork version matches README, changelog and visible About version', () => {
-  const version='1.10.0-lgg.1';
+  const version='1.10.1-lgg.1';
   const readme=fs.readFileSync(path.join(__dirname,'..','README.md'),'utf8').replace(/\r\n/g, '\n');
   const changelog=fs.readFileSync(path.join(__dirname,'..','CHANGELOG.md'),'utf8');
   assert.ok(html.includes('>v'+version+'</span>'));
@@ -782,4 +782,41 @@ test('Cancel on the discard prompt retains a dirty browser document', async () =
   assert.equal(prompts, 2);
   assert.equal(harness.getTabs().length, 1);
   assert.equal(harness.getTabs()[0].content, 'valuable draft');
+});
+
+
+test('file chooser uses the themed button and native WebView picker is hidden', () => {
+  assert.match(html, /id="btn-open"[^>]*>⬆ choose file<\/button>/);
+  assert.match(html, /id="file-open"[^>]*hidden[^>]*aria-hidden="true"/);
+  assert.match(html, /#file-open\[hidden\] \{ display: none !important; \}/);
+  assert.ok(js.includes("document.getElementById('file-open').click()"));
+  assert.ok(js.includes("if (window.leafDesktop) return window.leafDesktop.open()"));
+});
+
+test('font sizes use positive integers with no 128px input cap', () => {
+  const start = js.indexOf('function parseFontSize(');
+  const end = js.indexOf('function applyFontSize(', start);
+  assert.ok(start > 0 && end > start);
+  const parse = new Function(js.slice(start,end) + 'return parseFontSize;')();
+  for (const value of ['1','6','18','128','129','1000','65536']) assert.equal(parse(value),Number(value));
+  for (const value of ['', '0','-1','abc','12.5','1e3','Infinity','9007199254740992']) assert.equal(parse(value),null);
+  assert.ok(html.includes('id="settings-font-size-slider" type="range" min="6" max="128"'));
+  assert.ok(html.includes('id="settings-font-size-save"'));
+  assert.ok(html.includes('id="settings-font-size-input" type="text"'));
+  assert.ok(js.includes('String(Math.max(6, Math.min(128, size)))'));
+  assert.ok(js.includes('fontSize:     String(appliedFontSize)'));
+  assert.ok(js.includes('if (s.fontSize !== undefined) applyFontSize(s.fontSize, false)'));
+  assert.ok(!html.includes('settings-font-size-select'));
+});
+
+test('focus-mode top bar auto-hide is saved independently and reveals document tabs', () => {
+  assert.ok(html.includes('id="chk-focus-header-autohide"'));
+  assert.ok(html.includes('body.focus-mode.focus-header-autohide #header'));
+  assert.ok(html.includes('body.focus-mode.focus-header-autohide.toolbar-peek #header'));
+  assert.ok(html.includes('body.focus-mode #tab-bar { display: flex;'));
+  assert.ok(!html.includes('body.focus-mode #tab-bar { display: none; }'));
+  assert.ok(js.includes('focusHeaderAutohide: focusHeaderAutohideEnabled'));
+  assert.ok(js.includes('if (s.focusHeaderAutohide === true)'));
+  assert.ok(js.includes('if (inFocus && focusHeaderAutohideEnabled)'));
+  assert.ok(js.includes("document.getElementById('header').addEventListener('mouseleave'"));
 });
