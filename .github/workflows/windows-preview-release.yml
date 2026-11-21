@@ -1,0 +1,146 @@
+name: Leaf Windows 10/11 — publish unsigned preview Release
+
+on:
+  workflow_run:
+    workflows: ['Leaf desktop Windows — self-hosted']
+    types: [completed]
+
+permissions:
+  contents: write
+  actions: read
+
+concurrency:
+  group: leaf-windows-preview-publisher
+  cancel-in-progress: false
+
+jobs:
+  publish-windows-preview:
+    if: >-
+      github.repository == 'lgg/leaf' &&
+      github.event.workflow_run.head_repository.full_name == 'lgg/leaf' &&
+      github.event.workflow_run.head_branch == 'main' &&
+      github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.conclusion == 'success'
+    runs-on: [self-hosted, leaf-runner-ci]
+    timeout-minutes: 35
+    defaults:
+      run:
+        shell: powershell
+    steps:
+      - name: Mask private Windows runner directories
+        run: |
+          foreach ($key in @('GITHUB_WORKSPACE','RUNNER_WORKSPACE','RUNNER_TEMP','USERPROFILE','LOCALAPPDATA','APPDATA','TEMP','TMP')) {
+            $value = [Environment]::GetEnvironmentVariable($key)
+            if ($value -and $value.Length -gt 2) { Write-Output "::add-mask::$value" }
+          }
+
+      - name: Require successful producer at exact live main SHA with both artifacts
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PRODUCER_ID: ${{ github.event.workflow_run.id }}
+          PRODUCER_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $headers = @{Authorization="Bearer $env:GH_TOKEN"; Accept='application/vnd.github+json'; 'X-GitHub-Api-Version'='2022-11-28'}
+          if ($env:PRODUCER_ID -notmatch '^[0-9]+$' -or $env:PRODUCER_SHA -notmatch '^[0-9a-f]{40}$') { throw 'Producer provenance is invalid.' }
+          $main = Invoke-RestMethod -Headers $headers -Uri 'https://api.github.com/repos/lgg/leaf/branches/main'
+          if ($main.commit.sha -ne $env:PRODUCER_SHA) { throw 'Release blocked: producer SHA is not current main.' }
+          $run = Invoke-RestMethod -Headers $headers -Uri "https://api.github.com/repos/lgg/leaf/actions/runs/$env:PRODUCER_ID"
+          if ($run.head_sha -ne $env:PRODUCER_SHA -or $run.head_branch -ne 'main' -or $run.conclusion -ne 'success' -or $run.status -ne 'completed') { throw 'Release blocked: producer run is not successful on exact main.' }
+          if ($run.path -notlike '*desktop-windows.yml*') { throw 'Release blocked: wrong producer workflow.' }
+          $artifacts = Invoke-RestMethod -Headers $headers -Uri "https://api.github.com/repos/lgg/leaf/actions/runs/$env:PRODUCER_ID/artifacts?per_page=100"
+          foreach ($name in @('leaf-windows-portable-smoke-test','leaf-windows-user-setup')) {
+            $matches = @($artifacts.artifacts | Where-Object { $_.name -eq $name -and -not $_.expired -and $_.size_in_bytes -gt 1024 })
+            if ($matches.Count -ne 1) { throw "Release blocked: $name is absent, expired or ambiguous." }
+          }
+          Write-Output 'Both release candidates verified from the successful exact-main Windows run.'
+
+      - name: Download verified portable package from producer
+        uses: actions/download-artifact@v4
+        with:
+          name: leaf-windows-portable-smoke-test
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: release-input/portable
+
+      - name: Download verified setup package from producer
+        uses: actions/download-artifact@v4
+        with:
+          name: leaf-windows-user-setup
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: release-input/setup
+
+      - name: Verify Windows portable and installer payload and write SHA256SUMS
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $portable = @(Get-ChildItem 'release-input/portable' -File -Filter '*.zip')
+          $setup = @(Get-ChildItem 'release-input/setup' -File -Filter '*.exe')
+          if ($portable.Count -ne 1 -or $setup.Count -ne 1) { throw 'Expected exactly one portable archive and one installer.' }
+          if ($portable[0].Length -lt 1024 -or $setup[0].Length -lt 1024) { throw 'Windows release asset is unexpectedly small.' }
+          Add-Type -AssemblyName System.IO.Compression.FileSystem
+          $archive = [System.IO.Compression.ZipFile]::OpenRead($portable[0].FullName)
+          try {
+            if ($archive.Entries.Count -ne 1 -or $archive.Entries[0].FullName -ne 'leaf-desktop.exe' -or $archive.Entries[0].Length -lt 1024) {
+              throw 'Portable ZIP must contain only the Windows Leaf desktop executable.'
+            }
+          } finally { $archive.Dispose() }
+          $process = Start-Process -FilePath $setup[0].FullName -ArgumentList '/verify' -NoNewWindow -Wait -PassThru
+          if ($process.ExitCode -ne 0) { throw 'Setup embedded payload integrity check failed.' }
+          New-Item -ItemType Directory -Path 'release-assets' -Force | Out-Null
+          Copy-Item -LiteralPath $portable[0].FullName -Destination 'release-assets/Leaf-Windows-10-11-x64-Portable.zip'
+          Copy-Item -LiteralPath $setup[0].FullName -Destination 'release-assets/Leaf-Windows-10-11-x64-Setup.exe'
+          $hashes = @(Get-ChildItem 'release-assets' -File | Sort-Object Name | ForEach-Object {
+            (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant() + '  ' + $_.Name
+          })
+          if ($hashes.Count -ne 2) { throw 'Two Windows artifacts required.' }
+          [IO.File]::WriteAllLines((Join-Path (Get-Location) 'release-assets/SHA256SUMS.txt'), [string[]]$hashes)
+          Write-Output 'Portable ZIP and installer verified; SHA-256 manifest created.'
+
+      - name: Publish Windows-only unsigned preview Release after all validations
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PRODUCER_SHA: ${{ github.event.workflow_run.head_sha }}
+          TAG_NAME: v1.10.0-lgg.1-windows-rc.1
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $headers = @{Authorization="Bearer $env:GH_TOKEN"; Accept='application/vnd.github+json'; 'X-GitHub-Api-Version'='2022-11-28'}
+          $tagUrl = 'https://api.github.com/repos/lgg/leaf/releases/tags/' + $env:TAG_NAME
+          try {
+            $existing = Invoke-RestMethod -Headers $headers -Uri $tagUrl -Method Get
+            if ($existing.draft -eq $false) {
+              Write-Output 'Windows release already published; not overwriting existing immutable assets.'
+              exit 0
+            }
+            throw 'An unpublished release already exists for this tag; manual reconciliation is required.'
+          } catch {
+            $status = [int]$_.Exception.Response.StatusCode
+            if ($status -ne 404) { throw 'Could not establish safe Windows release tag uniqueness.' }
+          }
+          $notes = @'
+          # Leaf desktop for Windows 10 and 11 (x64)
+
+          **Early-access Windows-only release candidate.** Includes the same desktop build for Windows 10 and Windows 11:
+          - Leaf-Windows-10-11-x64-Portable.zip — unzip and launch leaf-desktop.exe; no installation.
+          - Leaf-Windows-10-11-x64-Setup.exe — user-scoped graphical installer using built-in Windows/.NET, with Start menu shortcut and Apps & features uninstall. No administrator access required.
+          - SHA256SUMS.txt — SHA-256 hashes for both assets.
+
+          Windows 10/11 require Microsoft Edge WebView2 Runtime. Both builds are unsigned; Microsoft SmartScreen may show a warning. This release is a **prerelease**, not a claim that manual GUI acceptance has passed. Known limitations: installer does not register default .md/.txt file associations; no signed automatic updater. Only open files you trust.
+
+          Builds were created by the existing self-hosted Windows runner, with JS/Rust tests and the executable privacy scan before artifact upload. The installer embeds the exact privacy-scanned Leaf executable and performs its own SHA-256 verification before installation. No toolchain was installed on the runner.
+
+          Linux and macOS packages are tracked separately and are not included in this Windows-only release. See issues #11, #12 and #22 for remaining acceptance and distribution work.
+          '@
+          $body = @{tag_name=$env:TAG_NAME; target_commitish=$env:PRODUCER_SHA; name="Leaf $env:TAG_NAME — Windows 10/11 x64"; body=$notes; draft=$true; prerelease=$true} | ConvertTo-Json -Depth 4
+          $release = Invoke-RestMethod -Uri 'https://api.github.com/repos/lgg/leaf/releases' -Method Post -Headers $headers -Body $body -ContentType 'application/json'
+          if (-not $release.id -or -not $release.upload_url) { throw 'Could not create Windows draft release.' }
+          $uploadBase = $release.upload_url -replace '\{\?name,label\}$',''
+          $files = @(Get-ChildItem 'release-assets' -File)
+          if ($files.Count -ne 3) { throw 'Unexpected Windows release file inventory.' }
+          foreach ($file in $files) {
+            $url = $uploadBase + '?name=' + [Uri]::EscapeDataString($file.Name)
+            Invoke-RestMethod -Uri $url -Headers $headers -Method Post -InFile $file.FullName -ContentType 'application/octet-stream' | Out-Null
+          }
+          $published = Invoke-RestMethod -Uri "https://api.github.com/repos/lgg/leaf/releases/$($release.id)" -Method Patch -Headers $headers -Body (@{draft=$false; prerelease=$true} | ConvertTo-Json) -ContentType 'application/json'
+          if ($published.draft -ne $false -or $published.prerelease -ne $true) { throw 'Release publication state could not be verified.' }
+          Write-Output 'Windows-only GitHub prerelease published with both packages and SHA256SUMS.'

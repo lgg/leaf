@@ -1,5 +1,7 @@
 # Leaf desktop — multi-platform release matrix
 
+> **Windows-only early-access exception (2026-11-21):** the user approved a Windows 10/11 x64 prerelease before Linux/macOS are ready. The separate [Windows preview publisher](../.github/workflows/windows-preview-release.yml) runs only after successful self-hosted Windows `main` CI, requires both the built-in .NET user installer and portable ZIP from the same commit, and publishes a GitHub **prerelease** with SHA256SUMS. Manual GUI acceptance remains open; a full stable cross-platform release continues to use the gate below. The Windows preview installer is not NSIS and does not register default file associations. No system tools are installed on the runner.
+
 **Status (2026-11-21): source and CI wiring only; cross-platform builds and real GUI acceptance are not yet verified. Do not describe an artifact as a public release until every gate below passes.**
 
 ## Target outputs

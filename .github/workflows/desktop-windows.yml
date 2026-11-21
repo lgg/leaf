@@ -215,6 +215,25 @@ jobs:
           if (-not (Test-Path 'src-tauri/target/release/leaf-desktop-portable.zip')) { throw "Portable ZIP packaging failed." }
           Write-Output "Portable ZIP created without installing or downloading packaging tools."
 
+      - name: Build unsigned Windows 10/11 user installer without new tool installations
+        run: |
+          try {
+            & .\desktop\build-windows-installer.ps1 -Application 'src-tauri/target/release/leaf-desktop.exe' -Output 'src-tauri/target/release/Leaf-windows-x64-setup.exe' *> "$env:RUNNER_TEMP/leaf-setup-build.log"
+          } catch {
+            throw "Windows installer generation failed; detailed diagnostics remain only on the runner."
+          }
+          if (-not (Test-Path 'src-tauri/target/release/Leaf-windows-x64-setup.exe')) { throw "Unsigned Windows installer is missing." }
+          node desktop/check-binary.cjs src-tauri/target/release/Leaf-windows-x64-setup.exe
+          if ($LASTEXITCODE -ne 0) { throw "Installer privacy scan failed. No installer will be published." }
+
+      - name: Retain unsigned Windows user installer for Release
+        uses: actions/upload-artifact@v4
+        with:
+          name: leaf-windows-user-setup
+          path: src-tauri/target/release/Leaf-windows-x64-setup.exe
+          if-no-files-found: error
+          retention-days: 7
+
       - name: NSIS installer prerequisites (informational only)
         run: |
           $cli = [bool](Get-Command cargo-tauri -ErrorAction SilentlyContinue)
