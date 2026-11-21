@@ -21,7 +21,7 @@ concurrency:
 jobs:
   windows-desktop:
 
-    if: github.repository == 'lgg/leaf'
+    if: github.repository == 'lgg/leaf' && github.ref == 'refs/heads/main'
     runs-on: [self-hosted, leaf-runner-ci]
     timeout-minutes: 90
     defaults:
