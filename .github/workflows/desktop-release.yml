@@ -89,6 +89,8 @@ jobs:
           if ($env:PUBLISH -eq 'true') {
             $acceptance = Invoke-RestMethod -Method Get -Headers $headers -Uri "https://api.github.com/repos/lgg/leaf/issues/11"
             if ($acceptance.state -ne 'closed') { throw "Release blocked: Windows manual GUI acceptance issue #11 is not closed." }
+            $crossPlatform = Invoke-RestMethod -Method Get -Headers $headers -Uri "https://api.github.com/repos/lgg/leaf/issues/22"
+            if ($crossPlatform.state -ne 'closed') { throw "Release blocked: Linux/macOS manual GUI acceptance issue #22 is not closed." }
           }
           Write-Output "Exact SHA, version and all platform artifacts verified."
 
