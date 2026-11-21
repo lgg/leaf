@@ -35,8 +35,8 @@ jobs:
       - name: Confirm exact previously validated production commit and artifacts
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PRODUCER_SHA: c5a854457147acac783888f3319f216940822702
-          PRODUCER_RUN: '44889607910'
+          PRODUCER_SHA: fe6ea7965cd2b1beb954c42d021a597ae73ddafc
+          PRODUCER_RUN: '44893772073'
         run: |
           $ErrorActionPreference = 'Stop'
           $headers = @{Authorization="Bearer $env:GH_TOKEN"; Accept='application/vnd.github+json'; 'X-GitHub-Api-Version'='2022-11-28'}
@@ -61,7 +61,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: leaf-windows-portable-smoke-test
-          run-id: 44889607910
+          run-id: 44893772073
           github-token: ${{ secrets.GITHUB_TOKEN }}
           path: release-input/portable
 
@@ -69,15 +69,15 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: leaf-windows-user-setup
-          run-id: 44889607910
+          run-id: 44893772073
           github-token: ${{ secrets.GITHUB_TOKEN }}
           path: release-input/setup
 
       - name: Validate binaries, create SHA-256 file and finish draft using curl.exe
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PRODUCER_SHA: c5a854457147acac783888f3319f216940822702
-          TAG: v1.10.0-lgg.1-windows-rc.1
+          PRODUCER_SHA: fe6ea7965cd2b1beb954c42d021a597ae73ddafc
+          TAG: v1.10.1-lgg.1-windows-rc.1
         run: |
           $ErrorActionPreference = 'Stop'
           $headers = @{Authorization="Bearer $env:GH_TOKEN"; Accept='application/vnd.github+json'; 'X-GitHub-Api-Version'='2022-11-28'}
@@ -107,8 +107,30 @@ jobs:
           # Draft releases cannot always be fetched by tag; find them in the release list.
           $releaseList = Invoke-RestMethod -Uri 'https://api.github.com/repos/lgg/leaf/releases?per_page=100' -Headers $headers
           $matches = @($releaseList | Where-Object { $_.tag_name -eq $env:TAG })
-          if ($matches.Count -ne 1) { throw 'Cannot find exactly one existing Windows release draft.' }
-          $release = $matches[0]
+          if ($matches.Count -gt 1) { throw 'Multiple Windows releases found for the same tag.' }
+          if ($matches.Count -eq 0) {
+            $notes = @'
+          # Leaf desktop v1.10.1-lgg.1 — Windows 10/11 x64
+
+          **Unsigned Windows-only prerelease** — same x64 app for Windows 10 and Windows 11.
+
+          Updated:
+          - File chooser uses a themed button instead of a visible native file input.
+          - Settings include independent focus-mode full top-bar auto-hide, with top-edge hover reveal.
+          - Font size accepts any positive whole-number pixel value, with styled Save button and 6–128px slider. Out-of-range numeric entry is preserved exactly.
+          - Desktop, browser/PWA, installer metadata, About version and regression tests updated together.
+
+          Downloads: `Leaf-Windows-10-11-x64-Portable.zip` (no installation), `Leaf-Windows-10-11-x64-Setup.exe` (per-user setup with Start menu shortcut/uninstall), and `SHA256SUMS.txt`.
+
+          Requires WebView2. Packages are unsigned and may cause SmartScreen warnings. Manual Windows 10/11 GUI acceptance remains open; no native .md/.txt file associations in this early setup.
+
+          Exact source SHA: fe6ea7965cd2b1beb954c42d021a597ae73ddafc. Windows desktop CI and web/PWA CI green. No runner tool installation. Linux/macOS packages are not included.
+          '@
+            $new = @{tag_name=$env:TAG; target_commitish=$env:PRODUCER_SHA; name="Leaf $env:TAG — Windows 10/11 x64"; body=$notes; draft=$true; prerelease=$true} | ConvertTo-Json -Depth 4
+            $release = Invoke-RestMethod -Uri 'https://api.github.com/repos/lgg/leaf/releases' -Method Post -Headers $headers -Body $new -ContentType 'application/json'
+          } else {
+            $release = $matches[0]
+          }
           if ($release.target_commitish -ne $env:PRODUCER_SHA) { throw 'Release source commit changed unexpectedly.' }
           $expected = @('Leaf-Windows-10-11-x64-Portable.zip','Leaf-Windows-10-11-x64-Setup.exe','SHA256SUMS.txt')
           if ($release.draft -eq $false) {
