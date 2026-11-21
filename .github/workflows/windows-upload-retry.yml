@@ -1,0 +1,152 @@
+name: Leaf Windows Release — bounded upload retry
+
+on:
+  push:
+    branches: ['hotfix/windows-upload-retry']
+    paths: ['.github/workflows/windows-upload-retry.yml']
+
+permissions:
+  contents: write
+  actions: read
+
+# Replace an older hung release uploader, but never start another desktop build.
+concurrency:
+  group: leaf-windows-preview-publisher
+  cancel-in-progress: true
+
+jobs:
+  repair-verified-windows-release:
+    if: >-
+      github.repository == 'lgg/leaf' &&
+      github.ref == 'refs/heads/hotfix/windows-upload-retry'
+    runs-on: [self-hosted, leaf-runner-ci]
+    timeout-minutes: 15
+    defaults:
+      run:
+        shell: powershell
+    steps:
+      - name: Mask private runner paths
+        run: |
+          foreach ($name in @('GITHUB_WORKSPACE','RUNNER_WORKSPACE','RUNNER_TEMP','USERPROFILE','LOCALAPPDATA','APPDATA','TEMP','TMP')) {
+            $value = [Environment]::GetEnvironmentVariable($name)
+            if ($value -and $value.Length -gt 2) { Write-Output "::add-mask::$value" }
+          }
+
+      - name: Confirm exact previously validated production commit and artifacts
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PRODUCER_SHA: c5a854457147acac783888f3319f216940822702
+          PRODUCER_RUN: '44889607910'
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $headers = @{Authorization="Bearer $env:GH_TOKEN"; Accept='application/vnd.github+json'; 'X-GitHub-Api-Version'='2022-11-28'}
+          $main = Invoke-RestMethod -Uri 'https://api.github.com/repos/lgg/leaf/branches/main' -Headers $headers
+          if ($main.commit.sha -ne $env:PRODUCER_SHA) { throw 'Release blocked: validated production commit is no longer current main.' }
+          $run = Invoke-RestMethod -Uri "https://api.github.com/repos/lgg/leaf/actions/runs/$env:PRODUCER_RUN" -Headers $headers
+          if ($run.head_sha -ne $env:PRODUCER_SHA -or $run.head_branch -ne 'main' -or $run.event -ne 'push' -or $run.conclusion -ne 'success' -or $run.status -ne 'completed') {
+            throw 'Release blocked: exact main Windows producer is not successful.'
+          }
+          if ($run.path -notlike '*desktop-windows.yml*') { throw 'Release blocked: wrong producer workflow.' }
+          $arts = Invoke-RestMethod -Uri "https://api.github.com/repos/lgg/leaf/actions/runs/$env:PRODUCER_RUN/artifacts?per_page=100" -Headers $headers
+          foreach ($name in @('leaf-windows-user-setup','leaf-windows-portable-smoke-test')) {
+            $valid = @($arts.artifacts | Where-Object { $_.name -eq $name -and -not $_.expired -and $_.size_in_bytes -gt 1024 })
+            if ($valid.Count -ne 1) { throw 'Release blocked: required exact-commit artifact is absent or ambiguous.' }
+          }
+          if (-not (Get-Command curl.exe -ErrorAction SilentlyContinue)) {
+            throw 'curl.exe is required for bounded upload retry; no tools will be installed.'
+          }
+          Write-Output 'Successful exact-commit Windows CI and both binaries verified.'
+
+      - name: Fetch validated portable ZIP
+        uses: actions/download-artifact@v4
+        with:
+          name: leaf-windows-portable-smoke-test
+          run-id: 44889607910
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: release-input/portable
+
+      - name: Fetch validated Setup EXE
+        uses: actions/download-artifact@v4
+        with:
+          name: leaf-windows-user-setup
+          run-id: 44889607910
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: release-input/setup
+
+      - name: Validate binaries, create SHA-256 file and finish draft using curl.exe
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PRODUCER_SHA: c5a854457147acac783888f3319f216940822702
+          TAG: v1.10.0-lgg.1-windows-rc.1
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $headers = @{Authorization="Bearer $env:GH_TOKEN"; Accept='application/vnd.github+json'; 'X-GitHub-Api-Version'='2022-11-28'}
+          $portable = @(Get-ChildItem 'release-input/portable' -File -Filter '*.zip')
+          $setup = @(Get-ChildItem 'release-input/setup' -File -Filter '*.exe')
+          if ($portable.Count -ne 1 -or $setup.Count -ne 1 -or $portable[0].Length -lt 1024 -or $setup[0].Length -lt 1024) {
+            throw 'Release blocked: missing or ambiguous Windows packages.'
+          }
+          Add-Type -AssemblyName System.IO.Compression.FileSystem
+          $zip = [System.IO.Compression.ZipFile]::OpenRead($portable[0].FullName)
+          try {
+            if ($zip.Entries.Count -ne 1 -or $zip.Entries[0].FullName -ne 'leaf-desktop.exe' -or $zip.Entries[0].Length -lt 1024) {
+              throw 'Release blocked: portable package contents invalid.'
+            }
+          } finally { $zip.Dispose() }
+          $verify = Start-Process -FilePath $setup[0].FullName -ArgumentList '/verify' -Wait -NoNewWindow -PassThru
+          if ($verify.ExitCode -ne 0) { throw 'Release blocked: Setup embedded payload SHA-256 failed.' }
+          New-Item -ItemType Directory -Path 'release-assets' -Force | Out-Null
+          Copy-Item -LiteralPath $portable[0].FullName -Destination 'release-assets/Leaf-Windows-10-11-x64-Portable.zip'
+          Copy-Item -LiteralPath $setup[0].FullName -Destination 'release-assets/Leaf-Windows-10-11-x64-Setup.exe'
+          $lines = @(Get-ChildItem release-assets -File | Sort-Object Name | ForEach-Object {
+            (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant() + '  ' + $_.Name
+          })
+          if ($lines.Count -ne 2) { throw 'Release blocked: expected exactly two packages.' }
+          [IO.File]::WriteAllLines((Join-Path (Get-Location) 'release-assets/SHA256SUMS.txt'), [string[]]$lines)
+
+          # Draft releases cannot always be fetched by tag; find them in the release list.
+          $releaseList = Invoke-RestMethod -Uri 'https://api.github.com/repos/lgg/leaf/releases?per_page=100' -Headers $headers
+          $matches = @($releaseList | Where-Object { $_.tag_name -eq $env:TAG })
+          if ($matches.Count -ne 1) { throw 'Cannot find exactly one existing Windows release draft.' }
+          $release = $matches[0]
+          if ($release.target_commitish -ne $env:PRODUCER_SHA) { throw 'Release source commit changed unexpectedly.' }
+          $expected = @('Leaf-Windows-10-11-x64-Portable.zip','Leaf-Windows-10-11-x64-Setup.exe','SHA256SUMS.txt')
+          if ($release.draft -eq $false) {
+            $present = @($release.assets | ForEach-Object { $_.name })
+            foreach ($item in $expected) { if ($present -notcontains $item) { throw 'Published release is missing an asset.' } }
+            Write-Output 'Complete Windows release was already published; no modification necessary.'
+            exit 0
+          }
+          $uploadBase = $release.upload_url -replace '\{\?name,label\}$',''
+          if (-not $uploadBase.StartsWith('https://uploads.github.com/')) { throw 'Release upload endpoint is not recognized.' }
+          foreach ($name in $expected) {
+            $file = Get-Item -LiteralPath (Join-Path 'release-assets' $name)
+            $existing = @($release.assets | Where-Object { $_.name -eq $name })
+            if ($existing.Count -gt 1) { throw 'Conflicting duplicate release assets.' }
+            if ($existing.Count -eq 1) {
+              if ($existing[0].state -ne 'uploaded' -or $existing[0].size -ne $file.Length) { throw 'Existing release asset is incomplete.' }
+              continue
+            }
+            $url = $uploadBase + '?name=' + [Uri]::EscapeDataString($name)
+            $responseFile = Join-Path $env:RUNNER_TEMP 'leaf-release-upload-response.json'
+            $errorFile = Join-Path $env:RUNNER_TEMP 'leaf-release-upload-stderr.log'
+            # Use existing Windows curl, never install a CLI. Bound each attempt
+            # and store raw network diagnostics privately on the runner.
+            $code = & curl.exe --silent --show-error --fail --connect-timeout 10 --max-time 90 --retry 1 --request POST --header "Authorization: Bearer $env:GH_TOKEN" --header 'Accept: application/vnd.github+json' --header 'Content-Type: application/octet-stream' --data-binary ("@" + $file.FullName) --output $responseFile --write-out '%{http_code}' $url 2> $errorFile
+            if ($LASTEXITCODE -ne 0 -or "$code" -ne '201') {
+              throw 'Release asset upload failed or timed out; check outbound HTTPS access to uploads.github.com on the runner.'
+            }
+            $uploaded = Get-Content -LiteralPath $responseFile -Raw | ConvertFrom-Json
+            if ($uploaded.name -ne $name -or $uploaded.size -ne $file.Length -or $uploaded.state -ne 'uploaded') {
+              throw 'Release asset confirmation failed.'
+            }
+            Write-Output "Confirmed upload: $name"
+            $release = Invoke-RestMethod -Uri "https://api.github.com/repos/lgg/leaf/releases/$($release.id)" -Headers $headers
+          }
+          $release = Invoke-RestMethod -Uri "https://api.github.com/repos/lgg/leaf/releases/$($release.id)" -Headers $headers
+          $actual = @($release.assets | Where-Object { $_.state -eq 'uploaded' -and $_.size -gt 0 })
+          if ($actual.Count -ne 3) { throw 'Release blocked: exactly three uploaded assets are required.' }
+          foreach ($name in $expected) { if (@($actual | Where-Object { $_.name -eq $name }).Count -ne 1) { throw 'Release asset inventory does not match.' } }
+          $published = Invoke-RestMethod -Method Patch -Uri "https://api.github.com/repos/lgg/leaf/releases/$($release.id)" -Headers $headers -Body (@{draft=$false; prerelease=$true} | ConvertTo-Json) -ContentType 'application/json'
+          if ($published.draft -ne $false -or $published.prerelease -ne $true) { throw 'Release publication could not be verified.' }
+          Write-Output 'Windows 10/11 GitHub prerelease published with two executable packages and SHA256SUMS.'
