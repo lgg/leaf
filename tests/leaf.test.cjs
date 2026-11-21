@@ -827,7 +827,7 @@ test('focus-mode top bar auto-hide is saved independently and reveals document t
   assert.ok(html.includes('id="chk-focus-header-autohide"'));
   assert.ok(html.includes('body.focus-mode.focus-header-autohide #header'));
   assert.ok(html.includes('body.focus-mode.focus-header-autohide.toolbar-peek #header'));
-  assert.ok(html.includes('body.focus-mode #tab-bar { display: flex;'));
+  assert.ok(html.includes('body.focus-mode #tab-bar, body.focus-mode.tabbar-faded #tab-bar { display: flex;'));
   assert.ok(!html.includes('body.focus-mode #tab-bar { display: none; }'));
   assert.ok(js.includes('focusHeaderAutohide: focusHeaderAutohideEnabled'));
   assert.ok(js.includes('if (s.focusHeaderAutohide === true)'));
