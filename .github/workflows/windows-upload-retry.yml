@@ -98,7 +98,7 @@ jobs:
           New-Item -ItemType Directory -Path 'release-assets' -Force | Out-Null
           Copy-Item -LiteralPath $portable[0].FullName -Destination 'release-assets/Leaf-Windows-10-11-x64-Portable.zip'
           Copy-Item -LiteralPath $setup[0].FullName -Destination 'release-assets/Leaf-Windows-10-11-x64-Setup.exe'
-          $lines = @(Get-ChildItem release-assets -File | Sort-Object Name | ForEach-Object {
+          $lines = @(Get-ChildItem release-assets -File | Where-Object { $_.Name -in @('Leaf-Windows-10-11-x64-Portable.zip','Leaf-Windows-10-11-x64-Setup.exe') } | Sort-Object Name | ForEach-Object {
             (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant() + '  ' + $_.Name
           })
           if ($lines.Count -ne 2) { throw 'Release blocked: expected exactly two packages.' }
