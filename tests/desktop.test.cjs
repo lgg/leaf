@@ -527,3 +527,4 @@ test('Windows GUI acceptance fixture commands never overwrite edited or non-fixt
     assert.equal(fs.readFileSync(path.join(nonFixture,'04-external-conflict.md'),'utf8'), 'DO NOT TOUCH');
   } finally { fs.rmSync(parent, {recursive: true, force: true}); }
 });
+

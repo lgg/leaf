@@ -1,0 +1,71 @@
+name: Leaf desktop Linux x64 — self-hosted
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  linux-packages:
+    if: github.repository == 'lgg/leaf' && github.ref == 'refs/heads/main'
+    runs-on: [self-hosted, leaf-linux-ci, Linux, X64]
+    timeout-minutes: 120
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Protect runner directory privacy
+        run: |
+          for key in GITHUB_WORKSPACE RUNNER_WORKSPACE RUNNER_TEMP HOME; do
+            value="${!key:-}"
+            if [ -n "$value" ]; then echo "::add-mask::$value"; fi
+          done
+
+      - name: Require preinstalled Linux build tools and WebKitGTK
+        run: |
+          set -euo pipefail
+          for tool in git node cargo rustc cargo-tauri dpkg-deb pkg-config; do
+            command -v "$tool" >/dev/null || { echo "::error::Missing preinstalled $tool; no installation attempted"; exit 1; }
+          done
+          pkg-config --exists webkit2gtk-4.1 || { echo "::error::Missing preinstalled WebKitGTK 4.1 development headers"; exit 1; }
+          echo "Preinstalled build dependencies verified"
+
+      - name: Fetch exact trusted commit
+        run: |
+          set -euo pipefail
+          git init -q
+          git remote get-url origin >/dev/null 2>&1 || git remote add origin https://github.com/lgg/leaf.git
+          git fetch -q --depth=1 origin "$GITHUB_SHA"
+          git checkout -q --detach FETCH_HEAD
+
+      - name: Test and stage offline frontend
+        run: |
+          set -euo pipefail
+          node --test tests/leaf.test.cjs tests/desktop.test.cjs tests/distribution.test.cjs > "$RUNNER_TEMP/leaf-node-tests.log" 2>&1 || { echo "::error::JavaScript regression tests failed; diagnostics remain on runner"; exit 1; }
+          node desktop/stage.cjs > "$RUNNER_TEMP/leaf-stage.log" 2>&1 || { echo "::error::Staging failed"; exit 1; }
+          cargo test --manifest-path src-tauri/Cargo.toml > "$RUNNER_TEMP/leaf-rust-tests.log" 2>&1 || { echo "::error::Rust tests failed; diagnostics remain on runner"; exit 1; }
+          echo "JavaScript and Rust checks passed"
+
+      - name: Build Debian and AppImage without installing system tools
+        run: |
+          set -euo pipefail
+          # Tauri's AppImage bundler may fetch helper assets into its cache.
+          # Run this manually only on a runner where such caching is approved.
+          cargo tauri build --bundles deb,appimage --config src-tauri/tauri.linux.conf.json > "$RUNNER_TEMP/leaf-linux-bundle.log" 2>&1 || { echo "::error::Linux packaging failed; diagnostics remain on runner"; exit 1; }
+          mkdir -p release-assets
+          deb=$(find src-tauri/target/release/bundle/deb -maxdepth 1 -name '*.deb' -type f | head -n 1)
+          appimage=$(find src-tauri/target/release/bundle/appimage -maxdepth 1 -name '*.AppImage' -type f | head -n 1)
+          [ -f "$deb" ] && [ -f "$appimage" ] || { echo "::error::Linux packages missing"; exit 1; }
+          cp "$deb" release-assets/Leaf-linux-x64.deb
+          cp "$appimage" release-assets/Leaf-linux-x64.AppImage
+          sha256sum release-assets/* | sed -E 's@  .*@  [package filename redacted]@'
+          echo "Linux packages created"
+
+      - name: Save Linux release candidates
+        uses: actions/upload-artifact@v4
+        with:
+          name: leaf-linux-x64-release-candidate
+          path: release-assets/*
+          if-no-files-found: error
+          retention-days: 7

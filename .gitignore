@@ -10,3 +10,7 @@
 
 # Synthetic Windows GUI acceptance fixtures (never commit test drafts)
 /desktop/acceptance-workspace/
+
+# Generated macOS application icon and iconset
+/src-tauri/icons/icon.icns
+/src-tauri/icons/Leaf.iconset/
