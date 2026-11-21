@@ -26,7 +26,10 @@ function file(dir, name) { return path.join(dir, name); }
 function requireWorkspace(dir) {
   const entry = fs.lstatSync(dir);
   if (!entry.isDirectory() || entry.isSymbolicLink()) throw new Error('Fixture workspace must be a real directory.');
-  const marker = JSON.parse(fs.readFileSync(file(dir, MARKER_NAME), 'utf8'));
+  const markerPath = file(dir, MARKER_NAME);
+  const info = fs.lstatSync(markerPath);
+  if (!info.isFile() || info.isSymbolicLink()) throw new Error('Invalid synthetic workspace marker.');
+  const marker = JSON.parse(fs.readFileSync(markerPath, 'utf8'));
   if (marker?.id !== MARKER) throw new Error('Not a Leaf synthetic acceptance workspace.');
 }
 function createFixtures(dir = DEFAULT_WORKSPACE) {
@@ -58,12 +61,26 @@ function simulateReopenRefresh(dir = DEFAULT_WORKSPACE) {
 function simulateMissingFile(dir = DEFAULT_WORKSPACE) {
   const source = ensureOriginal(dir, '06-missing-on-restart.md');
   const destination = file(dir, MOVED);
-  if (fs.existsSync(destination)) throw new Error('Moved fixture already exists; no overwrite attempted.');
+  // existsSync follows symlinks: it would miss a broken link and may allow
+  // rename() to overwrite it on some platforms. lstat guards all entries.
+  try {
+    fs.lstatSync(destination);
+    throw new Error('Moved fixture already exists; no overwrite attempted.');
+  } catch (error) {
+    if (error.code !== 'ENOENT') throw error;
+  }
   fs.renameSync(source, destination);
 }
 function verifyState(dir = DEFAULT_WORKSPACE) {
   requireWorkspace(dir);
-  const read = name => { try { return fs.readFileSync(file(dir, name)); } catch { return null; } };
+  const read = name => {
+    try {
+      const target = file(dir, name);
+      const info = fs.lstatSync(target);
+      if (!info.isFile() || info.isSymbolicLink()) return null;
+      return fs.readFileSync(target);
+    } catch { return null; }
+  };
   const same = (name, expected) => read(name)?.equals(Buffer.from(expected,'utf8')) === true;
   const crlf = read('02-crlf.md');
   return {
