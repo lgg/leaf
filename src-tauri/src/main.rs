@@ -7,7 +7,7 @@ use std::{
     fs,
     io::{Read, Write},
     path::{Path, PathBuf},
-    sync::Mutex,
+    sync::{atomic::{AtomicBool, Ordering}, Mutex},
 };
 use tauri::{Manager, State};
 use tauri_plugin_dialog::DialogExt;
@@ -20,6 +20,8 @@ struct DesktopState {
     dropped: Mutex<HashSet<String>>,
     // Prevent overlapping Save calls from checking the same disk revision.
     write_guard: Mutex<()>,
+    // A corrupt existing recovery session must never be replaced by a blank one.
+    session_restore_failed: AtomicBool,
 }
 
 #[derive(Clone, Serialize)]
@@ -169,11 +171,22 @@ fn read_session_bounded(reader: impl Read) -> Option<Session> {
     serde_json::from_slice::<Session>(&bytes).ok()
 }
 
-fn read_session(app: &tauri::AppHandle) -> Session {
-    session_file(app).ok()
-        .and_then(|path| fs::File::open(path).ok())
-        .and_then(read_session_bounded)
-        .unwrap_or_default()
+fn read_session(app: &tauri::AppHandle) -> Result<Session, String> {
+    let path = session_file(app)?;
+    match fs::File::open(path) {
+        Ok(file) => read_session_bounded(file).ok_or_else(|| {
+            "Recovery session is unreadable or exceeds 64 MB. The original file is preserved.".into()
+        }),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(Session::default()),
+        Err(_) => Err("Recovery session cannot be accessed. The original file is preserved.".into()),
+    }
+}
+
+fn protect_failed_restore(state: &DesktopState, result: Result<Session, String>) -> Result<Session, String> {
+    if result.is_err() {
+        state.session_restore_failed.store(true, Ordering::SeqCst);
+    }
+    result
 }
 
 fn atomic_write(path: &Path, bytes: &[u8]) -> Result<(), String> {
@@ -390,7 +403,7 @@ async fn desktop_export_zip(app: tauri::AppHandle, bytes: Vec<u8>) -> Result<boo
 
 #[tauri::command]
 fn desktop_restore(app: tauri::AppHandle, state: State<'_, DesktopState>) -> Result<Restored, String> {
-    let session = read_session(&app);
+    let session = protect_failed_restore(&state, read_session(&app))?;
     let mut tabs = Vec::new();
     for saved in session.tabs.into_iter().take(60) {
         if let Some(ref path) = saved.path {
@@ -423,6 +436,9 @@ fn desktop_save_session(
     state: State<'_, DesktopState>,
     session: Session,
 ) -> Result<(), String> {
+    if state.session_restore_failed.load(Ordering::SeqCst) {
+        return Err("Original recovery session must be preserved. Save drafts with Save As; repair the session separately.".into());
+    }
     if session.tabs.len() > 60 { return Err("Too many open tabs for session recovery.".into()); }
     {
         let allowed = state.authorized.lock().map_err(|_| "File registry unavailable.".to_string())?;
@@ -534,6 +550,15 @@ mod tests {
     fn digest_changes_when_content_changes() {
         assert_ne!(digest(b"draft"), digest(b"edited"));
     }
+    #[test]
+    fn failed_session_restore_prevents_overwriting_the_unreadable_original() {
+        let state = DesktopState::default();
+        assert!(!state.session_restore_failed.load(Ordering::SeqCst));
+        let failed = protect_failed_restore(&state, Err("corrupt session".into()));
+        assert!(failed.is_err());
+        assert!(state.session_restore_failed.load(Ordering::SeqCst));
+    }
+
     #[test]
     fn session_restoration_is_bounded_even_for_a_never_ending_reader() {
         // A file may grow after metadata is inspected; even a reader that

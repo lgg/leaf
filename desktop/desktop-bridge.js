@@ -9,6 +9,7 @@
   let pendingSession = Promise.resolve();
   let saveQueue = Promise.resolve();
   let closing = false;
+  let sessionRecoveryBlocked = false;
 
   function current() { return getActiveTab(); }
   function safeError(error) {
@@ -32,7 +33,7 @@
     };
   }
   function storeSession() {
-    if (restoring) return pendingSession;
+    if (restoring || sessionRecoveryBlocked) return pendingSession;
     const snapshot = sessionSnapshot();
     pendingSession = pendingSession.catch(() => {}).then(() =>
       invoke('desktop_save_session', {session: snapshot})
@@ -41,12 +42,22 @@
     return pendingSession;
   }
   function scheduleSession() {
-    if (restoring) return;
+    if (restoring || sessionRecoveryBlocked) return;
     clearTimeout(sessionTimer);
     sessionTimer = setTimeout(storeSession, 450);
   }
   async function flushSession() {
     clearTimeout(sessionTimer);
+    if (sessionRecoveryBlocked) {
+      saveActiveTabState();
+      // Without a valid original recovery session, desktop_save_session must
+      // never create a replacement. Only permit exit after drafts are saved.
+      if (tabs.some(tab => !tab.readonly &&
+          (tab.dirty || (!tab.nativePath && tab.content.trim())))) {
+        throw new Error('Recovery storage is blocked. Use Save As for every unsaved draft before closing.');
+      }
+      return;
+    }
     await storeSession();
   }
 
@@ -304,10 +315,11 @@
       }
       for (const doc of data.launchFiles || []) showDocument(doc);
     } catch (error) {
-      workspaceNotice('Could not restore native files. Existing browser drafts remain available. ' + safeError(error));
+      sessionRecoveryBlocked = true;
+      workspaceNotice('Native recovery cannot be read. The original recovery file has not been overwritten. Save As any new drafts before closing. ' + safeError(error));
     } finally {
       restoring = false;
-      scheduleSession();
+      if (!sessionRecoveryBlocked) scheduleSession();
     }
   }
 
