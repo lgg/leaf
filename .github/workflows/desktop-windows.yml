@@ -3,8 +3,13 @@ name: Leaf desktop Windows — self-hosted
 on:
   push:
     # Build the exact merged production tree, not only a pre-merge preview.
-    branches: ['main', 'desktop/**']
+    branches: ['main', 'desktop/**', 'release/**']
   workflow_dispatch:
+    inputs:
+      build_installer:
+        description: 'Produce an unsigned NSIS installer only with already-provisioned tools'
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -54,7 +59,7 @@ jobs:
 
       - name: Run JavaScript regression tests and stage desktop
         run: |
-          node --test --test-reporter=tap tests/leaf.test.cjs tests/desktop.test.cjs *> "$env:RUNNER_TEMP/leaf-node-tests.log"
+          node --test --test-reporter=tap tests/leaf.test.cjs tests/desktop.test.cjs tests/distribution.test.cjs *> "$env:RUNNER_TEMP/leaf-node-tests.log"
           if ($LASTEXITCODE -ne 0) {
             # Expose only test names (not assertions, machine paths or stack traces).
             Get-Content "$env:RUNNER_TEMP/leaf-node-tests.log" |
@@ -217,6 +222,33 @@ jobs:
           if (-not $cli) { Write-Output "::warning::Tauri CLI is not preinstalled." }
           if (-not $nsis) { Write-Output "::warning::NSIS MakeNSIS is not available in PATH." }
           Write-Output "NSIS packaging intentionally disabled until its existing toolchain is explicitly validated: Tauri may auto-download bundler components."
+
+      - name: Bundle an unsigned NSIS installer only on explicit dispatch
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.build_installer }}
+        run: |
+          foreach ($tool in @('cargo-tauri','makensis.exe')) {
+            if (-not (Get-Command $tool -ErrorAction SilentlyContinue)) {
+              throw "Installer blocked: preinstalled $tool is required. No installation attempted."
+            }
+          }
+          node desktop/check-binary.cjs src-tauri/target/release/leaf-desktop.exe
+          if ($LASTEXITCODE -ne 0) { throw "Refusing to package a binary that failed its privacy gate." }
+          # Tauri bundler may fetch helper assets when the local cache is incomplete;
+          # invocation is opt-in, never part of normal pushes.
+          & cargo tauri bundle --bundles nsis *> "$env:RUNNER_TEMP/leaf-nsis-bundle.log"
+          if ($LASTEXITCODE -ne 0) { throw "NSIS bundling failed. Details retained on the runner only." }
+          $installers = @(Get-ChildItem 'src-tauri/target/release/bundle/nsis/*.exe' -ErrorAction SilentlyContinue)
+          if ($installers.Count -ne 1) { throw "Expected exactly one NSIS installer." }
+          Write-Output "Unsigned NSIS installer created."
+
+      - name: Retain unsigned NSIS installer for acceptance
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.build_installer }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: leaf-windows-nsis-unsigned
+          path: src-tauri/target/release/bundle/nsis/*.exe
+          if-no-files-found: error
+          retention-days: 7
 
       - name: Retain Windows binary for smoke testing (not a release)
         uses: actions/upload-artifact@v4

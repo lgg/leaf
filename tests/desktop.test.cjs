@@ -214,7 +214,7 @@ test('binary privacy diagnostic labels reveal no raw host folders', () => {
 
 test('merged main and trusted desktop branches use the privacy-gated self-hosted Windows runner', () => {
   const yaml = fs.readFileSync(path.join(root, '.github/workflows/desktop-windows.yml'), 'utf8').replace(/\r\n/g, '\n');
-  assert.ok(yaml.includes("branches: ['main', 'desktop/**']"));
+  assert.ok(yaml.includes("branches: ['main', 'desktop/**', 'release/**']"));
   assert.ok(yaml.includes('workflow_dispatch:'));
   assert.ok(yaml.includes('runs-on: [self-hosted, leaf-runner-ci]'));
   assert.ok(yaml.includes('permissions:' + String.fromCharCode(10) + '  contents: read'));
@@ -499,3 +499,32 @@ test('a failed desktop restore blocks native session writes and prevents closing
   await clean();
   assert.equal(attempts,0,'unreadable original recovery file must not be overwritten');
 });
+
+test('Windows GUI acceptance fixture commands never overwrite edited or non-fixture documents', () => {
+  const os = require('node:os');
+  const fixtures = require('../desktop/acceptance-fixtures.cjs');
+  const parent = fs.mkdtempSync(path.join(os.tmpdir(), 'leaf-qa-'));
+  const dir = path.join(parent, 'synthetic');
+  try {
+    fixtures.createFixtures(dir);
+    assert.throws(() => fixtures.createFixtures(dir), /EEXIST/);
+    assert.ok(fs.readFileSync(path.join(dir, '02-crlf.md'), 'utf8').includes('\r\n'));
+    assert.equal(fixtures.verifyState(dir).originalSaveAsUnchanged, true);
+    assert.equal(fixtures.verifyState(dir).conflictSimulated, false);
+    fixtures.simulateExternalEdit(dir);
+    assert.equal(fixtures.verifyState(dir).conflictSimulated, true);
+    assert.throws(() => fixtures.simulateExternalEdit(dir), /Refusing to overwrite/);
+    fixtures.simulateReopenRefresh(dir);
+    fixtures.simulateMissingFile(dir);
+    assert.deepEqual(fixtures.verifyState(dir), {
+      originalSaveAsUnchanged: true, crlfPreserved: true,
+      conflictSimulated: true, cleanReopenSimulated: true, missingFileSimulated: true
+    });
+    const nonFixture = path.join(parent, 'personal');
+    fs.mkdirSync(nonFixture);
+    fs.writeFileSync(path.join(nonFixture,'04-external-conflict.md'), 'DO NOT TOUCH');
+    assert.throws(() => fixtures.simulateExternalEdit(nonFixture));
+    assert.equal(fs.readFileSync(path.join(nonFixture,'04-external-conflict.md'),'utf8'), 'DO NOT TOUCH');
+  } finally { fs.rmSync(parent, {recursive: true, force: true}); }
+});
+

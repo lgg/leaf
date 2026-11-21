@@ -1,0 +1,86 @@
+name: Leaf desktop macOS universal — self-hosted
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  macos-packages:
+    if: github.repository == 'lgg/leaf' && github.ref == 'refs/heads/main'
+    runs-on: [self-hosted, leaf-macos-ci, macOS]
+    timeout-minutes: 120
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Mask local work directories
+        run: |
+          for key in GITHUB_WORKSPACE RUNNER_WORKSPACE RUNNER_TEMP HOME; do
+            value="${!key:-}"
+            if [ -n "$value" ]; then echo "::add-mask::$value"; fi
+          done
+
+      - name: Require already-installed macOS build tools
+        run: |
+          set -euo pipefail
+          for tool in git node cargo rustc cargo-tauri sips iconutil lipo tar; do
+            command -v "$tool" >/dev/null || { echo "::error::Missing preinstalled $tool; no installation attempted"; exit 1; }
+          done
+          for target in aarch64-apple-darwin x86_64-apple-darwin; do
+            rustup target list --installed | grep -Fxq "$target" || { echo "::error::Rust target $target is not preinstalled"; exit 1; }
+          done
+
+      - name: Fetch exact trusted main commit
+        run: |
+          set -euo pipefail
+          git init -q
+          git remote get-url origin >/dev/null 2>&1 || git remote add origin https://github.com/lgg/leaf.git
+          git fetch -q --depth=1 origin "$GITHUB_SHA"
+          git checkout -q --detach FETCH_HEAD
+
+      - name: Validate editor and Rust source
+        run: |
+          set -euo pipefail
+          node --test tests/leaf.test.cjs tests/desktop.test.cjs tests/distribution.test.cjs > "$RUNNER_TEMP/leaf-node-tests.log" 2>&1 || { echo "::error::JavaScript tests failed"; exit 1; }
+          node desktop/stage.cjs > "$RUNNER_TEMP/leaf-stage.log" 2>&1 || { echo "::error::Staging failed"; exit 1; }
+          cargo test --manifest-path src-tauri/Cargo.toml > "$RUNNER_TEMP/leaf-rust-tests.log" 2>&1 || { echo "::error::Rust tests failed"; exit 1; }
+
+      - name: Generate native macOS icon with built-in Apple tools
+        run: |
+          set -euo pipefail
+          mkdir -p src-tauri/icons/Leaf.iconset
+          src=leaf-icon-512.png
+          for size in 16 32 128 256; do
+            sips -z "$size" "$size" "$src" --out "src-tauri/icons/Leaf.iconset/icon_${size}x${size}.png" >/dev/null
+            double=$((size*2))
+            sips -z "$double" "$double" "$src" --out "src-tauri/icons/Leaf.iconset/icon_${size}x${size}@2x.png" >/dev/null
+          done
+          cp "$src" src-tauri/icons/Leaf.iconset/icon_512x512.png
+          cp "$src" src-tauri/icons/Leaf.iconset/icon_256x256@2x.png
+          iconutil -c icns src-tauri/icons/Leaf.iconset -o src-tauri/icons/icon.icns
+
+      - name: Build universal Apple Silicon and Intel app and DMG
+        run: |
+          set -euo pipefail
+          # Uses ad-hoc Apple signature ("-"), not an identity certificate or notarization.
+          cargo tauri build --target universal-apple-darwin --bundles app,dmg --config src-tauri/tauri.macos.conf.json > "$RUNNER_TEMP/leaf-mac-bundle.log" 2>&1 || { echo "::error::macOS packaging failed; diagnostics remain on runner"; exit 1; }
+          root=src-tauri/target/universal-apple-darwin/release/bundle
+          test -d "$root/macos/Leaf.app" || { echo "::error::Missing universal .app"; exit 1; }
+          appbin="$root/macos/Leaf.app/Contents/MacOS/leaf-desktop"
+          lipo -verify_arch aarch64 x86_64 "$appbin" || { echo "::error::Universal app is missing a CPU architecture"; exit 1; }
+          dmg=$(find "$root/dmg" -maxdepth 1 -type f -name '*.dmg' | head -n 1)
+          test -f "$dmg" || { echo "::error::Missing DMG"; exit 1; }
+          mkdir -p release-assets
+          tar -czf release-assets/Leaf-macos-universal-app.tar.gz -C "$root/macos" Leaf.app
+          cp "$dmg" release-assets/Leaf-macos-universal.dmg
+          echo "Universal macOS application and DMG created"
+
+      - name: Save unsigned macOS release candidates
+        uses: actions/upload-artifact@v4
+        with:
+          name: leaf-macos-universal-release-candidate
+          path: release-assets/*
+          if-no-files-found: error
+          retention-days: 7
