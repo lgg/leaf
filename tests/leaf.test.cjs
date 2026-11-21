@@ -197,7 +197,7 @@ test('actual localStorage settings round-trip restores font, theme and hidden UI
     setItem:(key,value) => {data[key]=value}
   };
   const ids = [
-    'theme-select','settings-font-select','settings-font-size-select',
+    'theme-select','settings-font-select','settings-font-size-input','settings-font-size-slider','chk-focus-header-autohide',
     'chk-welcome','color-bg','color-text','color-accent',
     'hex-bg','hex-text','hex-accent',
     'chk-show-words','chk-show-placeholder','chk-show-chars',
@@ -216,13 +216,18 @@ test('actual localStorage settings round-trip restores font, theme and hidden UI
   const document = {getElementById:id=>nodes[id],documentElement:root,body};
   const init = "const SETTINGS_KEY='leaf-editor-settings',localStorage=deps.storage,document=deps.document;" +
     "let autohideEnabled=false,tabBarPinned=false,scrollSynced=true,smartPunctEnabled=false;" +
+    "let appliedFontSize=22,focusHeaderAutohideEnabled=true;" +
+    "function applyFontSize(v){const n=Number(v);appliedFontSize=n;document.getElementById('settings-font-size-input').value=String(n);document.getElementById('settings-font-size-slider').value=String(Math.max(6,Math.min(128,n)));document.documentElement.style.setProperty('--font-size',n+'px');return true;}" +
+    "function applyFocusHeaderAutohide(){focusHeaderAutohideEnabled=document.getElementById('chk-focus-header-autohide').checked;}" +
     "function workspaceNotice(){} function applyCustomColors(){}" +
     "function updatePinIcon(){} function updateSyncIcon(){}" +
     "function applyStatusBarVisibility(){} function syncThemeUI(){} function applyMobilePreferences(){}";
   const settings = new Function('deps',init+source+';return {saveSettings,loadSettings};')({storage,document});
   nodes['theme-select'].value='black';
   nodes['settings-font-select'].value="'Open Sans', Arial, sans-serif";
-  nodes['settings-font-size-select'].value='22';
+  nodes['settings-font-size-input'].value='22';
+  nodes['settings-font-size-slider'].value='22';
+  nodes['chk-focus-header-autohide'].checked=true;
   nodes['chk-show-words'].checked=false;
   nodes['chk-show-placeholder'].checked=false;
   nodes['chk-show-chars'].checked=false;
@@ -236,7 +241,9 @@ test('actual localStorage settings round-trip restores font, theme and hidden UI
   assert.ok(data['leaf-editor-settings']);
   nodes['theme-select'].value='paper';
   nodes['settings-font-select'].value='Arial, Helvetica, sans-serif';
-  nodes['settings-font-size-select'].value='14';
+  nodes['settings-font-size-input'].value='14';
+  nodes['settings-font-size-slider'].value='14';
+  nodes['chk-focus-header-autohide'].checked=false;
   for (const id of ['chk-show-words','chk-show-placeholder','chk-show-chars',
     'chk-show-lines','chk-show-readtime','chk-show-cursor']) nodes[id].checked=true;
   nodes['chk-mobile-heading'].checked=false;
@@ -247,7 +254,10 @@ test('actual localStorage settings round-trip restores font, theme and hidden UI
   assert.equal(body.dataset.theme,'black');
   assert.equal(nodes['settings-font-select'].value,"'Open Sans', Arial, sans-serif");
   assert.equal(vars['--editor-font'],"'Open Sans', Arial, sans-serif");
-  assert.equal(nodes['settings-font-size-select'].value,'22');
+  assert.equal(nodes['settings-font-size-input'].value,'22');
+  assert.equal(nodes['settings-font-size-slider'].value,'22');
+  assert.equal(nodes['chk-focus-header-autohide'].checked,true);
+  assert.equal(vars['--font-size'],'22px');
   assert.equal(nodes['chk-show-words'].checked,false);
   assert.equal(nodes['chk-show-placeholder'].checked,false);
   assert.equal(nodes['chk-show-cursor'].checked,false);
@@ -347,7 +357,8 @@ test('all persisted settings keys are included in a saved preferences record', (
   const nodes=new Proxy({}, {get:(obj,key) => obj[key] || (obj[key]={value:'22',checked:false})});
   nodes['theme-select']={value:'black'};
   nodes['settings-font-select']={value:'Arial, Helvetica, sans-serif'};
-  nodes['settings-font-size-select']={value:'22'};
+  nodes['settings-font-size-input']={value:'22'};
+  nodes['chk-focus-header-autohide']={checked:true};
   nodes['color-bg']={value:'#010203'};
   nodes['color-text']={value:'#aabbcc'};
   nodes['color-accent']={value:'#334455'};
@@ -363,11 +374,12 @@ test('all persisted settings keys are included in a saved preferences record', (
   const prefix=
     "const SETTINGS_KEY='leaf-editor-settings',localStorage=deps.storage,document=deps.document;" +
     "let autohideEnabled=true,tabBarPinned=true,scrollSynced=false,smartPunctEnabled=true;" +
+    "let appliedFontSize=22,focusHeaderAutohideEnabled=true;" +
     "function workspaceNotice(){}";
   new Function('deps',prefix+source+';saveSettings();')({storage,document});
   const saved=JSON.parse(data['leaf-editor-settings']);
   const required=[
-    'theme','font','fontSize','autohide','tabPinned','showWelcome','crtEnabled',
+    'theme','font','fontSize','autohide','focusHeaderAutohide','tabPinned','showWelcome','crtEnabled',
     'scrollSynced','customBg','customText','customAccent','smartPunct',
     'showWords','showPlaceholder','showChars','showLines','showReadtime','showCursor',
     'mobileHeading','mobileStatus','mobileAutohide'
@@ -375,6 +387,8 @@ test('all persisted settings keys are included in a saved preferences record', (
   assert.equal(required.every(key => Object.prototype.hasOwnProperty.call(saved,key)),true);
   assert.equal(saved.theme,'black');
   assert.equal(saved.font,'Arial, Helvetica, sans-serif');
+  assert.equal(saved.fontSize,'22');
+  assert.equal(saved.focusHeaderAutohide,true);
   assert.equal(saved.customBg,'#010203');
   assert.equal(saved.autohide,true);
   assert.equal(saved.tabPinned,true);
@@ -431,14 +445,14 @@ test('valid custom HEX input saves the choice; invalid input does not', () => {
 
 test('GitHub Pages service worker prefers fresh HTML and keeps an offline fallback', () => {
   const sw=fs.readFileSync(path.join(__dirname,'..','sw.js'),'utf8');
-  assert.ok(sw.includes("const CACHE = 'leaf-lgg-v7'"));
+  assert.ok(sw.includes("const CACHE = 'leaf-lgg-v8'"));
   assert.ok(sw.includes("request.mode === 'navigate'"));
   assert.ok(sw.includes("fetch(request).then(response"));
   assert.ok(sw.includes("caches.match('./editor.html')"));
 });
 
 test('fork version matches README, changelog and visible About version', () => {
-  const version='1.10.0-lgg.1';
+  const version='1.10.1-lgg.1';
   const readme=fs.readFileSync(path.join(__dirname,'..','README.md'),'utf8').replace(/\r\n/g, '\n');
   const changelog=fs.readFileSync(path.join(__dirname,'..','CHANGELOG.md'),'utf8');
   assert.ok(html.includes('>v'+version+'</span>'));
@@ -782,4 +796,41 @@ test('Cancel on the discard prompt retains a dirty browser document', async () =
   assert.equal(prompts, 2);
   assert.equal(harness.getTabs().length, 1);
   assert.equal(harness.getTabs()[0].content, 'valuable draft');
+});
+
+
+test('file chooser uses the themed button and native WebView picker is hidden', () => {
+  assert.match(html, /id="btn-open"[^>]*>⬆ choose file<\/button>/);
+  assert.match(html, /id="file-open"[^>]*hidden[^>]*aria-hidden="true"/);
+  assert.match(html, /#file-open\[hidden\] \{ display: none !important; \}/);
+  assert.ok(js.includes("document.getElementById('file-open').click()"));
+  assert.ok(js.includes("if (window.leafDesktop) return window.leafDesktop.open()"));
+});
+
+test('font sizes use positive integers with no 128px input cap', () => {
+  const start = js.indexOf('function parseFontSize(');
+  const end = js.indexOf('function applyFontSize(', start);
+  assert.ok(start > 0 && end > start);
+  const parse = new Function(js.slice(start,end) + 'return parseFontSize;')();
+  for (const value of ['1','6','18','128','129','1000','65536']) assert.equal(parse(value),Number(value));
+  for (const value of ['', '0','-1','abc','12.5','1e3','Infinity','9007199254740992']) assert.equal(parse(value),null);
+  assert.ok(html.includes('id="settings-font-size-slider" type="range" min="6" max="128"'));
+  assert.ok(html.includes('id="settings-font-size-save"'));
+  assert.ok(html.includes('id="settings-font-size-input" type="text"'));
+  assert.ok(js.includes('String(Math.max(6, Math.min(128, size)))'));
+  assert.ok(js.includes('fontSize:     String(appliedFontSize)'));
+  assert.ok(js.includes('if (s.fontSize !== undefined) applyFontSize(s.fontSize, false)'));
+  assert.ok(!html.includes('settings-font-size-select'));
+});
+
+test('focus-mode top bar auto-hide is saved independently and reveals document tabs', () => {
+  assert.ok(html.includes('id="chk-focus-header-autohide"'));
+  assert.ok(html.includes('body.focus-mode.focus-header-autohide #header'));
+  assert.ok(html.includes('body.focus-mode.focus-header-autohide.toolbar-peek #header'));
+  assert.ok(html.includes('body.focus-mode #tab-bar, body.focus-mode.tabbar-faded #tab-bar { display: flex;'));
+  assert.ok(!html.includes('body.focus-mode #tab-bar { display: none; }'));
+  assert.ok(js.includes('focusHeaderAutohide: focusHeaderAutohideEnabled'));
+  assert.ok(js.includes('if (s.focusHeaderAutohide === true)'));
+  assert.ok(js.includes('if (inFocus && focusHeaderAutohideEnabled)'));
+  assert.ok(js.includes("document.getElementById('header').addEventListener('mouseleave'"));
 });

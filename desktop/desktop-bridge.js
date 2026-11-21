@@ -383,7 +383,7 @@
         } else {
           const payload = await response.json();
           const latest = String(payload.tag_name || '').replace(/^v/i, '');
-          const current = '1.10.0-lgg.1';
+          const current = '1.10.1-lgg.1';
           const nums = v => v.split(/[^0-9]+/).filter(Boolean).map(Number);
           const parts = nums(latest), base = nums(current);
           const newer = parts.some((n, i) => n > (base[i] || 0) &&

@@ -9,7 +9,7 @@ using System.Runtime.InteropServices;
 
 [assembly: AssemblyTitle("Leaf desktop Windows installer")]
 [assembly: AssemblyDescription("Leaf desktop user-scoped installer (Windows 10 and 11, x64)")]
-[assembly: AssemblyVersion("1.10.0.0")]
+[assembly: AssemblyVersion("1.10.1.0")]
 
 internal static class LeafWindowsSetup
 {
@@ -111,7 +111,7 @@ if (Test-Path -LiteralPath $dir) { Remove-Item -LiteralPath $dir -Force -ErrorAc
             {
                 if (key == null) throw new IOException("Cannot register uninstall");
                 key.SetValue("DisplayName", "Leaf desktop");
-                key.SetValue("DisplayVersion", "1.10.0");
+                key.SetValue("DisplayVersion", "1.10.1");
                 key.SetValue("Publisher", "lgg");
                 key.SetValue("InstallLocation", folder);
                 key.SetValue("DisplayIcon", exe);

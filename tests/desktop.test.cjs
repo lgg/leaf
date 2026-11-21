@@ -33,9 +33,9 @@ test('Tauri capabilities do not enable unrestricted file system APIs', () => {
 test('Tauri and web release identifiers are coherent', () => {
   const config = require('../src-tauri/tauri.conf.json');
   const cargo = fs.readFileSync(path.join(root, 'src-tauri', 'Cargo.toml'), 'utf8');
-  assert.equal(config.version, '1.10.0');
-  assert.match(cargo, /version = "1\.10\.0"/);
-  assert.match(fs.readFileSync(path.join(root, 'README.md'), 'utf8'), /1\.10\.0-lgg\.1/);
+  assert.equal(config.version, '1.10.1');
+  assert.match(cargo, /version = "1\.10\.1"/);
+  assert.match(fs.readFileSync(path.join(root, 'README.md'), 'utf8'), /1\.10\.1-lgg\.1/);
 });
 
 test('desktop stage creates offline assets without adding web-only service worker', () => {
