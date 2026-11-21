@@ -1493,7 +1493,7 @@ Leaf is a focused, offline-capable Markdown and plain-text editor. It runs as a 
 
 **[Open Leaf in your browser](https://lgg.github.io/leaf/editor.html)** · **[Desktop downloads and release notes](https://github.com/lgg/leaf/releases)** · [Source repository](https://github.com/lgg/leaf)
 
-> Desktop release assets appear on GitHub Releases only after the Windows build and functional checks pass. The desktop source may be ahead of published release downloads.
+> **Windows 10/11 x64 early-access release candidate:** Windows portable ZIP and user-scoped Setup EXE are published after successful automated Windows checks. Manual GUI acceptance is tracked separately; the downloads are unsigned prerelease builds.
 
 ## Web editor and mobile PWA
 
@@ -1518,7 +1518,7 @@ Leaf desktop uses the **same editor** with a small, separate Rust/Tauri layer. T
 - **Save As** (\`Ctrl+Shift+S\`) chooses a new destination with the native OS dialog.
 - Native saves preserve standard Windows CRLF line endings when the original file used CRLF.
 - An interrupted or failed save retains the unsaved editor text; a disk-conflict warning never silently overwrites external changes.
-- File associations register Markdown and plain text with the Windows installer. File paths passed at launch can be opened on startup.
+- The early-access Windows setup adds a Start menu shortcut and an Apps & features uninstall entry. It does not change default \`.md\` / \`.txt\` file associations; Tauri NSIS metadata supports associations when the full native installer toolchain is available. File paths passed at launch can be opened on startup.
 - Tabs, order, custom labels and per-document titles persist in local app settings. Unlike the web/PWA, desktop file text is not duplicated into browser localStorage; recovery drafts live in the native session. On restart, Leaf reads real files again from disk. Unsaved drafts can be recovered explicitly; missing files become recovery drafts that must be saved to a new location.
 - Drag and drop existing Markdown/text files onto the desktop window; only actual OS-dropped paths are authorized. Export all documents as a native ZIP file.
 - Check published GitHub releases from the desktop About panel on demand; review release notes and download manually. No forced updates.
@@ -1540,7 +1540,7 @@ cargo test --manifest-path src-tauri/Cargo.toml
 cargo build --release --manifest-path src-tauri/Cargo.toml
 \`\`\`
 
-The Windows executable is produced under the Rust target output (not committed). CI remaps local Rust/Cargo source directories and rejects generated executables that still expose user or runner paths (including UTF-16). A fail-closed, length-preserving sanitizer can redact **one** unambiguous Rust \`.rs\` source-location string from unsigned PE read-only data; it refuses ambiguous paths, executable code sections and signed files. The independent strict binary privacy scan must still pass after this step. Treat test artifacts as unaccepted previews until the manual Windows GUI checklist is complete. CI uses built-in Windows PowerShell to produce an additional portable ZIP — no installer dependencies are downloaded. NSIS installer creation is intentionally disabled until the complete existing NSIS/Tauri toolchain is verified, because Tauri may download missing bundler components. The desktop staging directory and generated Windows icon are ignored by Git.
+The Windows executable is produced under the Rust target output (not committed). CI remaps local Rust/Cargo source directories and rejects generated executables that still expose user or runner paths (including UTF-16). A fail-closed, length-preserving sanitizer can redact **one** unambiguous Rust \`.rs\` source-location string from unsigned PE read-only data; it refuses ambiguous paths, executable code sections and signed files. The independent strict binary privacy scan must still pass after this step. Treat test artifacts as unaccepted previews until the manual Windows GUI checklist is complete. CI uses built-in Windows PowerShell to produce a portable ZIP and a separate unsigned graphical installer compiled with the already-present .NET Framework C# compiler. The installer verifies an embedded SHA-256 fingerprint before copying the app into the user's local application data, adding a Start menu shortcut and registering user-scoped uninstall. Neither new system tools nor an administrative installation are required. Optional NSIS packaging remains blocked until the complete existing NSIS/Tauri toolchain is verified. The desktop staging directory and generated Windows icon are ignored by Git.
 
 Builds can download normal Cargo dependency crates during compilation; the workflow never installs or upgrades system software or toolchains. Cargo may need network access for a first build.
 
