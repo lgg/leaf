@@ -1,0 +1,184 @@
+name: Leaf desktop — gated multi-platform GitHub Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Version tag, e.g. v1.10.0-lgg.1'
+        type: string
+        required: true
+      windows_run:
+        description: 'Successful Windows installer + portable workflow run ID'
+        type: string
+        required: true
+      linux_run:
+        description: 'Successful Linux .deb + AppImage workflow run ID'
+        type: string
+        required: true
+      macos_run:
+        description: 'Successful universal macOS .app + .dmg workflow run ID'
+        type: string
+        required: true
+      publish:
+        description: 'Publish after manual acceptance issues are closed (otherwise draft)'
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  prepare-release:
+    if: github.repository == 'lgg/leaf' && github.ref == 'refs/heads/main'
+    runs-on: [self-hosted, leaf-runner-ci]
+    timeout-minutes: 45
+    defaults:
+      run:
+        shell: powershell
+    steps:
+      - name: Mask private runner folders
+        run: |
+          foreach ($key in @('GITHUB_WORKSPACE','RUNNER_WORKSPACE','RUNNER_TEMP','USERPROFILE','LOCALAPPDATA','APPDATA','TEMP','TMP')) {
+            $value = [Environment]::GetEnvironmentVariable($key)
+            if ($value -and $value.Length -gt 2) { Write-Output "::add-mask::$value" }
+          }
+
+      - name: Fetch exact trusted main commit
+        run: |
+          git init -q 2>$null
+          if ($LASTEXITCODE -ne 0) { throw "Git initialization failed." }
+          if (-not (git remote)) { git remote add origin https://github.com/lgg/leaf.git }
+          git fetch -q --depth=1 origin $env:GITHUB_SHA 2>$null
+          if ($LASTEXITCODE -ne 0) { throw "Git fetch failed." }
+          git checkout -q --detach FETCH_HEAD 2>$null
+          if ($LASTEXITCODE -ne 0) { throw "Checkout failed." }
+
+      - name: Validate tag, provenance and complete release matrix
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REQUESTED_TAG: ${{ inputs.tag }}
+          WIN_RUN: ${{ inputs.windows_run }}
+          LINUX_RUN: ${{ inputs.linux_run }}
+          MAC_RUN: ${{ inputs.macos_run }}
+          PUBLISH: ${{ inputs.publish }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $headers = @{Authorization="Bearer $env:GH_TOKEN"; Accept='application/vnd.github+json'; 'X-GitHub-Api-Version'='2022-11-28'}
+          $config = Get-Content src-tauri/tauri.conf.json -Raw | ConvertFrom-Json
+          if ($env:REQUESTED_TAG -ne "v$($config.version)-lgg.1") { throw "Tag must match the checked-out desktop version and fork suffix." }
+          if ($env:REQUESTED_TAG -notmatch '^v[0-9]+\.[0-9]+\.[0-9]+-lgg\.1$') { throw "Invalid tag format." }
+          $checks = @(
+            @{id=$env:WIN_RUN; workflow='desktop-windows.yml'; artifacts=@('leaf-windows-portable-smoke-test', 'leaf-windows-nsis-unsigned')},
+            @{id=$env:LINUX_RUN; workflow='desktop-linux.yml'; artifacts=@('leaf-linux-x64-release-candidate')},
+            @{id=$env:MAC_RUN; workflow='desktop-macos.yml'; artifacts=@('leaf-macos-universal-release-candidate')}
+          )
+          foreach ($check in $checks) {
+            if ($check.id -notmatch '^[0-9]{5,15}$') { throw "Invalid workflow run ID." }
+            $url = "https://api.github.com/repos/lgg/leaf/actions/runs/$($check.id)"
+            $run = Invoke-RestMethod -Method Get -Headers $headers -Uri $url
+            if ($run.head_sha -ne $env:GITHUB_SHA -or $run.head_branch -ne 'main') { throw "Release blocked: artifact commit does not match exact main SHA." }
+            if ($run.status -ne 'completed' -or $run.conclusion -ne 'success') { throw "Release blocked: a workflow run is not successful." }
+            if ($run.path -notlike "*$($check.workflow)*") { throw "Release blocked: wrong workflow for supplied run." }
+            $artifacts = Invoke-RestMethod -Method Get -Headers $headers -Uri "$url/artifacts?per_page=100"
+            foreach ($name in $check.artifacts) {
+              $matches = @($artifacts.artifacts | Where-Object { $_.name -eq $name -and -not $_.expired -and $_.size_in_bytes -gt 0 })
+              if ($matches.Count -ne 1) { throw "Release blocked: required artifact absent, expired or ambiguous ($name)." }
+            }
+          }
+          if ($env:PUBLISH -eq 'true') {
+            $acceptance = Invoke-RestMethod -Method Get -Headers $headers -Uri "https://api.github.com/repos/lgg/leaf/issues/11"
+            if ($acceptance.state -ne 'closed') { throw "Release blocked: Windows manual GUI acceptance issue #11 is not closed." }
+            $crossPlatform = Invoke-RestMethod -Method Get -Headers $headers -Uri "https://api.github.com/repos/lgg/leaf/issues/22"
+            if ($crossPlatform.state -ne 'closed') { throw "Release blocked: Linux/macOS manual GUI acceptance issue #22 is not closed." }
+          }
+          Write-Output "Exact SHA, version and all platform artifacts verified."
+
+      - name: Download verified Windows portable package
+        uses: actions/download-artifact@v4
+        with:
+          name: leaf-windows-portable-smoke-test
+          run-id: ${{ inputs.windows_run }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: release-input/windows-portable
+
+      - name: Download verified Windows NSIS installer
+        uses: actions/download-artifact@v4
+        with:
+          name: leaf-windows-nsis-unsigned
+          run-id: ${{ inputs.windows_run }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: release-input/windows-installer
+
+      - name: Download verified Linux packages
+        uses: actions/download-artifact@v4
+        with:
+          name: leaf-linux-x64-release-candidate
+          run-id: ${{ inputs.linux_run }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: release-input/linux
+
+      - name: Download verified universal macOS bundles
+        uses: actions/download-artifact@v4
+        with:
+          name: leaf-macos-universal-release-candidate
+          run-id: ${{ inputs.macos_run }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: release-input/macos
+
+      - name: Verify package filenames and build SHA256SUMS
+        run: |
+          $ErrorActionPreference = 'Stop'
+          New-Item -ItemType Directory -Path release-assets -Force | Out-Null
+          $items = @(
+            @{source='release-input/windows-portable'; filter='*.zip'; dest='Leaf-windows-x64-portable.zip'},
+            @{source='release-input/windows-installer'; filter='*.exe'; dest='Leaf-windows-x64-setup-unsigned.exe'},
+            @{source='release-input/linux'; filter='*.deb'; dest='Leaf-linux-x64.deb'},
+            @{source='release-input/linux'; filter='*.AppImage'; dest='Leaf-linux-x64.AppImage'},
+            @{source='release-input/macos'; filter='*.dmg'; dest='Leaf-macos-universal.dmg'},
+            @{source='release-input/macos'; filter='*.tar.gz'; dest='Leaf-macos-universal-app.tar.gz'}
+          )
+          foreach ($item in $items) {
+            $matches = @(Get-ChildItem -LiteralPath $item.source -File | Where-Object { $_.Name -like $item.filter })
+            if ($matches.Count -ne 1 -or $matches[0].Length -le 0) { throw "Required release file is missing or ambiguous." }
+            Copy-Item -LiteralPath $matches[0].FullName -Destination (Join-Path release-assets $item.dest)
+          }
+          $hashes = @(Get-ChildItem release-assets -File | Sort-Object Name | ForEach-Object { (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant() + '  ' + $_.Name })
+          [IO.File]::WriteAllLines((Join-Path (Get-Location) 'release-assets/SHA256SUMS.txt'), [string[]]$hashes)
+          if ($hashes.Count -ne 6) { throw "Release matrix must contain six packages." }
+          Write-Output "Six required platform packages and SHA-256 checksums are ready."
+
+      - name: Create draft Release, upload every asset, then publish only if approved
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REQUESTED_TAG: ${{ inputs.tag }}
+          PUBLISH: ${{ inputs.publish }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $headers = @{Authorization="Bearer $env:GH_TOKEN"; Accept='application/vnd.github+json'; 'X-GitHub-Api-Version'='2022-11-28'}
+          $notes = @'
+          Leaf desktop release: Windows x64 portable + NSIS installer, Linux x64 DEB + AppImage, universal macOS Apple Silicon / Intel app + DMG.
+
+          These builds are unsigned (macOS uses ad-hoc signing) and are distributed without notarization. macOS Gatekeeper and Windows SmartScreen may display warnings. Never disable platform security automatically.
+
+          The app reads/writes Markdown and text files locally and checks GitHub Releases only on request. No automatic updater or cloud sync.
+
+          SHA256SUMS.txt covers all six binaries. See docs/RELEASE_MATRIX.md for build and acceptance requirements.
+          '@
+          $body = @{tag_name=$env:REQUESTED_TAG; target_commitish=$env:GITHUB_SHA; name="Leaf $env:REQUESTED_TAG"; body=$notes; draft=$true; prerelease=$false} | ConvertTo-Json -Depth 4
+          $release = Invoke-RestMethod -Uri 'https://api.github.com/repos/lgg/leaf/releases' -Method Post -Headers $headers -Body $body -ContentType 'application/json'
+          if (-not $release.id -or -not $release.upload_url) { throw "Release draft was not created." }
+          $uploadBase = $release.upload_url -replace '\{\?name,label\}$',''
+          $files = @(Get-ChildItem release-assets -File | Sort-Object Name)
+          if ($files.Count -ne 7) { throw "Release asset inventory changed unexpectedly." }
+          foreach ($file in $files) {
+            $url = $uploadBase + '?name=' + [Uri]::EscapeDataString($file.Name)
+            Invoke-RestMethod -Uri $url -Headers $headers -Method Post -InFile $file.FullName -ContentType 'application/octet-stream' | Out-Null
+          }
+          if ($env:PUBLISH -eq 'true') {
+            $body = @{draft=$false} | ConvertTo-Json
+            $release = Invoke-RestMethod -Uri "https://api.github.com/repos/lgg/leaf/releases/$($release.id)" -Method Patch -Headers $headers -Body $body -ContentType 'application/json'
+            Write-Output "Complete multi-platform GitHub Release published."
+          } else {
+            Write-Output "Complete multi-platform draft created. It remains unpublished until manual acceptance."
+          }
