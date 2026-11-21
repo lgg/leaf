@@ -158,10 +158,21 @@ fn session_file(app: &tauri::AppHandle) -> Result<PathBuf, String> {
     Ok(dir.join("session-v1.json"))
 }
 
+// The user-writable session can be malformed or grow while it is being read.
+// Keep restoration bounded to the same limit enforced for session writes.
+const MAX_SESSION_BYTES: usize = 64 * 1024 * 1024;
+
+fn read_session_bounded(reader: impl Read) -> Option<Session> {
+    let mut bytes = Vec::new();
+    reader.take(MAX_SESSION_BYTES as u64 + 1).read_to_end(&mut bytes).ok()?;
+    if bytes.len() > MAX_SESSION_BYTES { return None; }
+    serde_json::from_slice::<Session>(&bytes).ok()
+}
+
 fn read_session(app: &tauri::AppHandle) -> Session {
     session_file(app).ok()
-        .and_then(|path| fs::read_to_string(path).ok())
-        .and_then(|contents| serde_json::from_str::<Session>(&contents).ok())
+        .and_then(|path| fs::File::open(path).ok())
+        .and_then(read_session_bounded)
         .unwrap_or_default()
 }
 
@@ -523,6 +534,28 @@ mod tests {
     fn digest_changes_when_content_changes() {
         assert_ne!(digest(b"draft"), digest(b"edited"));
     }
+    #[test]
+    fn session_restoration_is_bounded_even_for_a_never_ending_reader() {
+        // A file may grow after metadata is inspected; even a reader that
+        // never reaches EOF must stop after MAX_SESSION_BYTES + 1.
+        assert!(read_session_bounded(std::io::repeat(b' ')).is_none());
+    }
+
+    #[test]
+    fn session_restoration_accepts_valid_json_and_preserves_invalid_files_for_manual_recovery() {
+        let source = Session { active_index: 0, tabs: vec![SessionTab {
+            path: None, name: "recovery.md".into(), label: "Recovery".into(),
+            browser_title: "Recovered draft".into(), dirty: true,
+            draft: Some("safe text".into()), revision: None,
+        }] };
+        let bytes = serde_json::to_vec(&source).unwrap();
+        let saved = read_session_bounded(std::io::Cursor::new(bytes)).unwrap();
+        assert_eq!(saved.tabs.len(), 1);
+        assert_eq!(saved.tabs[0].draft.as_deref(), Some("safe text"));
+        assert_eq!(saved.tabs[0].browser_title, "Recovered draft");
+        assert!(read_session_bounded(std::io::Cursor::new(b"{invalid".as_slice())).is_none());
+    }
+
     #[test]
     fn sessions_round_trip_without_losing_metadata() {
         let source = Session { active_index: 0, tabs: vec![SessionTab {
