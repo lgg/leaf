@@ -59,7 +59,7 @@ jobs:
 
       - name: Run JavaScript regression tests and stage desktop
         run: |
-          node --test --test-reporter=tap tests/leaf.test.cjs tests/desktop.test.cjs *> "$env:RUNNER_TEMP/leaf-node-tests.log"
+          node --test --test-reporter=tap tests/leaf.test.cjs tests/desktop.test.cjs tests/distribution.test.cjs *> "$env:RUNNER_TEMP/leaf-node-tests.log"
           if ($LASTEXITCODE -ne 0) {
             # Expose only test names (not assertions, machine paths or stack traces).
             Get-Content "$env:RUNNER_TEMP/leaf-node-tests.log" |
