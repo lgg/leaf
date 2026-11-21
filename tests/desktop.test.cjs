@@ -214,7 +214,7 @@ test('binary privacy diagnostic labels reveal no raw host folders', () => {
 
 test('merged main and trusted desktop branches use the privacy-gated self-hosted Windows runner', () => {
   const yaml = fs.readFileSync(path.join(root, '.github/workflows/desktop-windows.yml'), 'utf8').replace(/\r\n/g, '\n');
-  assert.ok(yaml.includes("branches: ['main', 'desktop/**']"));
+  assert.ok(yaml.includes("branches: ['main', 'desktop/**', 'release/**']"));
   assert.ok(yaml.includes('workflow_dispatch:'));
   assert.ok(yaml.includes('runs-on: [self-hosted, leaf-runner-ci]'));
   assert.ok(yaml.includes('permissions:' + String.fromCharCode(10) + '  contents: read'));
