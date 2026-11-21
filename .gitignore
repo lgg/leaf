@@ -7,3 +7,6 @@
 # Machine-specific settings and build diagnostics
 *.log
 *.local
+
+# Synthetic Windows GUI acceptance fixtures (never commit test drafts)
+/desktop/acceptance-workspace/

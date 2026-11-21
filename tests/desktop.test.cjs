@@ -477,3 +477,31 @@ test('native close blocks duplicate requests until recovery is flushed and permi
   await secondHandler(evt());
   assert.equal(attempts,2);
 });
+
+test('Windows GUI acceptance fixture commands never overwrite edited or non-fixture documents', () => {
+  const os = require('node:os');
+  const fixtures = require('../desktop/acceptance-fixtures.cjs');
+  const parent = fs.mkdtempSync(path.join(os.tmpdir(), 'leaf-qa-'));
+  const dir = path.join(parent, 'synthetic');
+  try {
+    fixtures.createFixtures(dir);
+    assert.throws(() => fixtures.createFixtures(dir), /EEXIST/);
+    assert.ok(fs.readFileSync(path.join(dir, '02-crlf.md'), 'utf8').includes('\r\n'));
+    assert.equal(fixtures.verifyState(dir).originalSaveAsUnchanged, true);
+    assert.equal(fixtures.verifyState(dir).conflictSimulated, false);
+    fixtures.simulateExternalEdit(dir);
+    assert.equal(fixtures.verifyState(dir).conflictSimulated, true);
+    assert.throws(() => fixtures.simulateExternalEdit(dir), /Refusing to overwrite/);
+    fixtures.simulateReopenRefresh(dir);
+    fixtures.simulateMissingFile(dir);
+    assert.deepEqual(fixtures.verifyState(dir), {
+      originalSaveAsUnchanged: true, crlfPreserved: true,
+      conflictSimulated: true, cleanReopenSimulated: true, missingFileSimulated: true
+    });
+    const nonFixture = path.join(parent, 'personal');
+    fs.mkdirSync(nonFixture);
+    fs.writeFileSync(path.join(nonFixture,'04-external-conflict.md'), 'DO NOT TOUCH');
+    assert.throws(() => fixtures.simulateExternalEdit(nonFixture));
+    assert.equal(fs.readFileSync(path.join(nonFixture,'04-external-conflict.md'),'utf8'), 'DO NOT TOUCH');
+  } finally { fs.rmSync(parent, {recursive: true, force: true}); }
+});
