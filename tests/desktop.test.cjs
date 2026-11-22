@@ -167,7 +167,8 @@ test('native file saves preserve original CRLF style', () => {
 
 test('About distinguishes embedded README help from the actual changelog', () => {
   const html = fs.readFileSync(path.join(root, 'editor.html'), 'utf8');
-  assert.ok(html.includes('>README</a>'));
+  assert.ok(html.includes('<button type="button" id="btn-about-readme">README</button>'));
+  assert.ok(html.includes("document.getElementById('btn-about-readme').addEventListener('click'"));
   assert.ok(html.includes('https://github.com/lgg/leaf/blob/main/CHANGELOG.md'));
   assert.ok(html.includes('https://github.com/lgg/leaf/releases'));
 });
