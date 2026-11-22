@@ -24,7 +24,7 @@ test('builds stay self-hosted and never automatically distribute unverified bina
   const mac = read('.github/workflows/desktop-macos.yml');
   assert.match(win, /leaf-runner-ci/);
   assert.match(linux, /leaf-linux-ci/);
-  assert.match(mac, /leaf-macos-ci/);
+  assert.match(mac, /leaf-runner-macos-ci/);
   for (const workflow of [linux, mac]) {
     assert.match(workflow, /workflow_dispatch:/);
     assert.match(workflow, /refs\/heads\/main/);
