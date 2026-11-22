@@ -4296,13 +4296,28 @@ let deferredLeafInstallPrompt = null;
 const leafInstallButton = document.getElementById('btn-install');
 const leafInstallGroup = document.getElementById('install-group');
 
+// The desktop WebView2 host may emit beforeinstallprompt, even though the
+// native portable/Setup app is already installed or independently runnable.
+// Desktop staging sets a deterministic marker; the Tauri bridge adds another
+// guard. Neither guard depends on a browser user-agent or on install prompts.
+function isLeafNativeDesktop() {
+  return document.body.dataset.leafDesktop === 'true' ||
+    Boolean(window.__TAURI__ || window.leafDesktop);
+}
+
 function setLeafInstallVisible(visible) {
-  leafInstallButton.style.display = visible ? '' : 'none';
-  leafInstallGroup.style.display = visible ? '' : 'none';
+  const show = Boolean(visible) && !isLeafNativeDesktop();
+  leafInstallButton.style.display = show ? '' : 'none';
+  leafInstallGroup.style.display = show ? '' : 'none';
 }
 
 window.addEventListener('beforeinstallprompt', event => {
   event.preventDefault();
+  if (isLeafNativeDesktop()) {
+    deferredLeafInstallPrompt = null;
+    setLeafInstallVisible(false);
+    return;
+  }
   deferredLeafInstallPrompt = event;
   setLeafInstallVisible(true);
 });
@@ -4313,6 +4328,11 @@ window.addEventListener('appinstalled', () => {
 });
 
 async function installPWA() {
+  if (isLeafNativeDesktop()) {
+    deferredLeafInstallPrompt = null;
+    setLeafInstallVisible(false);
+    return;
+  }
   if (!deferredLeafInstallPrompt) return;
   const pending = deferredLeafInstallPrompt;
   deferredLeafInstallPrompt = null;
@@ -4325,7 +4345,7 @@ async function installPWA() {
   }
 }
 
-if (!window.__TAURI__ && 'serviceWorker' in navigator &&
+if (!isLeafNativeDesktop() && 'serviceWorker' in navigator &&
     (location.protocol === 'https:' || location.hostname === 'localhost')) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('./sw.js', { scope: './' })

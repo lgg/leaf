@@ -2,6 +2,8 @@
 
 ## v1.10.4-lgg.1 — 2026-11-23 (About settings and theme-aware links)
 
+- Fixed WebView2 portable/Setup builds displaying the web-only **Install App** action: desktop staging now marks native builds and hides the PWA control, and install-prompt / service-worker handlers reject native environments. Browser/PWA install prompts remain available.
+
 - Added Settings → About with fork/original GitHub links, Star on GitHub, readable theme-aware links, current version and launch edition for web, PWA, standalone HTML, portable Windows and installed Windows.
 - The old separate About popup can be skipped permanently, with the preference saved and reversible in Settings → About.
 - Moved desktop update checks, verified downloads, and apply controls into Settings → About; clicking an update notification opens that tab.

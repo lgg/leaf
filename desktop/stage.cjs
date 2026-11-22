@@ -11,6 +11,16 @@ if (!html.includes('</body>') || !html.includes('async function saveFile()')) {
   throw new Error('Upstream editor layout changed; review the desktop integration.');
 }
 html = html.replace(/<link rel="manifest"[^>]*>\s*/i, '');
+// Only native desktop builds receive this marker and scoped CSS. This must
+// be applied before any editor script runs: WebView2 can fire PWA install
+// prompts even inside a portable EXE or a per-user Setup installation.
+const desktopBody = '<body data-theme="parchment" class="crt-on">';
+if (!html.includes(desktopBody)) throw new Error('Desktop body marker insertion point is missing.');
+html = html.replace(desktopBody,
+  '<body data-theme="parchment" class="crt-on" data-leaf-desktop="true">');
+html = html.replace('</head>',
+  '<style id="leaf-native-install-guard">body[data-leaf-desktop="true"] #install-group, body[data-leaf-desktop="true"] #btn-install { display:none !important; }</style>\n</head>');
+
 // Desktop must NEVER mirror private on-disk document content to WebView localStorage.
 // Browser/PWA retain their original storage behavior because editor.html is untouched.
 const webInit = "if (!restoreWorkspace()) {\n  const backups = availableWorkspaceRecoveries();\n  if (!backups.length || !restoreWorkspace(backups[0].raw)) restoreAutosave();\n}\npersistWorkspace();";
