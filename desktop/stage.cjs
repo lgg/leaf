@@ -33,7 +33,13 @@ html = html.replace(
   "window.addEventListener('beforeunload', e => {\n  if (window.__TAURI__) return; // native close handler persists session and prompts"
 );
 
-html = html.replace('</body>', '<script src="./desktop-bridge.js"></script>\n</body>');
+// The title bar exists only in the packaged desktop HTML, so web/PWA stays unmodified.
+if (!html.includes('<div id="header">') || !html.includes('</head>')) {
+  throw new Error('Native titlebar injection anchors are unavailable.');
+}
+html = html.replace('<div id="header">', "<div id=\"desktop-titlebar\" role=\"toolbar\" aria-label=\"Leaf window controls\">\n  <div id=\"desktop-titlebar-drag\" data-tauri-drag-region aria-label=\"Drag Leaf window\">\n    <img data-tauri-drag-region class=\"desktop-titlebar-icon\" src=\"./leaf-icon-192.png\" alt=\"\" draggable=\"false\">\n    <span data-tauri-drag-region class=\"desktop-titlebar-name\">Leaf</span>\n  </div>\n  <div class=\"desktop-window-actions\" aria-label=\"Window actions\">\n    <button id=\"desktop-window-minimize\" class=\"desktop-window-button\" type=\"button\" title=\"Minimize\" aria-label=\"Minimize\">\n      <svg aria-hidden=\"true\" viewBox=\"0 0 16 16\" width=\"16\" height=\"16\"><path d=\"M3 12.5h10\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.25\" stroke-linecap=\"round\"/></svg>\n    </button>\n    <button id=\"desktop-window-maximize\" class=\"desktop-window-button\" type=\"button\" title=\"Maximize\" aria-label=\"Maximize\">\n      <svg aria-hidden=\"true\" viewBox=\"0 0 16 16\" width=\"16\" height=\"16\"><rect x=\"3.25\" y=\"3.25\" width=\"9.5\" height=\"9.5\" rx=\"0.4\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.25\"/></svg>\n    </button>\n    <button id=\"desktop-window-close\" class=\"desktop-window-button desktop-window-close\" type=\"button\" title=\"Close\" aria-label=\"Close\">\n      <svg aria-hidden=\"true\" viewBox=\"0 0 16 16\" width=\"16\" height=\"16\"><path d=\"M4 4l8 8M12 4l-8 8\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.3\" stroke-linecap=\"round\"/></svg>\n    </button>\n  </div>\n</div>" + '\n<div id="header">');
+html = html.replace('</head>', '<link rel="stylesheet" href="./desktop-titlebar.css">\n</head>');
+html = html.replace('</body>', '<script src="./desktop-bridge.js"></script>\n<script src="./desktop-titlebar.js"></script>\n</body>');
 html = html.replace('href="https://github.com/lgg/leaf/releases"', 'id="btn-desktop-releases" href="https://github.com/lgg/leaf/releases"');
 html = html.replace(
   '<p class="about-version">',
@@ -47,6 +53,9 @@ html = html.replace(
 if (!html.includes('btn-desktop-save-as')) throw new Error('Desktop Save As injection point not found.');
 fs.writeFileSync(path.join(out, 'index.html'), html);
 fs.copyFileSync(path.join(__dirname, 'desktop-bridge.js'), path.join(out, 'desktop-bridge.js'));
+for (const name of ['desktop-titlebar.css', 'desktop-titlebar.js']) {
+  fs.copyFileSync(path.join(__dirname, name), path.join(out, name));
+}
 for (const name of ['leaf-icon-192.png', 'leaf-icon-512.png']) {
   fs.copyFileSync(path.join(root, name), path.join(out, name));
 }

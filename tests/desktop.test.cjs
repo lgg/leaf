@@ -26,16 +26,19 @@ test('desktop source bridge parses and implements OS file entry points', () => {
 
 test('Tauri capabilities do not enable unrestricted file system APIs', () => {
   const capability = require('../src-tauri/capabilities/default.json');
-  assert.deepEqual(capability.permissions, ['core:default', 'core:window:allow-destroy']);
+  assert.deepEqual(capability.permissions, ['core:default', 'core:window:allow-destroy',
+    'core:window:allow-close', 'core:window:allow-minimize',
+    'core:window:allow-toggle-maximize', 'core:window:allow-is-maximized',
+    'core:window:allow-start-dragging']);
   assert.deepEqual(capability.windows, ['main']);
 });
 
 test('Tauri and web release identifiers are coherent', () => {
   const config = require('../src-tauri/tauri.conf.json');
   const cargo = fs.readFileSync(path.join(root, 'src-tauri', 'Cargo.toml'), 'utf8');
-  assert.equal(config.version, '1.10.1');
-  assert.match(cargo, /version = "1\.10\.1"/);
-  assert.match(fs.readFileSync(path.join(root, 'README.md'), 'utf8'), /1\.10\.1-lgg\.1/);
+  assert.equal(config.version, '1.10.2');
+  assert.match(cargo, /version = "1\.10\.2"/);
+  assert.match(fs.readFileSync(path.join(root, 'README.md'), 'utf8'), /1\.10\.2-lgg\.1/);
 });
 
 test('desktop stage creates offline assets without adding web-only service worker', () => {
@@ -43,6 +46,11 @@ test('desktop stage creates offline assets without adding web-only service worke
   execFileSync(process.execPath, [path.join(root, 'desktop', 'stage.cjs')]);
   const dist = fs.readFileSync(path.join(root, 'desktop', 'dist', 'index.html'), 'utf8');
   assert.ok(dist.includes('desktop-bridge.js'));
+  assert.ok(dist.includes('id="desktop-titlebar"'));
+  assert.ok(dist.includes('data-tauri-drag-region'));
+  assert.ok(dist.includes('desktop-titlebar.css'));
+  assert.ok(dist.includes('desktop-titlebar.js'));
+  assert.ok(!fs.readFileSync(path.join(root, 'editor.html'), 'utf8').includes('desktop-titlebar.js'));
   assert.ok(dist.includes('btn-desktop-save-as'));
   assert.ok(dist.includes('btn-desktop-check-updates'));
   assert.ok(!fs.readFileSync(path.join(root, 'editor.html'), 'utf8').includes('btn-desktop-check-updates'));
@@ -528,3 +536,32 @@ test('Windows GUI acceptance fixture commands never overwrite edited or non-fixt
   } finally { fs.rmSync(parent, {recursive: true, force: true}); }
 });
 
+
+
+test('custom Leaf titlebar is desktop-only, safe, theme-aware and frameless', () => {
+  const config = require('../src-tauri/tauri.conf.json');
+  const capabilities = require('../src-tauri/capabilities/default.json');
+  const stage = fs.readFileSync(path.join(root,'desktop','stage.cjs'),'utf8');
+  const html = fs.readFileSync(path.join(root,'editor.html'),'utf8');
+  const styles = fs.readFileSync(path.join(root,'desktop','desktop-titlebar.css'),'utf8');
+  const logic = fs.readFileSync(path.join(root,'desktop','desktop-titlebar.js'),'utf8');
+  assert.equal(config.app.windows[0].decorations, false);
+  assert.ok(stage.includes('desktop-titlebar.css'));
+  assert.ok(stage.includes('desktop-titlebar.js'));
+  assert.ok(!html.includes('desktop-titlebar'));
+  for (const p of ['core:window:allow-close','core:window:allow-minimize','core:window:allow-toggle-maximize']) {
+    assert.ok(capabilities.permissions.includes(p),p);
+  }
+  for (const id of ['desktop-window-minimize','desktop-window-maximize','desktop-window-close']) {
+    assert.ok(stage.includes('desktop-titlebar'),id);
+    assert.ok(logic.includes(id),id);
+  }
+  assert.ok(styles.includes('background: var(--surface)'));
+  assert.ok(styles.includes('color: var(--text)'));
+  assert.ok(styles.includes('body.focus-mode #desktop-titlebar { display: none; }'));
+  assert.ok(logic.includes('appWindow.close()'));
+  assert.ok(!logic.includes('appWindow.destroy()'));
+  assert.ok(logic.includes('appWindow.toggleMaximize()'));
+  assert.ok(logic.includes('appWindow.minimize()'));
+  assert.doesNotThrow(() => new Function(logic));
+});

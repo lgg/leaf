@@ -90,7 +90,7 @@ jobs:
           New-Item -ItemType Directory -Path 'release-assets' -Force | Out-Null
           Copy-Item -LiteralPath $portable[0].FullName -Destination 'release-assets/Leaf-Windows-10-11-x64-Portable.zip'
           Copy-Item -LiteralPath $setup[0].FullName -Destination 'release-assets/Leaf-Windows-10-11-x64-Setup.exe'
-          $hashes = @(Get-ChildItem 'release-assets' -File | Sort-Object Name | ForEach-Object {
+          $hashes = @(Get-ChildItem 'release-assets' -File | Where-Object { $_.Name -in @('Leaf-Windows-10-11-x64-Portable.zip','Leaf-Windows-10-11-x64-Setup.exe') } | Sort-Object Name | ForEach-Object {
             (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant() + '  ' + $_.Name
           })
           if ($hashes.Count -ne 2) { throw 'Two Windows artifacts required.' }
@@ -101,7 +101,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PRODUCER_SHA: ${{ github.event.workflow_run.head_sha }}
-          TAG_NAME: v1.10.1-lgg.1-windows-rc.1
+          TAG_NAME: v1.10.2-lgg.1-windows-rc.1
         run: |
           $ErrorActionPreference = 'Stop'
           $headers = @{Authorization="Bearer $env:GH_TOKEN"; Accept='application/vnd.github+json'; 'X-GitHub-Api-Version'='2022-11-28'}
@@ -124,7 +124,7 @@ jobs:
           - Leaf-Windows-10-11-x64-Setup.exe — user-scoped graphical installer using built-in Windows/.NET, with Start menu shortcut and Apps & features uninstall. No administrator access required.
           - SHA256SUMS.txt — SHA-256 hashes for both assets.
 
-          Changes in this release: styled file chooser (no visible native input), separate Focus top-bar auto-hide with mouseover reveal, and exact numeric font size with a 6–128px slider; typed values above 128px are retained.
+          Changes in this release: custom frameless Leaf-themed titlebar replacing the white Windows caption, with native drag/minimize/maximize/close controls; focus mode hides the caption. Retains the styled file chooser, optional focus top-bar auto-hide and exact numeric font sizing.
 
           Windows 10/11 require Microsoft Edge WebView2 Runtime. Both builds are unsigned; Microsoft SmartScreen may show a warning. This release is a **prerelease**, not a claim that manual GUI acceptance has passed. Known limitations: installer does not register default .md/.txt file associations; no signed automatic updater. Only open files you trust.
 
@@ -141,7 +141,7 @@ jobs:
           }
           if (-not $release.id -or -not $release.upload_url) { throw 'Could not obtain Windows draft release.' }
           $uploadBase = $release.upload_url -replace '\{\?name,label\}$',''
-          $files = @(Get-ChildItem 'release-assets' -File)
+          $files = @(Get-ChildItem 'release-assets' -File | Where-Object { $_.Name -in @('Leaf-Windows-10-11-x64-Portable.zip','Leaf-Windows-10-11-x64-Setup.exe','SHA256SUMS.txt') })
           if ($files.Count -ne 3) { throw 'Unexpected Windows release file inventory.' }
           if (-not $uploadBase.StartsWith('https://uploads.github.com/')) { throw 'Unexpected GitHub Release upload host.' }
           if (-not (Get-Command curl.exe -ErrorAction SilentlyContinue)) { throw 'Built-in curl.exe is required; no tools will be installed.' }
