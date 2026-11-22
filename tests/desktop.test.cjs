@@ -54,8 +54,9 @@ test('desktop stage creates offline assets without adding web-only service worke
   assert.match(dist, /#install-group, body\[data-leaf-desktop="true"\] #btn-install \{ display:none !important; \}/);
   assert.ok(dist.includes('function isLeafNativeDesktop()'));
   assert.ok(dist.includes("if (isLeafNativeDesktop()) {"));
-  assert.ok(!html.includes('data-leaf-desktop="true"'));
-  assert.ok(!html.includes('id="leaf-native-install-guard"'));
+  const webEditor = fs.readFileSync(path.join(root, 'editor.html'), 'utf8');
+  assert.ok(!webEditor.includes('data-leaf-desktop="true"'));
+  assert.ok(!webEditor.includes('id="leaf-native-install-guard"'));
   assert.ok(dist.includes('data-tauri-drag-region'));
   assert.ok(dist.includes('desktop-titlebar.css'));
   assert.ok(dist.includes('desktop-titlebar.js'));
