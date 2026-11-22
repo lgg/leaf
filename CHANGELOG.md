@@ -1,5 +1,12 @@
 # Leaf — fork changelog
 
+## v1.10.4-lgg.1 — 2026-11-23 (About settings and theme-aware links)
+
+- Added Settings → About with fork/original GitHub links, Star on GitHub, readable theme-aware links, current version and launch edition for web, PWA, standalone HTML, portable Windows and installed Windows.
+- The old separate About popup can be skipped permanently, with the preference saved and reversible in Settings → About.
+- Moved desktop update checks, verified downloads, and apply controls into Settings → About; clicking an update notification opens that tab.
+- Fixed the macOS runner-label assertion that blocked unrelated Windows CI. macOS build remains postponed.
+
 ## v1.10.3-lgg.1 — 2026-11-23 (Windows GitHub updates and tabbed settings)
 
 - Five settings tabs replace the scrolling page: Current document, Appearance, Status bar, Editor, Mobile display.
