@@ -345,7 +345,7 @@
   invoke('desktop_installation_mode').then(mode => {
     const type = document.getElementById('about-install-type');
     if (type) type.textContent = mode === 'installed'
-      ? 'Desktop · Windows installed (Setup)' : 'Desktop · Windows portable (ZIP)';
+      ? 'Standalone desktop · Windows (Setup)' : 'Portable desktop · Windows (ZIP)';
   }).catch(() => {
     const type = document.getElementById('about-install-type');
     if (type) type.textContent = 'Desktop · Windows';
