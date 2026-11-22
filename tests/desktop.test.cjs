@@ -11,7 +11,7 @@ test('web/PWA editor is self contained; desktop-only files stay separate', () =>
   assert.ok(!sw.includes('desktop-bridge.js'));
   // Documentation may mention Rust paths: only executable desktop imports are excluded.
   assert.ok(!/<script[^>]+src=["'][^"']*(?:desktop-bridge|src-tauri)/i.test(html));
-  assert.ok(html.includes("if (!window.__TAURI__ && 'serviceWorker' in navigator"));
+  assert.ok(html.includes("if (!isLeafNativeDesktop() && 'serviceWorker' in navigator"));
   assert.ok(!sw.includes('src-tauri'));
 });
 
@@ -47,6 +47,15 @@ test('desktop stage creates offline assets without adding web-only service worke
   const dist = fs.readFileSync(path.join(root, 'desktop', 'dist', 'index.html'), 'utf8');
   assert.ok(dist.includes('desktop-bridge.js'));
   assert.ok(dist.includes('id="desktop-titlebar"'));
+  // The portable ZIP and installed Setup share this exact staged UI: the PWA
+  // installer must remain hidden even if WebView2 fires beforeinstallprompt.
+  assert.ok(dist.includes('data-leaf-desktop="true"'));
+  assert.ok(dist.includes('id="leaf-native-install-guard"'));
+  assert.match(dist, /#install-group, body\[data-leaf-desktop="true"\] #btn-install \{ display:none !important; \}/);
+  assert.ok(dist.includes('function isLeafNativeDesktop()'));
+  assert.ok(dist.includes("if (isLeafNativeDesktop()) {"));
+  assert.ok(!html.includes('data-leaf-desktop="true"'));
+  assert.ok(!html.includes('id="leaf-native-install-guard"'));
   assert.ok(dist.includes('data-tauri-drag-region'));
   assert.ok(dist.includes('desktop-titlebar.css'));
   assert.ok(dist.includes('desktop-titlebar.js'));
