@@ -6,10 +6,17 @@ on:
 permissions:
   contents: read
 
+# NEVER install or download Rust toolchains or Cargo registry crates on a
+# friend's self-hosted machine. Missing prerequisites must fail safely.
+env:
+  CARGO_NET_OFFLINE: 'true'
+  RUSTUP_AUTO_INSTALL: '0'
+  GIT_TERMINAL_PROMPT: '0'
+
 jobs:
   macos-packages:
     if: github.repository == 'lgg/leaf' && github.ref == 'refs/heads/main'
-    runs-on: [self-hosted, leaf-macos-ci, macOS]
+    runs-on: [self-hosted, leaf-runner-macos-ci, macOS]
     timeout-minutes: 120
     defaults:
       run:
@@ -25,9 +32,11 @@ jobs:
       - name: Require already-installed macOS build tools
         run: |
           set -euo pipefail
-          for tool in git node cargo rustc cargo-tauri sips iconutil lipo tar; do
+          for tool in git node cargo rustc rustup cargo-tauri sips iconutil lipo tar hdiutil codesign xcode-select xcrun; do
             command -v "$tool" >/dev/null || { echo "::error::Missing preinstalled $tool; no installation attempted"; exit 1; }
           done
+          xcode-select -p >/dev/null 2>&1 || { echo '::error::Apple developer tools are not selected; no installation attempted'; exit 1; }
+          xcrun --sdk macosx --show-sdk-version >/dev/null 2>&1 || { echo '::error::macOS SDK unavailable; no installation attempted'; exit 1; }
           for target in aarch64-apple-darwin x86_64-apple-darwin; do
             rustup target list --installed | grep -Fxq "$target" || { echo "::error::Rust target $target is not preinstalled"; exit 1; }
           done
@@ -65,7 +74,7 @@ jobs:
         run: |
           set -euo pipefail
           # Uses ad-hoc Apple signature ("-"), not an identity certificate or notarization.
-          cargo tauri build --target universal-apple-darwin --bundles app,dmg --config src-tauri/tauri.macos.conf.json > "$RUNNER_TEMP/leaf-mac-bundle.log" 2>&1 || { echo "::error::macOS packaging failed; diagnostics remain on runner"; exit 1; }
+          cargo tauri build --ci --target universal-apple-darwin --bundles app,dmg --config src-tauri/tauri.macos.conf.json > "$RUNNER_TEMP/leaf-mac-bundle.log" 2>&1 || { echo "::error::macOS packaging failed; diagnostics remain on runner"; exit 1; }
           root=src-tauri/target/universal-apple-darwin/release/bundle
           test -d "$root/macos/Leaf.app" || { echo "::error::Missing universal .app"; exit 1; }
           appbin="$root/macos/Leaf.app/Contents/MacOS/leaf-desktop"
