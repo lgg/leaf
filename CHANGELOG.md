@@ -1,5 +1,12 @@
 # Leaf — fork changelog
 
+## v1.10.2-lgg.1 — 2026-11-22 (custom desktop window titlebar)
+
+- Replaced the white Windows-native titlebar with a frameless Leaf-themed caption that follows the chosen theme.
+- Added drag-to-move, double-click maximize, minimize, maximize/restore, and native-close buttons that honor unsaved-document recovery.
+- The custom titlebar hides during focus mode; only the desktop build gains this window UI. Web/PWA remains unchanged except version metadata.
+- Added scoped Tauri window-control permissions, desktop staging tests, and updated signed-off Windows-only prerelease packaging safeguards.
+
 ## v1.10.1-lgg.1 — 2026-11-21 (Windows 10/11 desktop release refresh)
 
 - Styled file picker replaces the visible default Windows/WebView file control.

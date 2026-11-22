@@ -1,6 +1,6 @@
 # Leaf — distraction-free Markdown editor
 
-**Fork version: v1.10.1-lgg.1** · Based on [uncle-jasper/leaf](https://github.com/uncle-jasper/leaf) v1.7 · Maintained by [lgg](https://github.com/lgg).
+**Fork version: v1.10.2-lgg.1** · Based on [uncle-jasper/leaf](https://github.com/uncle-jasper/leaf) v1.7 · Maintained by [lgg](https://github.com/lgg).
 
 Leaf is a focused, offline-capable Markdown and plain-text editor. It runs as a lightweight, single HTML file in a browser, installs as a PWA on phones, and has an **independent Tauri v2 desktop edition** that can edit real files on disk. No account, sync server, analytics or unnecessary background process.
 
@@ -23,6 +23,8 @@ On phones and touch tablets, Leaf hides the desktop header, tabs and status bar 
 The PWA has source-level automated regression tests. Final physical-device verification of iOS/Android install, offline behavior, rotation and keyboards is still a separate manual acceptance step.
 
 ## Desktop edition — Windows (Tauri v2)
+
+- **Themed frameless titlebar:** desktop-only window frame uses Leaf's selected background/text colors with its app icon and native **minimize**, **maximize/restore**, and **close** controls. Drag the header to move the window, or double-click to toggle maximize. The **Close** button follows the existing unsaved-draft/session-recovery protection. Focus mode hides this caption; Escape restores it. The standalone web editor and PWA retain their original page layout.
 
 Leaf desktop uses the **same editor** with a small, separate Rust/Tauri layer. The web page and PWA **do not load any Tauri scripts, Rust binaries or desktop dependencies**. Desktop builds use the OS WebView (WebView2 on Windows), not an Electron/Chromium bundle.
 

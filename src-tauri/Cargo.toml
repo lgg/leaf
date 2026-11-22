@@ -1,6 +1,6 @@
 [package]
 name = "leaf-desktop"
-version = "1.10.1"
+version = "1.10.2"
 description = "Leaf — distraction-free Markdown editor"
 authors = ["Dan (original Leaf)", "lgg (fork)"]
 edition = "2021"
