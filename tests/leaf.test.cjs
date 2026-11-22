@@ -682,8 +682,8 @@ test('PWA registration and browser install prompt are functional on HTTPS', asyn
   };
   const globals=
     "const navigator=deps.navigator,location={protocol:'https:',hostname:'lgg.github.io'};" +
-    "const document={getElementById:id=>id==='btn-install'?deps.button:deps.group};" +
-    "const window={addEventListener:(event,fn)=>{deps.events[event]=fn}};" +
+    "const document={body:{dataset:deps.bodyDataset||{}},getElementById:id=>id==='btn-install'?deps.button:deps.group};" +
+    "const window={__TAURI__:deps.tauri,leafDesktop:deps.leafDesktop,addEventListener:(event,fn)=>{deps.events[event]=fn}};" +
     "const console={warn:()=>{}};";
   const app=new Function('deps',globals+installSource+';return {installPWA};')(ctx);
   assert.equal(typeof events.load,'function');
@@ -705,6 +705,47 @@ test('PWA registration and browser install prompt are functional on HTTPS', asyn
   assert.equal(button.style.display,'none');
   events.appinstalled();
   assert.equal(group.style.display,'none');
+});
+
+test('portable and installed native desktop suppress browser PWA install events', async () => {
+  const marker='// ── Progressive Web App installation and offline cache';
+  const source=js.slice(js.indexOf(marker));
+  for(const desktop of [
+    {bodyDataset:{leafDesktop:'true'}}, // stable staging marker, even before Tauri JS appears
+    {tauri:{core:{}}},                   // fallback detection for native runtime
+    {leafDesktop:{}}                     // fallback after desktop bridge initialization
+  ]) {
+    const events={},group={style:{display:'none'}},button={style:{display:'none'}};
+    let registered=0, prompted=0, prevented=0;
+    const deps={...desktop,events,group,button,navigator:{
+      onLine:true,
+      serviceWorker:{register:()=>{registered++;return Promise.resolve({update:()=>Promise.resolve()})}}
+    }};
+    const env=
+      "const navigator=deps.navigator,location={protocol:'https:',hostname:'example.test'};" +
+      "const document={body:{dataset:deps.bodyDataset||{}},getElementById:id=>id==='btn-install'?deps.button:deps.group};" +
+      "const window={__TAURI__:deps.tauri,leafDesktop:deps.leafDesktop,addEventListener:(event,fn)=>{deps.events[event]=fn}};" +
+      "const console={warn:()=>{}};";
+    const api=new Function('deps',env+source+';return {installPWA,setLeafInstallVisible};')(deps);
+    // WebView2 might send an install event even when the executable is portable.
+    events.beforeinstallprompt({
+      preventDefault(){prevented++},
+      prompt(){prompted++;return Promise.resolve()},
+      userChoice:Promise.resolve({outcome:'accepted'})
+    });
+    assert.equal(prevented,1);
+    assert.equal(button.style.display,'none');
+    assert.equal(group.style.display,'none');
+    api.setLeafInstallVisible(true); // even other callers cannot reveal it
+    assert.equal(button.style.display,'none');
+    assert.equal(group.style.display,'none');
+    await api.installPWA();
+    assert.equal(prompted,0);
+    // Native marker and Tauri runtime block service-worker registration;
+    // an already-loaded native bridge also remains a display-only blocker.
+    if (desktop.tauri) assert.equal(typeof events.load,'undefined');
+    if (desktop.bodyDataset) assert.equal(registered,0);
+  }
 });
 
 test('preferences, independent tab names, input edits and recovery are wired', () => {
