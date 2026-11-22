@@ -3933,7 +3933,11 @@ function refreshAboutEdition() {
 }
 refreshAboutEdition();
 updateAboutLinkColor();
-document.getElementById('btn-about-readme').addEventListener('click',openReadmeTab);
+document.getElementById('btn-about-readme').addEventListener('click', () => {
+  if (justWriteActive) return;
+  document.getElementById('settings-overlay').style.display='none';
+  openReadmeTab();
+});
 document.getElementById('btn-about-settings').addEventListener('click',openAboutSettings);
 document.getElementById('chk-about-dont-show').addEventListener('change',event=>setSkipAboutDialog(event.target.checked));
 document.getElementById('chk-about-skip-dialog').addEventListener('change',event=>setSkipAboutDialog(event.target.checked));
