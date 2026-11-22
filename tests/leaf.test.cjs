@@ -198,6 +198,7 @@ test('actual localStorage settings round-trip restores font, theme and hidden UI
   };
   const ids = [
     'theme-select','settings-font-select','settings-font-size-input','settings-font-size-slider','chk-focus-header-autohide',
+    'settings-ui-font-select','settings-ui-font-size-input','settings-ui-font-size-slider',
     'chk-welcome','color-bg','color-text','color-accent',
     'hex-bg','hex-text','hex-accent',
     'chk-show-words','chk-show-placeholder','chk-show-chars',
@@ -213,11 +214,13 @@ test('actual localStorage settings round-trip restores font, theme and hidden UI
   const vars = {};
   const root = {dataset:{}, style:{setProperty:(key,value)=>{vars[key]=value}}};
   const body = {dataset:{},classList:{contains:()=>false,remove(){}}};
+  nodes['settings-ui-font-select'].options=[{value:"'JetBrains Mono', monospace"},{value:'Arial, Helvetica, sans-serif'}];
   const document = {getElementById:id=>nodes[id],documentElement:root,body};
   const init = "const SETTINGS_KEY='leaf-editor-settings',localStorage=deps.storage,document=deps.document;" +
     "let autohideEnabled=false,tabBarPinned=false,scrollSynced=true,smartPunctEnabled=false;" +
-    "let appliedFontSize=22,focusHeaderAutohideEnabled=true;" +
+    "let appliedFontSize=22,focusHeaderAutohideEnabled=true,appliedUiFontSize=17;" +
     "function applyFontSize(v){const n=Number(v);appliedFontSize=n;document.getElementById('settings-font-size-input').value=String(n);document.getElementById('settings-font-size-slider').value=String(Math.max(6,Math.min(128,n)));document.documentElement.style.setProperty('--font-size',n+'px');return true;}" +
+    "function applyUiFontSize(v){const n=Number(v);appliedUiFontSize=n;document.getElementById('settings-ui-font-size-input').value=String(n);document.getElementById('settings-ui-font-size-slider').value=String(Math.max(6,Math.min(128,n)));document.documentElement.style.setProperty('--ui-font-size',n+'px');return true;}" +
     "function applyFocusHeaderAutohide(){focusHeaderAutohideEnabled=document.getElementById('chk-focus-header-autohide').checked;}" +
     "function workspaceNotice(){} function applyCustomColors(){}" +
     "function updatePinIcon(){} function updateSyncIcon(){}" +
@@ -226,6 +229,8 @@ test('actual localStorage settings round-trip restores font, theme and hidden UI
   nodes['theme-select'].value='black';
   nodes['settings-font-select'].value="'Open Sans', Arial, sans-serif";
   nodes['settings-font-size-input'].value='22';
+  nodes['settings-ui-font-select'].value='Arial, Helvetica, sans-serif';
+  nodes['settings-ui-font-size-input'].value='17';
   nodes['settings-font-size-slider'].value='22';
   nodes['chk-focus-header-autohide'].checked=true;
   nodes['chk-show-words'].checked=false;
@@ -242,6 +247,8 @@ test('actual localStorage settings round-trip restores font, theme and hidden UI
   nodes['theme-select'].value='paper';
   nodes['settings-font-select'].value='Arial, Helvetica, sans-serif';
   nodes['settings-font-size-input'].value='14';
+  nodes['settings-ui-font-select'].value="'JetBrains Mono', monospace";
+  nodes['settings-ui-font-size-input'].value='10';
   nodes['settings-font-size-slider'].value='14';
   nodes['chk-focus-header-autohide'].checked=false;
   for (const id of ['chk-show-words','chk-show-placeholder','chk-show-chars',
@@ -255,6 +262,9 @@ test('actual localStorage settings round-trip restores font, theme and hidden UI
   assert.equal(nodes['settings-font-select'].value,"'Open Sans', Arial, sans-serif");
   assert.equal(vars['--editor-font'],"'Open Sans', Arial, sans-serif");
   assert.equal(nodes['settings-font-size-input'].value,'22');
+  assert.equal(nodes['settings-ui-font-select'].value,'Arial, Helvetica, sans-serif');
+  assert.equal(nodes['settings-ui-font-size-input'].value,'17');
+  assert.equal(vars['--ui-font-size'],'17px');
   assert.equal(nodes['settings-font-size-slider'].value,'22');
   assert.equal(nodes['chk-focus-header-autohide'].checked,true);
   assert.equal(vars['--font-size'],'22px');
@@ -270,6 +280,9 @@ test('settings order, responsive layout and unobtrusive backup control', () => {
   const modal = html.split('<!-- Settings Modal -->')[1].split('<!-- About Modal -->')[0];
   const sections = [...modal.matchAll(/<h3>([^<]+)<\/h3>/g)].map(item => item[1]);
   assert.equal(sections.join(','), 'Current document,Appearance,Status bar,Editor');
+  const tabs=[...modal.matchAll(/data-settings-tab="([^"]+)"/g)].map(match=>match[1]);
+  assert.deepEqual(tabs,['document','appearance','status','editor','mobile']);
+  for (const id of tabs) assert.ok(modal.includes('id="settings-panel-'+id+'"'));
   assert.ok(modal.includes('id="workspace-recovery-row" class="settings-recovery" hidden'));
   assert.ok(modal.includes('aria-label="Restore latest recovery copy"'));
   assert.ok(!modal.includes('title="Restore a separately saved workspace'));
@@ -358,6 +371,8 @@ test('all persisted settings keys are included in a saved preferences record', (
   nodes['theme-select']={value:'black'};
   nodes['settings-font-select']={value:'Arial, Helvetica, sans-serif'};
   nodes['settings-font-size-input']={value:'22'};
+  nodes['settings-ui-font-select']={value:"'JetBrains Mono', monospace"};
+  nodes['settings-ui-font-size-input']={value:'17'};
   nodes['chk-focus-header-autohide']={checked:true};
   nodes['color-bg']={value:'#010203'};
   nodes['color-text']={value:'#aabbcc'};
@@ -374,12 +389,12 @@ test('all persisted settings keys are included in a saved preferences record', (
   const prefix=
     "const SETTINGS_KEY='leaf-editor-settings',localStorage=deps.storage,document=deps.document;" +
     "let autohideEnabled=true,tabBarPinned=true,scrollSynced=false,smartPunctEnabled=true;" +
-    "let appliedFontSize=22,focusHeaderAutohideEnabled=true;" +
+    "let appliedFontSize=22,focusHeaderAutohideEnabled=true,appliedUiFontSize=17;" +
     "function workspaceNotice(){}";
   new Function('deps',prefix+source+';saveSettings();')({storage,document});
   const saved=JSON.parse(data['leaf-editor-settings']);
   const required=[
-    'theme','font','fontSize','autohide','focusHeaderAutohide','tabPinned','showWelcome','crtEnabled',
+    'theme','font','fontSize','uiFont','uiFontSize','autohide','focusHeaderAutohide','tabPinned','showWelcome','crtEnabled',
     'scrollSynced','customBg','customText','customAccent','smartPunct',
     'showWords','showPlaceholder','showChars','showLines','showReadtime','showCursor',
     'mobileHeading','mobileStatus','mobileAutohide'
@@ -388,6 +403,8 @@ test('all persisted settings keys are included in a saved preferences record', (
   assert.equal(saved.theme,'black');
   assert.equal(saved.font,'Arial, Helvetica, sans-serif');
   assert.equal(saved.fontSize,'22');
+  assert.equal(saved.uiFont,"'JetBrains Mono', monospace");
+  assert.equal(saved.uiFontSize,'17');
   assert.equal(saved.focusHeaderAutohide,true);
   assert.equal(saved.customBg,'#010203');
   assert.equal(saved.autohide,true);
@@ -445,14 +462,14 @@ test('valid custom HEX input saves the choice; invalid input does not', () => {
 
 test('GitHub Pages service worker prefers fresh HTML and keeps an offline fallback', () => {
   const sw=fs.readFileSync(path.join(__dirname,'..','sw.js'),'utf8');
-  assert.ok(sw.includes("const CACHE = 'leaf-lgg-v9'"));
+  assert.ok(sw.includes("const CACHE = 'leaf-lgg-v10'"));
   assert.ok(sw.includes("request.mode === 'navigate'"));
   assert.ok(sw.includes("fetch(request).then(response"));
   assert.ok(sw.includes("caches.match('./editor.html')"));
 });
 
 test('fork version matches README, changelog and visible About version', () => {
-  const version='1.10.2-lgg.1';
+  const version='1.10.3-lgg.1';
   const readme=fs.readFileSync(path.join(__dirname,'..','README.md'),'utf8').replace(/\r\n/g, '\n');
   const changelog=fs.readFileSync(path.join(__dirname,'..','CHANGELOG.md'),'utf8');
   assert.ok(html.includes('>v'+version+'</span>'));
@@ -833,4 +850,31 @@ test('focus-mode top bar auto-hide is saved independently and reveals document t
   assert.ok(js.includes('if (s.focusHeaderAutohide === true)'));
   assert.ok(js.includes('if (inFocus && focusHeaderAutohideEnabled)'));
   assert.ok(js.includes("document.getElementById('header').addEventListener('mouseleave'"));
+});
+
+
+test('five tabbed settings pages separate editor and interface typography', () => {
+  const modal = html.split('<!-- Settings Modal -->')[1].split('<!-- About Modal -->')[0];
+  const appearance = modal.split('id="settings-panel-appearance"')[1].split('id="settings-panel-status"')[0];
+  const editor = modal.split('id="settings-panel-editor"')[1].split('id="settings-panel-mobile"')[0];
+  for(const tab of ['document','appearance','status','editor','mobile']) {
+    assert.ok(modal.includes('id="settings-tab-'+tab+'"'));
+    assert.ok(modal.includes('role="tabpanel" aria-labelledby="settings-tab-'+tab+'"'));
+  }
+  assert.ok(modal.includes('role="tablist"'));
+  assert.ok(appearance.indexOf('id="chk-focus-header-autohide"') < appearance.indexOf('theme &amp; colors'));
+  assert.ok(appearance.includes('settings-ui-font-select'));
+  assert.ok(appearance.includes('settings-ui-font-size-input'));
+  assert.ok(appearance.includes('settings-ui-font-size-save'));
+  assert.ok(appearance.includes('settings-ui-font-size-slider" type="range" min="6" max="128"'));
+  assert.ok(!appearance.includes('id="settings-font-select"'));
+  assert.ok(editor.includes('id="settings-font-select"'));
+  assert.ok(editor.includes('id="settings-font-size-input"'));
+  assert.ok(editor.includes('id="settings-font-size-save"'));
+  assert.ok(!editor.includes('settings-ui-font-select'));
+  const uiController = html.slice(html.indexOf('function applyUiFontSize('), html.indexOf('function commitUiFontSize('));
+  assert.ok(uiController.includes("'--ui-font-size'"));
+  assert.ok(uiController.includes('Math.max(6, Math.min(128, size))'));
+  assert.ok(html.includes('uiFontSize:   String(appliedUiFontSize)'));
+  assert.ok(html.includes('if (s.uiFontSize !== undefined) applyUiFontSize(s.uiFontSize, false)'));
 });
