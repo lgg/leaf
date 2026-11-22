@@ -39,4 +39,4 @@ Additional infrastructure before claiming signed in-app updates or macOS support
 - [ ] macOS build runner and Apple Developer signing / notarization
 - [ ] Confirm existing Tauri CLI + NSIS bundler toolchain and explicitly approve packaging. CI currently does not invoke NSIS to avoid automatic tool downloads
 
-GitHub Releases is linked from About for manual downloads; unsigned automatic updates are intentionally not implemented.
+Settings → About contains release downloads and manual update controls. Windows update discovery runs once at startup and may notify the user, but downloads and application are explicitly opt-in. ZIP / Setup packages require GitHub SHA-256 verification; a publisher-signed unattended updater is not implemented. Native installation type is shown as portable ZIP or standalone installed Setup.
