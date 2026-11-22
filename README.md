@@ -1,6 +1,6 @@
 # Leaf — distraction-free Markdown editor
 
-**Fork version: v1.10.3-lgg.1** · Based on [uncle-jasper/leaf](https://github.com/uncle-jasper/leaf) v1.7 · Maintained by [lgg](https://github.com/lgg).
+**Fork version: v1.10.4-lgg.1** · Based on [uncle-jasper/leaf](https://github.com/uncle-jasper/leaf) v1.7 · Maintained by [lgg](https://github.com/lgg).
 
 Leaf is a focused, offline-capable Markdown and plain-text editor. It runs as a lightweight, single HTML file in a browser, installs as a PWA on phones, and has an **independent Tauri v2 desktop edition** that can edit real files on disk. No account, sync server, analytics or unnecessary background process.
 
@@ -22,9 +22,9 @@ On phones and touch tablets, Leaf hides the desktop header, tabs and status bar 
 
 The PWA has source-level automated regression tests. Final physical-device verification of iOS/Android install, offline behavior, rotation and keyboards is still a separate manual acceptance step.
 
-## Settings: five tabs and separate typography
+## Settings: six tabs and separate typography
 
-Settings now contains **Current document**, **Appearance**, **Status bar**, **Editor**, and **Mobile display** tabs. Appearance begins with the independent focus-mode top-bar auto-hide preference, then themes/colors and separate **interface font/size**. The **editor font/size** controls live in Editor. Both have an exact positive-integer pixel input, styled Save button and 6–128px slider; typing a larger value keeps it exactly while the slider clamps visually. Settings survive restarts without mixing editor and UI fonts.
+Settings now contains **Current document**, **Appearance**, **Status bar**, **Editor**, **Mobile display**, and **About** tabs. Appearance begins with the independent focus-mode top-bar auto-hide preference, then themes/colors and separate **interface font/size**. The **editor font/size** controls live in Editor. Both have an exact positive-integer pixel input, styled Save button and 6–128px slider; typing a larger value keeps it exactly while the slider clamps visually. Settings survive restarts without mixing editor and UI fonts.
 
 ## Desktop edition — Windows (Tauri v2)
 
@@ -40,7 +40,7 @@ Leaf desktop uses the **same editor** with a small, separate Rust/Tauri layer. T
 - The early-access Windows setup adds a Start menu shortcut and an Apps & features uninstall entry. It does not change default `.md` / `.txt` file associations; Tauri NSIS metadata supports associations when the full native installer toolchain is available. File paths passed at launch can be opened on startup.
 - Tabs, order, custom labels and per-document titles persist in local app settings. Unlike the web/PWA, desktop file text is not duplicated into browser localStorage; recovery drafts live in the native session. On restart, Leaf reads real files again from disk. Unsaved drafts can be recovered explicitly; missing files become recovery drafts that must be saved to a new location.
 - Drag and drop existing Markdown/text files onto the desktop window; only actual OS-dropped paths are authorized. Export all documents as a native ZIP file.
-- **Opt-in Windows updates (portable and installed):** Leaf checks official GitHub Releases, including prereleases, once at startup and on request in About. New versions show release notes and a download button. Only on separate user approvals does the bundled Windows helper download the official ZIP/Setup, verify SHA-256 and asset size, save recovery drafts, then replace/restart portable Leaf or launch per-user Setup after exiting. No silent downloads or forced installation.
+- **Opt-in Windows updates (portable and installed):** Leaf checks official GitHub Releases, including prereleases, once at startup and on request in Settings → About. New versions show release notes and a download button. Only on separate user approvals does the bundled Windows helper download the official ZIP/Setup, verify SHA-256 and asset size, save recovery drafts, then replace/restart portable Leaf or launch per-user Setup after exiting. No silent downloads or forced installation.
 - Web/email links in Markdown previews open in the OS default application; unsafe link schemes are rejected.
 - File operations are restricted to text extensions and exposed through explicit native commands. The browser/PWA remains sandboxed.
 
@@ -74,7 +74,7 @@ Builds can download normal Cargo dependency crates during compilation; the workf
 - Export active Markdown/text documents or a ZIP of all editable tabs.
 - Keyboard shortcuts, settings persistence, focus / Just Write modes.
 
-For deeper implementation notes, see [desktop architecture](docs/DESKTOP.md), [settings audit](docs/SETTINGS_AUDIT.md) and [changelog](CHANGELOG.md). The in-app About dialog includes links to this repository and desktop releases.
+For deeper implementation notes, see [desktop architecture](docs/DESKTOP.md), [settings audit](docs/SETTINGS_AUDIT.md) and [changelog](CHANGELOG.md). The Settings → About tab includes both repositories, a Star on GitHub action and Windows updates. The old pop-up can be permanently skipped.
 
 ## Verification and release policy
 
