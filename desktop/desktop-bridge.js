@@ -9,6 +9,7 @@
   let pendingSession = Promise.resolve();
   let saveQueue = Promise.resolve();
   let closing = false;
+  let updateApproved = false;
   let sessionRecoveryBlocked = false;
 
   function current() { return getActiveTab(); }
@@ -366,39 +367,115 @@
     });
   }, true);
 
+  // Native update broker: GitHub prereleases are discovered via trusted Windows
+  // helper, asset content verified against GitHub SHA-256 before any handoff.
+  // Never auto-download or auto-install, even if the check finds an update.
   const checkButton = document.getElementById('btn-desktop-check-updates');
   const updateStatus = document.getElementById('desktop-update-status');
-  if (checkButton && updateStatus) {
-    checkButton.addEventListener('click', async () => {
-      checkButton.disabled = true;
-      updateStatus.textContent = 'Checking published releases…';
-      try {
-        const response = await fetch('https://api.github.com/repos/lgg/leaf/releases/latest', {
-          headers: {'Accept': 'application/vnd.github+json'}
-        });
-        if (response.status === 404) {
-          updateStatus.textContent = 'No published desktop release yet.';
-        } else if (!response.ok) {
-          updateStatus.textContent = 'Could not check releases (HTTP ' + response.status + ').';
-        } else {
-          const payload = await response.json();
-          const latest = String(payload.tag_name || '').replace(/^v/i, '');
-          const current = '1.10.2-lgg.1';
-          const nums = v => v.split(/[^0-9]+/).filter(Boolean).map(Number);
-          const parts = nums(latest), base = nums(current);
-          const newer = parts.some((n, i) => n > (base[i] || 0) &&
-            parts.slice(0, i).every((m, j) => m === (base[j] || 0)));
-          updateStatus.textContent = newer
-            ? 'A newer version (' + latest.slice(0, 40) + ') is available. Open GitHub Releases to review notes and download.'
-            : 'Your app is current, or no newer stable release is published.';
-        }
-      } catch (error) {
-        updateStatus.textContent = 'Release check unavailable. Open GitHub Releases manually.';
-      } finally {
-        checkButton.disabled = false;
-      }
-    });
+  const updatePanel = document.getElementById('desktop-update-panel');
+  const updateNotes = document.getElementById('desktop-update-notes');
+  const downloadButton = document.getElementById('btn-desktop-update-download');
+  const installButton = document.getElementById('btn-desktop-update-install');
+  const updateNotice = document.getElementById('desktop-update-notice');
+  const updateNoticeText = document.getElementById('desktop-update-notice-text');
+  let availableUpdate = null;
+  let downloadedUpdate = null;
+  let checking = false;
+  function hideUpdateNotice() {
+    if (updateNotice) updateNotice.hidden = true;
   }
+  const dismissUpdate = document.getElementById('desktop-update-dismiss');
+  if (dismissUpdate) dismissUpdate.addEventListener('click', hideUpdateNotice);
+  const openUpdate = document.getElementById('desktop-update-open');
+  if (openUpdate) openUpdate.addEventListener('click', () => {
+    const about = document.getElementById('about-overlay');
+    if (about) about.style.display = 'flex';
+    hideUpdateNotice();
+  });
+  async function checkUpdates(manual = false) {
+    if (checking || closing) return;
+    checking = true;
+    if (checkButton) checkButton.disabled = true;
+    if (manual && updateStatus) updateStatus.textContent = 'Checking GitHub Releases, including prereleases…';
+    try {
+      const info = await invoke('desktop_check_update');
+      availableUpdate = info || null;
+      downloadedUpdate = null;
+      if (updatePanel) updatePanel.hidden = !info;
+      if (installButton) installButton.hidden = true;
+      if (downloadButton) { downloadButton.hidden = false; downloadButton.disabled = false; }
+      if (!info) {
+        hideUpdateNotice();
+        if (updateStatus && manual) updateStatus.textContent = 'Leaf is up to date.';
+        return;
+      }
+      if (!/^v[0-9]+[.][0-9]+[.][0-9]+-lgg[.][0-9]+(?:-windows-rc[.][0-9]+)?$/.test(info.tag)) {
+        throw new Error('Invalid release version.');
+      }
+      if (updateNotes) updateNotes.textContent =
+        'New version: ' + info.tag + '\n' +
+        'Package: ' + (info.mode === 'portable' ? 'Portable ZIP' : 'Windows Setup') +
+        ' · ' + Math.round(info.bytes / 1024 / 1024 * 10) / 10 + ' MB\n\n' +
+        (info.notes || 'Release notes are available on GitHub.');
+      if (updateStatus) updateStatus.textContent = 'Update available: ' + info.tag;
+      if (updateNoticeText) updateNoticeText.textContent = 'Leaf ' + info.tag + ' is available';
+      if (updateNotice) updateNotice.hidden = false;
+    } catch (_) {
+      if (manual && updateStatus) updateStatus.textContent =
+        'Update check unavailable. Check your connection or use GitHub Releases.';
+    } finally {
+      checking = false;
+      if (checkButton) checkButton.disabled = false;
+    }
+  }
+  if (checkButton) checkButton.addEventListener('click', () => checkUpdates(true));
+  if (downloadButton) downloadButton.addEventListener('click', async () => {
+    if (!availableUpdate || downloadedUpdate) return;
+    if (!confirm('Download verified Leaf ' + availableUpdate.tag +
+          ' from the official GitHub Release? No installation will start yet.')) return;
+    downloadButton.disabled = true;
+    if (updateStatus) updateStatus.textContent = 'Downloading and verifying GitHub SHA-256…';
+    try {
+      const info = await invoke('desktop_download_update', {tag: availableUpdate.tag});
+      if (!info || info.tag !== availableUpdate.tag) throw new Error('Version changed during download.');
+      downloadedUpdate = info;
+      downloadButton.hidden = true;
+      if (installButton) {
+        installButton.textContent = info.mode === 'portable' ? 'apply portable update' : 'run setup update';
+        installButton.hidden = false;
+      }
+      if (updateStatus) updateStatus.textContent = 'Verified download ready. Install only when you confirm.';
+    } catch (_) {
+      if (updateStatus) updateStatus.textContent =
+        'Download or integrity check failed. Files remain unchanged; retry.';
+    } finally { downloadButton.disabled = false; }
+  });
+  if (installButton) installButton.addEventListener('click', async () => {
+    if (!downloadedUpdate || closing) return;
+    const mode = downloadedUpdate.mode;
+    if (!confirm((mode === 'portable'
+        ? 'Close Leaf, replace the portable EXE with the verified update and restart it?'
+        : 'Close Leaf and launch the verified Setup installer for this user?') +
+        '\n\nUnsaved drafts will be saved to recovery storage.')) return;
+    installButton.disabled = true;
+    try {
+      // Protect all documents before launching a helper that must wait for exit.
+      await flushSession();
+      await invoke('desktop_apply_update', {tag: downloadedUpdate.tag});
+      updateApproved = true;
+      if (updateStatus) updateStatus.textContent = 'Closing Leaf safely to apply the update…';
+      if (!tauri.window || !tauri.window.getCurrentWindow) throw new Error('Window API unavailable.');
+      await tauri.window.getCurrentWindow().close();
+    } catch (_) {
+      updateApproved = false;
+      if (updateStatus) updateStatus.textContent =
+        'Update could not start safely. Your documents are intact; try again.';
+      installButton.disabled = false;
+    }
+  });
+  // One lightweight check after restoration, no silent downloads or repeated
+  // polling. A manual Check updates button remains available in About.
+  setTimeout(() => { checkUpdates(false).catch(() => {}); }, 2000);
 
   if (tauri.window && tauri.window.getCurrentWindow) {
     const win = tauri.window.getCurrentWindow();
@@ -408,7 +485,7 @@
       event.preventDefault();
       if (closing) return;
       saveActiveTabState();
-      if (tabs.some(tab => tab.dirty) &&
+      if (!updateApproved && tabs.some(tab => tab.dirty) &&
           !confirm('Unsaved edits exist. Leaf will keep recovery drafts. Exit without saving them to disk?')) {
         return;
       }

@@ -47,13 +47,27 @@ html = html.replace(
 );
 if (!html.includes('btn-desktop-check-updates')) throw new Error('Desktop updater UI injection point not found.');
 html = html.replace(
+  '<button id="btn-desktop-check-updates" type="button" title="Check published GitHub releases">check updates</button>',
+  '<button id="btn-desktop-check-updates" type="button" title="Check official GitHub releases">check updates</button>' +
+  '<div id="desktop-update-panel" hidden><div id="desktop-update-notes"></div>' +
+  '<div class="desktop-update-buttons"><button id="btn-desktop-update-download" type="button">download update</button>' +
+  '<button id="btn-desktop-update-install" type="button" hidden>apply update</button></div></div>'
+);
+html = html.replace(
+  '<div id="header">',
+  '<aside id="desktop-update-notice" role="status" hidden><span id="desktop-update-notice-text"></span>' +
+  '<button id="desktop-update-open" type="button">review update</button>' +
+  '<button id="desktop-update-dismiss" type="button" aria-label="Dismiss update notice">×</button></aside><div id="header">'
+);
+html = html.replace('</head>', '<link rel="stylesheet" href="./desktop-updater.css">\n</head>');
+html = html.replace(
   '<button id="btn-save" title="Save file (Ctrl+S)">',
   '<button id="btn-desktop-save-as" title="Save as a new file (Ctrl+Shift+S)">save as</button>\n    <button id="btn-save" title="Save file (Ctrl+S)">'
 );
 if (!html.includes('btn-desktop-save-as')) throw new Error('Desktop Save As injection point not found.');
 fs.writeFileSync(path.join(out, 'index.html'), html);
 fs.copyFileSync(path.join(__dirname, 'desktop-bridge.js'), path.join(out, 'desktop-bridge.js'));
-for (const name of ['desktop-titlebar.css', 'desktop-titlebar.js']) {
+for (const name of ['desktop-titlebar.css', 'desktop-titlebar.js', 'desktop-updater.css']) {
   fs.copyFileSync(path.join(__dirname, name), path.join(out, name));
 }
 for (const name of ['leaf-icon-192.png', 'leaf-icon-512.png']) {

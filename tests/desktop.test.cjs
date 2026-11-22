@@ -36,9 +36,9 @@ test('Tauri capabilities do not enable unrestricted file system APIs', () => {
 test('Tauri and web release identifiers are coherent', () => {
   const config = require('../src-tauri/tauri.conf.json');
   const cargo = fs.readFileSync(path.join(root, 'src-tauri', 'Cargo.toml'), 'utf8');
-  assert.equal(config.version, '1.10.2');
-  assert.match(cargo, /version = "1\.10\.2"/);
-  assert.match(fs.readFileSync(path.join(root, 'README.md'), 'utf8'), /1\.10\.2-lgg\.1/);
+  assert.equal(config.version, '1.10.3');
+  assert.match(cargo, /version = "1\.10\.3"/);
+  assert.match(fs.readFileSync(path.join(root, 'README.md'), 'utf8'), /1\.10\.3-lgg\.1/);
 });
 
 test('desktop stage creates offline assets without adding web-only service worker', () => {
@@ -444,7 +444,7 @@ test('native close blocks duplicate requests until recovery is flushed and permi
   assert.ok(start >= 0 && end > start);
   const source = bridge.slice(start, end + 2);
   const create = new Function('win','tabs','confirm','saveActiveTabState','flushSession','alert','safeError',
-    'let closing=false; ' + source + '; return () => closing;');
+    'let closing=false,updateApproved=false; ' + source + '; return () => closing;');
   let callback;
   let discarded = 0;
   let prevented = 0;
@@ -564,4 +564,40 @@ test('custom Leaf titlebar is desktop-only, safe, theme-aware and frameless', ()
   assert.ok(logic.includes('appWindow.toggleMaximize()'));
   assert.ok(logic.includes('appWindow.minimize()'));
   assert.doesNotThrow(() => new Function(logic));
+});
+
+
+test('native Windows updater checks prereleases and requires separate download and install approval', () => {
+  const rust = fs.readFileSync(path.join(root,'src-tauri','src','desktop_updater.rs'),'utf8');
+  const helper = fs.readFileSync(path.join(root,'desktop','windows-update-agent.ps1'),'utf8');
+  const bridge = fs.readFileSync(path.join(root,'desktop','desktop-bridge.js'),'utf8');
+  const stage = fs.readFileSync(path.join(root,'desktop','stage.cjs'),'utf8');
+  const main = fs.readFileSync(path.join(root,'src-tauri','src','main.rs'),'utf8');
+  const updateCss = fs.readFileSync(path.join(root,'desktop','desktop-updater.css'),'utf8');
+  const release = fs.readFileSync(path.join(root,'.github','workflows','windows-preview-release.yml'),'utf8');
+  assert.match(rust, /CURRENT_TAG: &str = "v1\.10\.3-lgg\.1-windows-rc\.1"/);
+  for (const action of ['desktop_check_update','desktop_download_update','desktop_apply_update']) {
+    assert.ok(main.includes('desktop_updater::'+action));
+    assert.ok(bridge.includes("'"+action+"'"));
+  }
+  assert.ok(helper.includes('/releases?per_page=40'));
+  assert.ok(!helper.includes('/releases/latest'));
+  assert.ok(helper.includes('Leaf-Windows-10-11-x64-Setup.exe'));
+  assert.ok(helper.includes('Leaf-Windows-10-11-x64-Portable.zip'));
+  assert.ok(helper.includes('[IO.File]::Replace'));
+  assert.ok(helper.includes('Wait-Process -Id $WaitPid'));
+  assert.ok(helper.includes('Start-Process -FilePath $Package'));
+  assert.ok(helper.includes("if ($Mode -eq 'Apply')"));
+  assert.ok(bridge.includes('setTimeout(() => { checkUpdates(false)'));
+  assert.ok(bridge.includes('await flushSession()'));
+  assert.ok(bridge.includes('await tauri.window.getCurrentWindow().close()'));
+  assert.ok(bridge.includes('updateApproved = true'));
+  assert.ok(bridge.includes('if (!updateApproved && tabs.some'));
+  assert.ok(stage.includes('desktop-update-notice'));
+  assert.ok(stage.includes('desktop-update-panel'));
+  assert.ok(stage.includes('desktop-updater.css'));
+  assert.ok(updateCss.includes('#desktop-update-panel'));
+  assert.ok(!fs.readFileSync(path.join(root,'editor.html'),'utf8').includes('id="desktop-update-panel"'));
+  assert.ok(release.includes('TAG_NAME: v1.10.3-lgg.1-windows-rc.1'));
+  assert.doesNotThrow(() => new Function(bridge));
 });

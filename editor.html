@@ -1233,6 +1233,102 @@
     #settings-modal .settings-row { min-height: 31px; }
   }
 
+
+  /* Five compact settings tabs; only the active page scrolls. */
+  #settings-modal {
+    width: min(690px, calc(100vw - 20px));
+    height: min(520px, calc(100dvh - 20px));
+    padding: 22px 22px 18px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  #settings-tabs {
+    display: flex;
+    flex: 0 0 auto;
+    gap: 4px;
+    padding: 0 24px 12px 0;
+    border-bottom: 1px solid var(--border);
+    overflow-x: auto;
+    scrollbar-width: thin;
+    margin-bottom: 16px;
+  }
+  .settings-tab {
+    flex: 0 0 auto;
+    padding: 8px 10px;
+    background: transparent;
+    color: var(--muted);
+    border: 1px solid transparent;
+    border-radius: 5px;
+    font: 11px 'JetBrains Mono', monospace;
+    opacity: .85;
+    white-space: nowrap;
+    cursor: pointer;
+  }
+  .settings-tab:hover, .settings-tab:focus-visible {
+    background: var(--bg); color: var(--text); opacity: 1;
+  }
+  .settings-tab.active {
+    background: var(--bg); color: var(--text);
+    border-color: var(--border); opacity: 1;
+    box-shadow: inset 0 -2px var(--accent);
+  }
+  #settings-panels {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: hidden;
+  }
+  .settings-page {
+    overflow-y: auto;
+    height: 100%;
+    min-height: 0;
+    padding: 3px 5px 12px 0;
+    scrollbar-width: thin;
+  }
+  .settings-page[hidden] { display: none !important; }
+  .settings-page .settings-section { margin-bottom: 0; }
+  .settings-mini-heading {
+    margin: 18px 0 12px;
+    font: 10px 'JetBrains Mono', monospace;
+    text-transform: uppercase;
+    letter-spacing: .07em;
+    color: var(--muted);
+    opacity: .85;
+  }
+  .settings-mini-divider { border-top: 1px solid var(--border); padding-top: 16px; }
+  .settings-option-spaced { padding: 6px 0 12px; margin-bottom: 14px; border-bottom: 1px solid var(--border); }
+  #settings-modal #settings-ui-font-size-input {
+    width: 70px; flex: 0 0 70px; min-width: 0;
+    border: 1px solid var(--border); background: var(--bg); color: var(--text);
+    border-radius: 5px; padding: 5px 7px;
+    font: 12px 'JetBrains Mono', monospace;
+  }
+  #settings-modal #settings-ui-font-size-save {
+    border: 1px solid var(--border); background: var(--bg); color: var(--text);
+    border-radius: 5px; padding: 5px 9px; font: 11px 'JetBrains Mono', monospace;
+  }
+  #settings-modal #settings-ui-font-size-save:hover { background: var(--border); border-color: var(--accent); }
+  #settings-modal #settings-ui-font-size-slider { flex: 1 1 105px; min-width: 80px; accent-color: var(--accent); cursor: pointer; }
+  #settings-ui-font-size-error { color: #b4544b; font: 10px 'JetBrains Mono', monospace; padding: 0 0 12px 44px; }
+  #settings-ui-font-size-error[hidden] { display: none !important; }
+  @media (max-width: 520px) {
+    #settings-modal { width: calc(100vw - 12px); height: min(560px, calc(100dvh - 12px)); padding: 24px 12px 12px; }
+    #settings-tabs { margin-bottom: 10px; gap: 2px; }
+    .settings-tab { padding: 8px 7px; font-size: 10px; }
+  }
+  /* Separate interface typography; writing text remains on --editor-font
+     and --font-size even when the rest of the application changes. */
+  :root { --ui-font: 'JetBrains Mono', monospace; --ui-font-size: 12px; }
+  body { font-family: var(--ui-font); font-size: var(--ui-font-size); }
+  #preview { font-size: var(--font-size); }
+  :is(#toolbar,#tab-bar,#statusbar,#settings-modal,#about-modal,#mobile-controls,#mobile-sheet,#mobile-document-heading,#focus-hint) ,
+  :is(#toolbar,#tab-bar,#statusbar,#settings-modal,#about-modal,#mobile-controls,#mobile-sheet,#mobile-document-heading,#focus-hint) :is(button,input,select,label,span,div,h3,h4,p,a) {
+    font-family: var(--ui-font) !important;
+  }
+  :is(#toolbar,#tab-bar,#statusbar,#settings-modal,#about-modal,#mobile-controls,#mobile-sheet,#mobile-document-heading) :is(button,input:not([type="color"]),select,label,span,div,p,a) {
+    font-size: var(--ui-font-size) !important;
+  }
+
 </style>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Inconsolata:wght@400;500&family=Share+Tech+Mono&family=Roboto+Mono:wght@400;500&family=Open+Sans:wght@400;500&display=swap" rel="stylesheet">
 </head>
@@ -1352,7 +1448,15 @@
 <div id="settings-overlay" style="display:none">
   <div id="settings-modal">
     <button id="btn-settings-close" title="Close" aria-label="Close settings">×</button>
-    <div class="settings-section">
+    <nav id="settings-tabs" role="tablist" aria-label="Settings sections">
+      <button type="button" class="settings-tab" id="settings-tab-document" role="tab" aria-controls="settings-panel-document" aria-selected="false" tabindex="-1" data-settings-tab="document">Current document</button>
+      <button type="button" class="settings-tab active" id="settings-tab-appearance" role="tab" aria-controls="settings-panel-appearance" aria-selected="true" tabindex="0" data-settings-tab="appearance">Appearance</button>
+      <button type="button" class="settings-tab" id="settings-tab-status" role="tab" aria-controls="settings-panel-status" aria-selected="false" tabindex="-1" data-settings-tab="status">Status bar</button>
+      <button type="button" class="settings-tab" id="settings-tab-editor" role="tab" aria-controls="settings-panel-editor" aria-selected="false" tabindex="-1" data-settings-tab="editor">Editor</button>
+      <button type="button" class="settings-tab" id="settings-tab-mobile" role="tab" aria-controls="settings-panel-mobile" aria-selected="false" tabindex="-1" data-settings-tab="mobile">Mobile display</button>
+    </nav>
+    <div id="settings-panels">
+    <section id="settings-panel-document" class="settings-page" role="tabpanel" aria-labelledby="settings-tab-document" hidden>
       <h3>Current document</h3>
       <div class="settings-row settings-document-row">
         <label for="settings-filename">file name</label>
@@ -1371,10 +1475,14 @@
         <span>Another browser window's draft was saved separately.</span>
         <button id="btn-recover-workspace" type="button" aria-label="Restore latest recovery copy">restore backup</button>
       </div>
-    </div>
-    <hr class="settings-divider">
-    <div class="settings-section">
+    </section>
+    <section id="settings-panel-appearance" class="settings-page" role="tabpanel" aria-labelledby="settings-tab-appearance">
       <h3>Appearance</h3>
+      <div class="settings-row settings-option-spaced">
+        <input type="checkbox" id="chk-focus-header-autohide">
+        <label for="chk-focus-header-autohide">auto-hide top bar in focus mode (hover to reveal)</label>
+      </div>
+      <h4 class="settings-mini-heading">theme &amp; colors</h4>
       <div class="settings-theme-list">
         <div class="settings-theme-item" data-value="parchment"><span class="theme-swatch" style="background:#f5f0e8"></span>parchment</div>
         <div class="settings-theme-item" data-value="sepia"><span class="theme-swatch" style="background:#c8a97e"></span>sepia</div>
@@ -1410,7 +1518,57 @@
           <input type="text" id="hex-accent" value="#8b6e4e" class="hex-input" maxlength="7" spellcheck="false" title="Accent hex">
         </div>
       </div>
-      <hr class="settings-divider" style="margin-top:12px;">
+
+      <h4 class="settings-mini-heading settings-mini-divider">interface typography</h4>
+      <div class="settings-row" style="margin-top:10px;">
+        <label for="settings-ui-font-select" style="min-width:36px;">font</label>
+        <select id="settings-ui-font-select" title="Interface font">
+          <option value="'iAWriterMonoS', monospace">iA Writer Mono</option>
+          <option value="'iAWriterDuoS', monospace">iA Writer Duo</option>
+          <option value="'iAWriterQuattroS', monospace">iA Writer Quattro</option>
+          <option value="'JetBrains Mono', monospace" selected>JetBrains Mono</option>
+          <option value="'Inconsolata', monospace">Inconsolata</option>
+          <option value="'Share Tech Mono', monospace">Share Tech Mono</option>
+          <option value="'Roboto Mono', monospace">Roboto Mono</option>
+          <option value="'Open Sans', Arial, sans-serif">Open Sans</option>
+          <option value="'Times New Roman', Times, serif">Times New Roman</option>
+          <option value="Arial, Helvetica, sans-serif">Arial</option>
+        </select>
+      </div>
+      <div class="settings-row settings-font-size-control">
+        <label for="settings-ui-font-size-input" style="min-width:36px;">size</label>
+        <input id="settings-ui-font-size-input" type="text" inputmode="numeric" value="12" autocomplete="off" spellcheck="false" aria-describedby="settings-ui-font-size-error" title="Exact interface font size in pixels">
+        <button id="settings-ui-font-size-save" type="button" title="Save interface font size">save</button>
+        <input id="settings-ui-font-size-slider" type="range" min="6" max="128" step="1" value="12" aria-label="Interface font size slider from 6 to 128 pixels" title="6–128 px">
+      </div>
+      <div id="settings-ui-font-size-error" role="alert" hidden>Enter a positive whole number of pixels.</div>
+    </section>
+    <section id="settings-panel-status" class="settings-page" role="tabpanel" aria-labelledby="settings-tab-status" hidden>
+      <h3>Status bar</h3>
+      <div class="settings-row">
+        <input type="checkbox" id="chk-show-words" checked>
+        <label for="chk-show-words">word count</label>
+      </div>
+      <div class="settings-row">
+        <input type="checkbox" id="chk-show-chars" checked>
+        <label for="chk-show-chars">character count</label>
+      </div>
+      <div class="settings-row">
+        <input type="checkbox" id="chk-show-lines" checked>
+        <label for="chk-show-lines">line count</label>
+      </div>
+      <div class="settings-row">
+        <input type="checkbox" id="chk-show-readtime" checked>
+        <label for="chk-show-readtime">reading time</label>
+      </div>
+      <div class="settings-row">
+        <input type="checkbox" id="chk-show-cursor" checked>
+        <label for="chk-show-cursor">cursor position</label>
+      </div>
+    </section>
+    <section id="settings-panel-editor" class="settings-page" role="tabpanel" aria-labelledby="settings-tab-editor" hidden>
+      <h3>Editor</h3>
+      <h4 class="settings-mini-heading">editor typography</h4>
       <div class="settings-row" style="margin-top:10px;">
         <label for="settings-font-select" style="min-width:36px;">font</label>
         <select id="settings-font-select" title="Editor font">
@@ -1433,38 +1591,7 @@
         <input id="settings-font-size-slider" type="range" min="6" max="128" step="1" value="18" aria-label="Font size slider from 6 to 128 pixels" title="6–128 px">
       </div>
       <div class="settings-font-size-error" id="settings-font-size-error" role="alert" hidden>Enter a positive whole number of pixels.</div>
-      <div class="settings-row">
-        <input type="checkbox" id="chk-focus-header-autohide">
-        <label for="chk-focus-header-autohide">auto-hide top bar in focus mode (hover to reveal)</label>
-      </div>
-    </div>
-    <hr class="settings-divider">
-    <div class="settings-section">
-      <h3>Status bar</h3>
-      <div class="settings-row">
-        <input type="checkbox" id="chk-show-words" checked>
-        <label for="chk-show-words">word count</label>
-      </div>
-      <div class="settings-row">
-        <input type="checkbox" id="chk-show-chars" checked>
-        <label for="chk-show-chars">character count</label>
-      </div>
-      <div class="settings-row">
-        <input type="checkbox" id="chk-show-lines" checked>
-        <label for="chk-show-lines">line count</label>
-      </div>
-      <div class="settings-row">
-        <input type="checkbox" id="chk-show-readtime" checked>
-        <label for="chk-show-readtime">reading time</label>
-      </div>
-      <div class="settings-row">
-        <input type="checkbox" id="chk-show-cursor" checked>
-        <label for="chk-show-cursor">cursor position</label>
-      </div>
-    </div>
-    <hr class="settings-divider">
-    <div class="settings-section">
-      <h3>Editor</h3>
+      <h4 class="settings-mini-heading settings-mini-divider">writing options</h4>
       <div class="settings-row">
         <input type="checkbox" id="chk-show-placeholder" checked>
         <label for="chk-show-placeholder">show writing hint on empty page</label>
@@ -1477,6 +1604,8 @@
         <input type="checkbox" id="chk-smart-punct">
         <label for="chk-smart-punct">smart punctuation</label>
       </div>
+    </section>
+    <section id="settings-panel-mobile" class="settings-page" role="tabpanel" aria-labelledby="settings-tab-mobile" hidden>
       <h4 class="mobile-settings-label">Mobile display</h4>
       <div class="settings-row">
         <input type="checkbox" id="chk-mobile-heading">
@@ -1490,8 +1619,8 @@
         <input type="checkbox" id="chk-mobile-autohide" checked>
         <label for="chk-mobile-autohide">auto-hide bottom controls</label>
       </div>
+    </section>
     </div>
-
   </div>
 </div>
 
@@ -1505,7 +1634,7 @@
     <p class="about-credit">Vibe coded by <a href="https://github.com/uncle-jasper" target="_blank" rel="noopener noreferrer">Dan</a> · <a href="https://github.com/uncle-jasper/leaf" target="_blank" rel="noopener noreferrer">original repository</a></p>
     <p class="about-credit">updated by <a href="https://github.com/lgg" target="_blank" rel="noopener noreferrer">lgg</a> · <a href="https://github.com/lgg/leaf" target="_blank" rel="noopener noreferrer">fork repository</a></p>
     <p class="about-copy">© 2026</p>
-    <p class="about-version"><span style="font-size:13px;">v1.10.2-lgg.1</span> · <a href="#" onclick="openReadmeTab(); return false;" style="font-size:11px; color:var(--accent); opacity:0.7; text-decoration:none;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.7'">README</a> · <a href="https://github.com/lgg/leaf/blob/main/CHANGELOG.md" target="_blank" rel="noopener noreferrer" style="font-size:11px; color:var(--accent); opacity:0.7; text-decoration:none;">changelog</a></p>
+    <p class="about-version"><span style="font-size:13px;">v1.10.3-lgg.1</span> · <a href="#" onclick="openReadmeTab(); return false;" style="font-size:11px; color:var(--accent); opacity:0.7; text-decoration:none;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.7'">README</a> · <a href="https://github.com/lgg/leaf/blob/main/CHANGELOG.md" target="_blank" rel="noopener noreferrer" style="font-size:11px; color:var(--accent); opacity:0.7; text-decoration:none;">changelog</a></p>
     <p class="about-copy" style="margin:10px 0 0;font-size:12px;">Desktop edition · <a href="https://github.com/lgg/leaf/releases" target="_blank" rel="noopener noreferrer" style="color:var(--accent)">Windows downloads &amp; release notes</a> (when available)</p>
     <p style="margin-top:4px; font-size:11px;"><a href="https://buymeacoffee.com/dandanmian" target="_blank" style="color:var(--accent); opacity:0.7; text-decoration:none;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.7'">☕ buy me a coffee</a></p>
   </div>
@@ -1514,7 +1643,7 @@
 <script>
 const README_CONTENT = `# Leaf — distraction-free Markdown editor
 
-**Fork version: v1.10.2-lgg.1** · Based on [uncle-jasper/leaf](https://github.com/uncle-jasper/leaf) v1.7 · Maintained by [lgg](https://github.com/lgg).
+**Fork version: v1.10.3-lgg.1** · Based on [uncle-jasper/leaf](https://github.com/uncle-jasper/leaf) v1.7 · Maintained by [lgg](https://github.com/lgg).
 
 Leaf is a focused, offline-capable Markdown and plain-text editor. It runs as a lightweight, single HTML file in a browser, installs as a PWA on phones, and has an **independent Tauri v2 desktop edition** that can edit real files on disk. No account, sync server, analytics or unnecessary background process.
 
@@ -1536,6 +1665,10 @@ On phones and touch tablets, Leaf hides the desktop header, tabs and status bar 
 
 The PWA has source-level automated regression tests. Final physical-device verification of iOS/Android install, offline behavior, rotation and keyboards is still a separate manual acceptance step.
 
+## Settings: five tabs and separate typography
+
+Settings now contains **Current document**, **Appearance**, **Status bar**, **Editor**, and **Mobile display** tabs. Appearance begins with the independent focus-mode top-bar auto-hide preference, then themes/colors and separate **interface font/size**. The **editor font/size** controls live in Editor. Both have an exact positive-integer pixel input, styled Save button and 6–128px slider; typing a larger value keeps it exactly while the slider clamps visually. Settings survive restarts without mixing editor and UI fonts.
+
 ## Desktop edition — Windows (Tauri v2)
 
 - **Themed frameless titlebar:** desktop-only window frame uses Leaf's selected background/text colors with its app icon and native **minimize**, **maximize/restore**, and **close** controls. Drag the header to move the window, or double-click to toggle maximize. The **Close** button follows the existing unsaved-draft/session-recovery protection. Focus mode hides this caption; Escape restores it. The standalone web editor and PWA retain their original page layout.
@@ -1550,11 +1683,11 @@ Leaf desktop uses the **same editor** with a small, separate Rust/Tauri layer. T
 - The early-access Windows setup adds a Start menu shortcut and an Apps & features uninstall entry. It does not change default \`.md\` / \`.txt\` file associations; Tauri NSIS metadata supports associations when the full native installer toolchain is available. File paths passed at launch can be opened on startup.
 - Tabs, order, custom labels and per-document titles persist in local app settings. Unlike the web/PWA, desktop file text is not duplicated into browser localStorage; recovery drafts live in the native session. On restart, Leaf reads real files again from disk. Unsaved drafts can be recovered explicitly; missing files become recovery drafts that must be saved to a new location.
 - Drag and drop existing Markdown/text files onto the desktop window; only actual OS-dropped paths are authorized. Export all documents as a native ZIP file.
-- Check published GitHub releases from the desktop About panel on demand; review release notes and download manually. No forced updates.
+- **Opt-in Windows updates (portable and installed):** Leaf checks official GitHub Releases, including prereleases, once at startup and on request in About. New versions show release notes and a download button. Only on separate user approvals does the bundled Windows helper download the official ZIP/Setup, verify SHA-256 and asset size, save recovery drafts, then replace/restart portable Leaf or launch per-user Setup after exiting. No silent downloads or forced installation.
 - Web/email links in Markdown previews open in the OS default application; unsafe link schemes are rejected.
 - File operations are restricted to text extensions and exposed through explicit native commands. The browser/PWA remains sandboxed.
 
-**Limits:** The desktop edition currently targets **Windows**. A signed unattended updater, macOS signing/notarization and macOS CI require separate signing credentials / an appropriately provisioned macOS runner. No automatic download or forced update is enabled: use the GitHub Releases link to review downloads and release notes manually.
+**Limits:** The desktop edition currently targets **Windows**. Preview updates are verified through official GitHub HTTPS and the asset's SHA-256, not a separate publisher's digital signature. The signed Tauri updater remains a future task requiring protected signing keys. The current per-user Setup is unsigned. The updater uses built-in Windows PowerShell/.NET; no tools are installed on the Windows build runner.
 
 ### Build with already-provisioned Windows tools
 
@@ -2410,6 +2543,7 @@ function setTheme(val) {
 document.getElementById('theme-label').addEventListener('click', () => {
   if (justWriteActive) return;
   refreshRecoveryControl();
+  selectSettingsTab('appearance');
   document.getElementById('settings-overlay').style.display = 'flex';
 });
 
@@ -2541,6 +2675,77 @@ document.getElementById('settings-font-size-input').addEventListener('input', e 
   }
 });
 document.getElementById('settings-font-size-slider').addEventListener('input', e => applyFontSize(e.target.value));
+
+
+// ── Settings internal tabs and interface typography ─────
+function selectSettingsTab(name) {
+  const names = ['document','appearance','status','editor','mobile'];
+  if (!names.includes(name)) return;
+  for (const id of names) {
+    const active = id === name;
+    const tab = document.getElementById('settings-tab-' + id);
+    const page = document.getElementById('settings-panel-' + id);
+    tab.classList.toggle('active', active);
+    tab.setAttribute('aria-selected', String(active));
+    tab.tabIndex = active ? 0 : -1;
+    page.hidden = !active;
+    if (active) page.scrollTop = 0;
+  }
+}
+document.querySelectorAll('[data-settings-tab]').forEach(tab => {
+  tab.addEventListener('click', () => selectSettingsTab(tab.dataset.settingsTab));
+  tab.addEventListener('keydown', event => {
+    const names = ['document','appearance','status','editor','mobile'];
+    const old = names.indexOf(tab.dataset.settingsTab);
+    let next = old;
+    if (event.key === 'ArrowRight') next = (old + 1) % names.length;
+    if (event.key === 'ArrowLeft') next = (old + names.length - 1) % names.length;
+    if (event.key === 'Home') next = 0;
+    if (event.key === 'End') next = names.length - 1;
+    if (next === old) return;
+    event.preventDefault();
+    selectSettingsTab(names[next]);
+    document.getElementById('settings-tab-' + names[next]).focus();
+  });
+});
+
+let appliedUiFontSize = 12;
+function applyUiFontSize(value, persist = true) {
+  const size = parseFontSize(value);
+  if (size === null) return false;
+  appliedUiFontSize = size;
+  document.documentElement.style.setProperty('--ui-font-size', size + 'px');
+  const input = document.getElementById('settings-ui-font-size-input');
+  input.value = String(size);
+  input.removeAttribute('aria-invalid');
+  document.getElementById('settings-ui-font-size-slider').value = String(Math.max(6, Math.min(128, size)));
+  document.getElementById('settings-ui-font-size-error').hidden = true;
+  if (persist) saveSettings();
+  return true;
+}
+function commitUiFontSize() {
+  const input = document.getElementById('settings-ui-font-size-input');
+  if (applyUiFontSize(input.value)) return;
+  input.setAttribute('aria-invalid','true');
+  document.getElementById('settings-ui-font-size-error').hidden = false;
+  input.focus();
+}
+document.getElementById('settings-ui-font-size-save').addEventListener('click', commitUiFontSize);
+document.getElementById('settings-ui-font-size-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') { e.preventDefault(); commitUiFontSize(); }
+});
+document.getElementById('settings-ui-font-size-input').addEventListener('input', event => {
+  const typed = parseFontSize(event.target.value);
+  if (typed === null) return;
+  document.getElementById('settings-ui-font-size-slider').value = String(Math.max(6, Math.min(128, typed)));
+  event.target.removeAttribute('aria-invalid');
+  document.getElementById('settings-ui-font-size-error').hidden = true;
+});
+document.getElementById('settings-ui-font-size-slider').addEventListener('input', e => applyUiFontSize(e.target.value));
+document.getElementById('settings-ui-font-select').addEventListener('change', e => {
+  document.documentElement.style.setProperty('--ui-font', e.target.value);
+  saveSettings();
+});
 
 // ── Formatting helpers ────────────────────────────────────
 function wrapSelection(before, after) {
@@ -2951,6 +3156,8 @@ function saveSettings() {
     theme:        document.getElementById('theme-select').value,
     font:         document.getElementById('settings-font-select').value,
     fontSize:     String(appliedFontSize),
+    uiFont:       document.getElementById('settings-ui-font-select').value,
+    uiFontSize:   String(appliedUiFontSize),
     autohide:     autohideEnabled,
     focusHeaderAutohide: focusHeaderAutohideEnabled,
     tabPinned:    tabBarPinned,
@@ -3007,6 +3214,14 @@ function loadSettings() {
       document.documentElement.style.setProperty('--editor-weight', weight);
     }
     if (s.fontSize !== undefined) applyFontSize(s.fontSize, false);
+    if (s.uiFont) {
+      const select = document.getElementById('settings-ui-font-select');
+      if ([...select.options].some(option => option.value === s.uiFont)) {
+        select.value = s.uiFont;
+        document.documentElement.style.setProperty('--ui-font', s.uiFont);
+      }
+    }
+    if (s.uiFontSize !== undefined) applyUiFontSize(s.uiFontSize, false);
     if (s.focusHeaderAutohide === true) {
       document.getElementById('chk-focus-header-autohide').checked = true;
       applyFocusHeaderAutohide();

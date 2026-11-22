@@ -1,5 +1,13 @@
 # Leaf — fork changelog
 
+## v1.10.3-lgg.1 — 2026-11-23 (Windows GitHub updates and tabbed settings)
+
+- Five settings tabs replace the scrolling page: Current document, Appearance, Status bar, Editor, Mobile display.
+- Focus top-bar auto-hide moves directly under Appearance, with a separate theme/colors group; editor typography moves to Editor. Interface font and pixel size are independently configurable and persist.
+- Correct GitHub prerelease discovery, startup notification, release notes, and opt-in verified ZIP/Setup downloads with SHA-256 checking.
+- Portable updates replace/restart the EXE after a safe exit; installed updates launch per-user Setup after closing Leaf. No forced downloads or software installs on the self-hosted runner.
+- Publisher-signed Tauri updates are deferred and are not claimed for this unsigned preview.
+
 ## v1.10.2-lgg.1 — 2026-11-22 (custom desktop window titlebar)
 
 - Replaced the white Windows-native titlebar with a frameless Leaf-themed caption that follows the chosen theme.

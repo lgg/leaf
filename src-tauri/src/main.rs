@@ -12,6 +12,8 @@ use std::{
 use tauri::{Manager, State};
 use tauri_plugin_dialog::DialogExt;
 
+mod desktop_updater;
+
 #[derive(Default)]
 struct DesktopState {
     // Only user-selected or restored Markdown/text files can be saved in place.
@@ -480,8 +482,10 @@ fn main() {
         })
         .plugin(tauri_plugin_dialog::init())
         .manage(DesktopState::default())
+        .manage(desktop_updater::UpdaterState::default())
         .invoke_handler(tauri::generate_handler![
-            desktop_open_dialog, desktop_open_path, desktop_export_zip, desktop_open_external, desktop_show_releases, desktop_save, desktop_restore, desktop_save_session
+            desktop_open_dialog, desktop_open_path, desktop_export_zip, desktop_open_external, desktop_show_releases, desktop_save, desktop_restore, desktop_save_session,
+            desktop_updater::desktop_check_update, desktop_updater::desktop_download_update, desktop_updater::desktop_apply_update
         ])
         .run(tauri::generate_context!())
         .expect("Leaf desktop could not start");
