@@ -4345,7 +4345,7 @@ async function installPWA() {
   }
 }
 
-if (!window.__TAURI__ && 'serviceWorker' in navigator &&
+if (!isLeafNativeDesktop() && 'serviceWorker' in navigator &&
     (location.protocol === 'https:' || location.hostname === 'localhost')) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('./sw.js', { scope: './' })
