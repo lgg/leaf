@@ -82,8 +82,15 @@ jobs:
       - name: Test built-in Windows updater agent without network
         run: |
           $ErrorActionPreference = 'Stop'
-          & powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File 'desktop/windows-update-agent.ps1' -Mode SelfTest *> "$env:RUNNER_TEMP/leaf-updater-selftest.log"
-          if ($LASTEXITCODE -ne 0) { throw "Windows updater PowerShell self-test failed. Diagnostics remain on the runner." }
+          $parsedTokens = $null
+          $parseErrors = $null
+          [System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path 'desktop/windows-update-agent.ps1').Path, [ref]$parsedTokens, [ref]$parseErrors) | Out-Null
+          foreach ($failure in @($parseErrors)) {
+            Write-Output "::error::Updater syntax line $($failure.Extent.StartLineNumber): $($failure.ErrorId)"
+          }
+          if (@($parseErrors).Count -gt 0) { throw "Windows updater syntax failed (local source paths omitted)." }
+          $run = Start-Process -FilePath 'powershell.exe' -ArgumentList @('-NoProfile','-NonInteractive','-ExecutionPolicy','Bypass','-File','desktop/windows-update-agent.ps1','-Mode','SelfTest') -NoNewWindow -Wait -PassThru -RedirectStandardOutput "$env:RUNNER_TEMP/leaf-updater-selftest-out.log" -RedirectStandardError "$env:RUNNER_TEMP/leaf-updater-selftest-errors.log"
+          if ($run.ExitCode -ne 0) { throw "Windows updater offline self-test failed. Diagnostics remain only on the runner." }
           Write-Output "Windows updater self-test passed"
 
       - name: Test native Rust code using existing Cargo
