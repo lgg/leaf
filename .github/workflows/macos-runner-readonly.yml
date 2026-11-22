@@ -72,3 +72,42 @@ jobs:
             exit 1
           fi
           echo "All listed macOS build prerequisites are already present."
+
+      - name: Look for tools outside service PATH — read-only
+        if: always()
+        run: |
+          set -uo pipefail
+          found() {
+            local label="$1"
+            shift
+            local candidate
+            for candidate in "$@"; do
+              if [ -x "$candidate" ]; then
+                echo "INSTALLED_OUTSIDE_PATH: $label"
+                return 0
+              fi
+            done
+            echo "NOT_FOUND_IN_COMMON_PATHS: $label"
+            return 0
+          }
+          found "node" /opt/homebrew/bin/node /usr/local/bin/node \
+            /usr/local/opt/node/bin/node "$HOME"/.nvm/versions/node/*/bin/node \
+            "$HOME"/.volta/bin/node "$HOME"/.asdf/shims/node
+          found "cargo" "$HOME"/.cargo/bin/cargo /usr/local/bin/cargo /opt/homebrew/bin/cargo
+          found "rustc" "$HOME"/.cargo/bin/rustc /usr/local/bin/rustc /opt/homebrew/bin/rustc
+          found "rustup" "$HOME"/.cargo/bin/rustup /usr/local/bin/rustup /opt/homebrew/bin/rustup
+          found "cargo-tauri" "$HOME"/.cargo/bin/cargo-tauri /usr/local/bin/cargo-tauri /opt/homebrew/bin/cargo-tauri
+          for item in \
+            /Library/Developer/CommandLineTools/usr/bin/clang \
+            /Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild; do
+            if [ -x "$item" ]; then
+              echo "INSTALLED_OUTSIDE_PATH: Apple developer tools (not selected or not on PATH)"
+            fi
+          done
+          for arch in aarch64-apple-darwin x86_64-apple-darwin; do
+            any=no
+            for target in "$HOME"/.rustup/toolchains/*/lib/rustlib/"$arch"/lib; do
+              if [ -d "$target" ]; then any=yes; break; fi
+            done
+            echo "CACHED_RUST_TARGET_$arch: $any"
+          done
