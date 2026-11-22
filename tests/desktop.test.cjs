@@ -37,8 +37,8 @@ test('Tauri and web release identifiers are coherent', () => {
   const config = require('../src-tauri/tauri.conf.json');
   const cargo = fs.readFileSync(path.join(root, 'src-tauri', 'Cargo.toml'), 'utf8');
   assert.equal(config.version, '1.10.3');
-  assert.match(cargo, /version = "1\.10\.2"/);
-  assert.match(fs.readFileSync(path.join(root, 'README.md'), 'utf8'), /1\.10\.2-lgg\.1/);
+  assert.match(cargo, /version = "1\.10\.3"/);
+  assert.match(fs.readFileSync(path.join(root, 'README.md'), 'utf8'), /1\.10\.3-lgg\.1/);
 });
 
 test('desktop stage creates offline assets without adding web-only service worker', () => {
@@ -444,7 +444,7 @@ test('native close blocks duplicate requests until recovery is flushed and permi
   assert.ok(start >= 0 && end > start);
   const source = bridge.slice(start, end + 2);
   const create = new Function('win','tabs','confirm','saveActiveTabState','flushSession','alert','safeError',
-    'let closing=false; ' + source + '; return () => closing;');
+    'let closing=false,updateApproved=false; ' + source + '; return () => closing;');
   let callback;
   let discarded = 0;
   let prevented = 0;
