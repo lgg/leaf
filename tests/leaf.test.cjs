@@ -204,7 +204,8 @@ test('actual localStorage settings round-trip restores font, theme and hidden UI
     'chk-show-words','chk-show-placeholder','chk-show-chars',
     'chk-show-lines','chk-show-readtime','chk-show-cursor',
     'btn-pin-tabs','btn-autohide','chk-crt','custom-colors','chk-smart-punct',
-    'chk-mobile-heading','chk-mobile-status','chk-mobile-autohide'
+    'chk-mobile-heading','chk-mobile-status','chk-mobile-autohide',
+    'chk-about-skip-dialog','chk-about-dont-show'
   ];
   const nodes = Object.fromEntries(ids.map(id => [id, {
     value:'', checked:true, style:{}, classList:{
@@ -242,6 +243,7 @@ test('actual localStorage settings round-trip restores font, theme and hidden UI
   nodes['chk-mobile-heading'].checked=true;
   nodes['chk-mobile-status'].checked=true;
   nodes['chk-mobile-autohide'].checked=false;
+  nodes['chk-about-skip-dialog'].checked=true;
   settings.saveSettings();
   assert.ok(data['leaf-editor-settings']);
   nodes['theme-select'].value='paper';
@@ -256,6 +258,8 @@ test('actual localStorage settings round-trip restores font, theme and hidden UI
   nodes['chk-mobile-heading'].checked=false;
   nodes['chk-mobile-status'].checked=false;
   nodes['chk-mobile-autohide'].checked=true;
+  nodes['chk-about-skip-dialog'].checked=false;
+  nodes['chk-about-dont-show'].checked=false;
   settings.loadSettings();
   assert.equal(nodes['theme-select'].value,'black');
   assert.equal(body.dataset.theme,'black');
@@ -274,14 +278,16 @@ test('actual localStorage settings round-trip restores font, theme and hidden UI
   assert.equal(nodes['chk-mobile-heading'].checked,true);
   assert.equal(nodes['chk-mobile-status'].checked,true);
   assert.equal(nodes['chk-mobile-autohide'].checked,false);
+  assert.equal(nodes['chk-about-skip-dialog'].checked,true);
+  assert.equal(nodes['chk-about-dont-show'].checked,true);
 });
 
 test('settings order, responsive layout and unobtrusive backup control', () => {
   const modal = html.split('<!-- Settings Modal -->')[1].split('<!-- About Modal -->')[0];
   const sections = [...modal.matchAll(/<h3>([^<]+)<\/h3>/g)].map(item => item[1]);
-  assert.equal(sections.join(','), 'Current document,Appearance,Status bar,Editor');
+  assert.equal(sections.join(','), 'Current document,Appearance,Status bar,Editor,Leaf');
   const tabs=[...modal.matchAll(/data-settings-tab="([^"]+)"/g)].map(match=>match[1]);
-  assert.deepEqual(tabs,['document','appearance','status','editor','mobile']);
+  assert.deepEqual(tabs,['document','appearance','status','editor','mobile','about']);
   for (const id of tabs) assert.ok(modal.includes('id="settings-panel-'+id+'"'));
   assert.ok(modal.includes('id="workspace-recovery-row" class="settings-recovery" hidden'));
   assert.ok(modal.includes('aria-label="Restore latest recovery copy"'));
@@ -397,7 +403,7 @@ test('all persisted settings keys are included in a saved preferences record', (
     'theme','font','fontSize','uiFont','uiFontSize','autohide','focusHeaderAutohide','tabPinned','showWelcome','crtEnabled',
     'scrollSynced','customBg','customText','customAccent','smartPunct',
     'showWords','showPlaceholder','showChars','showLines','showReadtime','showCursor',
-    'mobileHeading','mobileStatus','mobileAutohide'
+    'mobileHeading','mobileStatus','mobileAutohide','skipAboutDialog'
   ];
   assert.equal(required.every(key => Object.prototype.hasOwnProperty.call(saved,key)),true);
   assert.equal(saved.theme,'black');
@@ -462,17 +468,19 @@ test('valid custom HEX input saves the choice; invalid input does not', () => {
 
 test('GitHub Pages service worker prefers fresh HTML and keeps an offline fallback', () => {
   const sw=fs.readFileSync(path.join(__dirname,'..','sw.js'),'utf8');
-  assert.ok(sw.includes("const CACHE = 'leaf-lgg-v10'"));
+  assert.ok(sw.includes("const CACHE = 'leaf-lgg-v11'"));
   assert.ok(sw.includes("request.mode === 'navigate'"));
   assert.ok(sw.includes("fetch(request).then(response"));
   assert.ok(sw.includes("caches.match('./editor.html')"));
 });
 
 test('fork version matches README, changelog and visible About version', () => {
-  const version='1.10.3-lgg.1';
+  const version='1.10.4-lgg.1';
   const readme=fs.readFileSync(path.join(__dirname,'..','README.md'),'utf8').replace(/\r\n/g, '\n');
   const changelog=fs.readFileSync(path.join(__dirname,'..','CHANGELOG.md'),'utf8');
-  assert.ok(html.includes('>v'+version+'</span>'));
+  assert.ok(html.includes('id="about-current-version">v'+version+'</strong>'));
+  assert.ok(html.includes('id="about-star-github"'));
+  assert.ok(html.includes('id="about-install-type"'));
   assert.ok(readme.includes('v'+version));
   assert.ok(changelog.includes('v'+version));
   assert.ok(changelog.includes('uncle-jasper/leaf'));
@@ -714,9 +722,54 @@ test('preferences, independent tab names, input edits and recovery are wired', (
   assert.ok(js.includes("const backups = availableWorkspaceRecoveries()"));
 });
 
+
+test('Settings About has accessible credits, edition, Star link and dismissible popup', () => {
+  const settings=html.split('id="settings-panel-about"')[1].split('<!-- About Modal -->')[0];
+  const popup=html.split('<!-- About Modal -->')[1].split('<script>')[0];
+  assert.ok(settings.includes('href="https://github.com/lgg/leaf"'));
+  assert.ok(settings.includes('href="https://github.com/uncle-jasper/leaf"'));
+  assert.ok(settings.includes('id="about-star-github"'));
+  assert.ok(settings.includes('id="about-install-type"'));
+  assert.ok(settings.includes('id="chk-about-skip-dialog"'));
+  assert.ok(popup.includes('id="chk-about-dont-show"'));
+  assert.ok(js.includes("if (document.getElementById('chk-about-skip-dialog').checked) openAboutSettings()"));
+  assert.ok(js.includes("selectSettingsTab('about')"));
+  assert.ok(js.includes("location.protocol==='file:'"));
+  assert.ok(js.includes("display-mode: standalone"));
+  assert.ok(!html.includes('style="font-size:11px; color:var(--accent); opacity:0.7;'));
+});
+
+test('About link color preserves theme and meets 4.5:1 contrast for every preset or custom palette', () => {
+  const fn=between('function aboutRgb(hex) {','function refreshAboutEdition() {');
+  const values={};
+  let theme={surface:'#141414',accent:'#444444',text:'#d8d8d8'};
+  const root={style:{setProperty:(key,value)=>{values[key]=value;}}};
+  const document={documentElement:root,getElementById:()=>({})};
+  const methods=new Function('getComputedStyle','document',fn+
+    ';return {updateAboutLinkColor,aboutRgb,aboutContrast};')(
+      ()=>({getPropertyValue:key=>theme[key.slice(2)]}),document);
+  const palettes=[
+    ['#141414','#444444','#d8d8d8'],
+    ['#000000','#606060','#c8c8c8'],
+    ['#0f0f0f','#0a5c0a','#22cc22'],
+    ['#ede8de','#8b6e4e','#2c2416'],
+    ['#f5f7fa','#4a6080','#1a1d23'],
+    ['#000000','#0000ff','#c0c0c0'],
+    ['#eeeeee','#eeeeee','#222222'],
+    ['#030303','#030303','#080808']
+  ];
+  for(const [surface,accent,text] of palettes) {
+    theme={surface,accent,text};
+    methods.updateAboutLinkColor();
+    const ratio=methods.aboutContrast(methods.aboutRgb(values['--about-link']),methods.aboutRgb(surface));
+    assert.ok(ratio>=4.49, 'unreadable link on '+surface+': '+ratio);
+    assert.ok(values['--about-star-text']==='#ffffff'||values['--about-star-text']==='#000000');
+  }
+});
+
 test('About offers desktop releases without adding a native runtime to web', () => {
   assert.ok(html.includes('href="https://github.com/lgg/leaf/releases"'));
-  assert.ok(html.includes('Windows downloads &amp; release notes'));
+  assert.ok(html.includes('Windows releases'));
   assert.ok(html.includes('if (window.leafDesktop) return window.leafDesktop.save()'));
   assert.ok(html.includes('if (window.leafDesktop) return window.leafDesktop.open()'));
   assert.ok(html.includes("if (!answer && !confirm('Discard unsaved changes in"));

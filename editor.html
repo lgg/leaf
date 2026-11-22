@@ -1234,7 +1234,7 @@
   }
 
 
-  /* Five compact settings tabs; only the active page scrolls. */
+  /* Six compact settings tabs; only the active page scrolls. */
   #settings-modal {
     width: min(690px, calc(100vw - 20px));
     height: min(520px, calc(100dvh - 20px));
@@ -1328,6 +1328,31 @@
   :is(#toolbar,#tab-bar,#statusbar,#settings-modal,#about-modal,#mobile-controls,#mobile-sheet,#mobile-document-heading) :is(button,input:not([type="color"]),select,label,span,div,p,a) {
     font-size: var(--ui-font-size) !important;
   }
+
+  /* Theme-aware links: JS derives a WCAG-AA readable shade from accent and surface. */
+  #settings-panel-about a:not(.about-star-button), #about-modal a { color:var(--about-link, var(--text)) !important; opacity:1 !important; text-decoration:underline; text-underline-offset:3px; overflow-wrap:anywhere; }
+  #settings-panel-about a:hover, #settings-panel-about a:focus-visible { text-decoration-thickness:2px; outline-offset:3px; }
+  .settings-about-heading { display:flex; align-items:center; gap:13px; margin:2px 0 15px; }
+  .settings-about-heading img { width:48px; height:48px; border-radius:10px; flex:none; }
+  #settings-panel-about .settings-about-heading h3 { color:var(--text); opacity:1; font-size:17px !important; text-transform:none; letter-spacing:normal; margin:0 0 4px; }
+  .settings-about-heading p { font-size:11px; color:var(--muted); }
+  .settings-about-metadata { display:grid; grid-template-columns:100px minmax(0,1fr); gap:10px; padding:13px 0; border-top:1px solid var(--border); border-bottom:1px solid var(--border); font-size:11px; }
+  .settings-about-metadata span { color:var(--muted); }
+  .settings-about-metadata strong { color:var(--text); overflow-wrap:anywhere; }
+  .settings-about-repo { margin:7px 0; font-size:11px; line-height:1.6; color:var(--text); }
+  .settings-about-actions { display:flex; align-items:center; flex-wrap:wrap; gap:11px 15px; margin:18px 0 14px; font-size:11px; }
+  .settings-about-actions button, .about-open-settings { color:var(--text); background:var(--bg); border:1px solid var(--border); padding:9px 12px; border-radius:6px; font-size:11px; }
+  .settings-about-actions button:hover, .about-open-settings:hover { border-color:var(--text); }
+  #settings-panel-about .about-star-button { display:inline-flex; color:var(--about-star-text, var(--text)) !important; background:var(--about-link, var(--bg)); border-radius:7px; padding:10px 13px; border:1px solid var(--about-link, var(--border)); text-decoration:none; font-weight:700; opacity:1; }
+  #settings-panel-about .about-star-button:hover, #settings-panel-about .about-star-button:focus-visible { outline:2px solid var(--text); outline-offset:2px; }
+  #about-desktop-update-slot:empty { display:none; }
+  .settings-about-preference { border-top:1px solid var(--border); margin-top:16px; padding-top:13px; }
+  #settings-panel-about .settings-about-preference label { color:var(--text); opacity:1; font-size:11px; }
+  .settings-about-footer { color:var(--muted); margin-top:13px; }
+  #about-modal { width:min(390px,calc(100vw - 24px)); min-width:0; max-height:calc(100dvh - 24px); overflow-y:auto; padding:30px 24px 24px; }
+  .about-dialog-description { color:var(--text); font-size:11px; line-height:1.6; margin:10px 0 18px; }
+  .about-dialog-checkbox { display:flex; align-items:center; justify-content:center; gap:8px; font-size:11px; color:var(--text); cursor:pointer; margin-bottom:18px; }
+  .about-dialog-checkbox input { accent-color:var(--accent); cursor:pointer; }
 
 </style>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Inconsolata:wght@400;500&family=Share+Tech+Mono&family=Roboto+Mono:wght@400;500&family=Open+Sans:wght@400;500&display=swap" rel="stylesheet">
@@ -1454,6 +1479,7 @@
       <button type="button" class="settings-tab" id="settings-tab-status" role="tab" aria-controls="settings-panel-status" aria-selected="false" tabindex="-1" data-settings-tab="status">Status bar</button>
       <button type="button" class="settings-tab" id="settings-tab-editor" role="tab" aria-controls="settings-panel-editor" aria-selected="false" tabindex="-1" data-settings-tab="editor">Editor</button>
       <button type="button" class="settings-tab" id="settings-tab-mobile" role="tab" aria-controls="settings-panel-mobile" aria-selected="false" tabindex="-1" data-settings-tab="mobile">Mobile display</button>
+      <button type="button" class="settings-tab" id="settings-tab-about" role="tab" aria-controls="settings-panel-about" aria-selected="false" tabindex="-1" data-settings-tab="about">About</button>
     </nav>
     <div id="settings-panels">
     <section id="settings-panel-document" class="settings-page" role="tabpanel" aria-labelledby="settings-tab-document" hidden>
@@ -1620,30 +1646,52 @@
         <label for="chk-mobile-autohide">auto-hide bottom controls</label>
       </div>
     </section>
+    <section id="settings-panel-about" class="settings-page" role="tabpanel" aria-labelledby="settings-tab-about" hidden>
+      <div class="settings-about-heading">
+        <img src="./leaf-icon-192.png" width="48" height="48" alt="">
+        <div><h3>Leaf</h3><p>A Markdown Editor</p></div>
+      </div>
+      <div class="settings-about-metadata">
+        <span>Version</span><strong id="about-current-version">v1.10.4-lgg.1</strong>
+        <span>Edition</span><strong id="about-install-type">Web browser</strong>
+      </div>
+      <h4 class="settings-mini-heading settings-mini-divider">Repositories</h4>
+      <p class="settings-about-repo">Fork maintained by <a href="https://github.com/lgg" target="_blank" rel="noopener noreferrer">lgg</a> · <a href="https://github.com/lgg/leaf" target="_blank" rel="noopener noreferrer">lgg/leaf</a></p>
+      <p class="settings-about-repo">Original Leaf by Dan · <a href="https://github.com/uncle-jasper/leaf" target="_blank" rel="noopener noreferrer">uncle-jasper/leaf</a></p>
+      <div class="settings-about-actions">
+        <a id="about-star-github" class="about-star-button" href="https://github.com/lgg/leaf" target="_blank" rel="noopener noreferrer">☆ Star on GitHub</a>
+        <a href="https://github.com/lgg/leaf/blob/main/CHANGELOG.md" target="_blank" rel="noopener noreferrer">Changelog</a>
+        <a href="https://github.com/lgg/leaf/releases" target="_blank" rel="noopener noreferrer">Windows releases</a>
+        <button type="button" id="btn-about-readme">README</button>
+      </div>
+      <div id="about-desktop-update-slot"></div>
+      <div class="settings-row settings-about-preference">
+        <input id="chk-about-skip-dialog" type="checkbox">
+        <label for="chk-about-skip-dialog">Don't show the separate About window again</label>
+      </div>
+      <p class="settings-about-repo settings-about-footer">© 2026 · <a href="https://buymeacoffee.com/dandanmian" target="_blank" rel="noopener noreferrer">☕ buy me a coffee</a></p>
+    </section>
     </div>
   </div>
 </div>
 
 <!-- About Modal -->
 <div id="about-overlay" style="display:none">
-  <div id="about-modal">
-    <button id="btn-about-close" title="Close">×</button>
-    <img id="about-icon" src="data:image/png;base64,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" alt="Leaf icon">
-    <h2>Leaf</h2>
+  <div id="about-modal" role="dialog" aria-modal="true" aria-labelledby="about-dialog-title">
+    <button id="btn-about-close" type="button" title="Close" aria-label="Close About window">×</button>
+    <img id="about-icon" src="./leaf-icon-192.png" alt="" width="64" height="64">
+    <h2 id="about-dialog-title">Leaf</h2>
     <p class="about-sub">A Markdown Editor</p>
-    <p class="about-credit">Vibe coded by <a href="https://github.com/uncle-jasper" target="_blank" rel="noopener noreferrer">Dan</a> · <a href="https://github.com/uncle-jasper/leaf" target="_blank" rel="noopener noreferrer">original repository</a></p>
-    <p class="about-credit">updated by <a href="https://github.com/lgg" target="_blank" rel="noopener noreferrer">lgg</a> · <a href="https://github.com/lgg/leaf" target="_blank" rel="noopener noreferrer">fork repository</a></p>
-    <p class="about-copy">© 2026</p>
-    <p class="about-version"><span style="font-size:13px;">v1.10.3-lgg.1</span> · <a href="#" onclick="openReadmeTab(); return false;" style="font-size:11px; color:var(--accent); opacity:0.7; text-decoration:none;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.7'">README</a> · <a href="https://github.com/lgg/leaf/blob/main/CHANGELOG.md" target="_blank" rel="noopener noreferrer" style="font-size:11px; color:var(--accent); opacity:0.7; text-decoration:none;">changelog</a></p>
-    <p class="about-copy" style="margin:10px 0 0;font-size:12px;">Desktop edition · <a href="https://github.com/lgg/leaf/releases" target="_blank" rel="noopener noreferrer" style="color:var(--accent)">Windows downloads &amp; release notes</a> (when available)</p>
-    <p style="margin-top:4px; font-size:11px;"><a href="https://buymeacoffee.com/dandanmian" target="_blank" style="color:var(--accent); opacity:0.7; text-decoration:none;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.7'">☕ buy me a coffee</a></p>
+    <p class="about-dialog-description">Version, repositories and updates are in Settings → About.</p>
+    <label class="about-dialog-checkbox" for="chk-about-dont-show"><input id="chk-about-dont-show" type="checkbox"> Don't show this window again</label>
+    <button id="btn-about-settings" type="button" class="about-open-settings">Open About settings</button>
   </div>
 </div>
 
 <script>
 const README_CONTENT = `# Leaf — distraction-free Markdown editor
 
-**Fork version: v1.10.3-lgg.1** · Based on [uncle-jasper/leaf](https://github.com/uncle-jasper/leaf) v1.7 · Maintained by [lgg](https://github.com/lgg).
+**Fork version: v1.10.4-lgg.1** · Based on [uncle-jasper/leaf](https://github.com/uncle-jasper/leaf) v1.7 · Maintained by [lgg](https://github.com/lgg).
 
 Leaf is a focused, offline-capable Markdown and plain-text editor. It runs as a lightweight, single HTML file in a browser, installs as a PWA on phones, and has an **independent Tauri v2 desktop edition** that can edit real files on disk. No account, sync server, analytics or unnecessary background process.
 
@@ -1665,9 +1713,9 @@ On phones and touch tablets, Leaf hides the desktop header, tabs and status bar 
 
 The PWA has source-level automated regression tests. Final physical-device verification of iOS/Android install, offline behavior, rotation and keyboards is still a separate manual acceptance step.
 
-## Settings: five tabs and separate typography
+## Settings: six tabs and separate typography
 
-Settings now contains **Current document**, **Appearance**, **Status bar**, **Editor**, and **Mobile display** tabs. Appearance begins with the independent focus-mode top-bar auto-hide preference, then themes/colors and separate **interface font/size**. The **editor font/size** controls live in Editor. Both have an exact positive-integer pixel input, styled Save button and 6–128px slider; typing a larger value keeps it exactly while the slider clamps visually. Settings survive restarts without mixing editor and UI fonts.
+Settings now contains **Current document**, **Appearance**, **Status bar**, **Editor**, **Mobile display**, and **About** tabs. Appearance begins with the independent focus-mode top-bar auto-hide preference, then themes/colors and separate **interface font/size**. The **editor font/size** controls live in Editor. Both have an exact positive-integer pixel input, styled Save button and 6–128px slider; typing a larger value keeps it exactly while the slider clamps visually. Settings survive restarts without mixing editor and UI fonts.
 
 ## Desktop edition — Windows (Tauri v2)
 
@@ -1683,7 +1731,7 @@ Leaf desktop uses the **same editor** with a small, separate Rust/Tauri layer. T
 - The early-access Windows setup adds a Start menu shortcut and an Apps & features uninstall entry. It does not change default \`.md\` / \`.txt\` file associations; Tauri NSIS metadata supports associations when the full native installer toolchain is available. File paths passed at launch can be opened on startup.
 - Tabs, order, custom labels and per-document titles persist in local app settings. Unlike the web/PWA, desktop file text is not duplicated into browser localStorage; recovery drafts live in the native session. On restart, Leaf reads real files again from disk. Unsaved drafts can be recovered explicitly; missing files become recovery drafts that must be saved to a new location.
 - Drag and drop existing Markdown/text files onto the desktop window; only actual OS-dropped paths are authorized. Export all documents as a native ZIP file.
-- **Opt-in Windows updates (portable and installed):** Leaf checks official GitHub Releases, including prereleases, once at startup and on request in About. New versions show release notes and a download button. Only on separate user approvals does the bundled Windows helper download the official ZIP/Setup, verify SHA-256 and asset size, save recovery drafts, then replace/restart portable Leaf or launch per-user Setup after exiting. No silent downloads or forced installation.
+- **Opt-in Windows updates (portable and installed):** Leaf checks official GitHub Releases, including prereleases, once at startup and on request in Settings → About. New versions show release notes and a download button. Only on separate user approvals does the bundled Windows helper download the official ZIP/Setup, verify SHA-256 and asset size, save recovery drafts, then replace/restart portable Leaf or launch per-user Setup after exiting. No silent downloads or forced installation.
 - Web/email links in Markdown previews open in the OS default application; unsafe link schemes are rejected.
 - File operations are restricted to text extensions and exposed through explicit native commands. The browser/PWA remains sandboxed.
 
@@ -1717,7 +1765,7 @@ Builds can download normal Cargo dependency crates during compilation; the workf
 - Export active Markdown/text documents or a ZIP of all editable tabs.
 - Keyboard shortcuts, settings persistence, focus / Just Write modes.
 
-For deeper implementation notes, see [desktop architecture](docs/DESKTOP.md), [settings audit](docs/SETTINGS_AUDIT.md) and [changelog](CHANGELOG.md). The in-app About dialog includes links to this repository and desktop releases.
+For deeper implementation notes, see [desktop architecture](docs/DESKTOP.md), [settings audit](docs/SETTINGS_AUDIT.md) and [changelog](CHANGELOG.md). The Settings → About tab includes both repositories, a Star on GitHub action and Windows updates. The old pop-up can be permanently skipped.
 
 ## Verification and release policy
 
@@ -2569,6 +2617,7 @@ document.getElementById('theme-select').addEventListener('change', function() {
   document.documentElement.dataset.lastTheme = val;
   if (val !== 'terminal') document.body.classList.remove('amber-crt');
   syncThemeUI();
+  updateAboutLinkColor();
   saveSettings();
 });
 
@@ -2590,12 +2639,14 @@ function applyCustomColors() {
   document.documentElement.style.setProperty('--accent', accent);
   document.documentElement.style.setProperty('--muted',  blendHex(text,bg,0.5));
   document.documentElement.style.setProperty('--border', blendHex(text,bg,0.15));
+  updateAboutLinkColor();
 }
 
 function clearCustomColors() {
   ['--bg','--surface','--text','--accent','--muted','--border'].forEach(v =>
     document.documentElement.style.removeProperty(v)
   );
+  updateAboutLinkColor();
 }
 
 function hexToRgb(h){const n=parseInt(h.slice(1),16);return[(n>>16)&255,(n>>8)&255,n&255];}
@@ -3162,6 +3213,7 @@ function saveSettings() {
     focusHeaderAutohide: focusHeaderAutohideEnabled,
     tabPinned:    tabBarPinned,
     showWelcome:  document.getElementById('chk-welcome').checked,
+    skipAboutDialog: document.getElementById('chk-about-skip-dialog').checked,
     crtEnabled:   document.body.classList.contains('crt-on'),
     scrollSynced: scrollSynced,
     customBg:     document.getElementById('color-bg').value,
@@ -3237,6 +3289,10 @@ function loadSettings() {
     }
     if (s.showWelcome !== undefined) {
       document.getElementById('chk-welcome').checked = s.showWelcome;
+    }
+    if (s.skipAboutDialog !== undefined) {
+      document.getElementById('chk-about-skip-dialog').checked = s.skipAboutDialog;
+      document.getElementById('chk-about-dont-show').checked = s.skipAboutDialog;
     }
     if (s.crtEnabled !== undefined && !s.crtEnabled) {
       document.body.classList.remove('crt-on');
@@ -3825,8 +3881,70 @@ document.getElementById('chk-show-placeholder').addEventListener('change', () =>
 });
 
 // ── About modal ──────────────────────────────────────────────────────
+
+function aboutRgb(hex) {
+  const m=/^#([0-9a-f]{6})$/i.exec(hex.trim());
+  return m ? [0,2,4].map(i=>parseInt(m[1].slice(i,i+2),16)) : null;
+}
+function aboutLuminance(rgb) {
+  const c=rgb.map(x=>{ const v=x/255; return v<=0.04045 ? v/12.92 : Math.pow((v+0.055)/1.055,2.4); });
+  return c[0]*.2126+c[1]*.7152+c[2]*.0722;
+}
+function aboutContrast(a,b) {
+  const x=aboutLuminance(a),y=aboutLuminance(b);
+  return (Math.max(x,y)+.05)/(Math.min(x,y)+.05);
+}
+function updateAboutLinkColor() {
+  const style=getComputedStyle(document.getElementById('settings-panel-about'));
+  const surface=aboutRgb(style.getPropertyValue('--surface'));
+  const accent=aboutRgb(style.getPropertyValue('--accent'));
+  const text=aboutRgb(style.getPropertyValue('--text'));
+  if (!surface || !accent || !text) return;
+  const black=[0,0,0],white=[255,255,255];
+  const fallback=aboutContrast(text,surface)>=4.5 ? text
+    : aboutContrast(black,surface)>aboutContrast(white,surface) ? black : white;
+  let link=accent;
+  for(let step=1;step<=30 && aboutContrast(link,surface)<4.5;step++) {
+    const t=step/30;
+    link=accent.map((x,i)=>Math.round(x*(1-t)+fallback[i]*t));
+  }
+  document.documentElement.style.setProperty('--about-link','#'+link.map(x=>x.toString(16).padStart(2,'0')).join(''));
+  document.documentElement.style.setProperty('--about-star-text',
+    aboutContrast(black,link)>=4.5 ? '#000000' : '#ffffff');
+}
+function openAboutSettings() {
+  updateAboutLinkColor();
+  selectSettingsTab('about');
+  document.getElementById('about-overlay').style.display='none';
+  document.getElementById('settings-overlay').style.display='flex';
+}
+function setSkipAboutDialog(checked) {
+  document.getElementById('chk-about-dont-show').checked=checked;
+  document.getElementById('chk-about-skip-dialog').checked=checked;
+  saveSettings();
+}
+function refreshAboutEdition() {
+  const type=document.getElementById('about-install-type');
+  if(window.__TAURI__) type.textContent='Desktop · Windows (detecting…)';
+  else if(location.protocol==='file:') type.textContent='Standalone HTML';
+  else if(window.matchMedia && window.matchMedia('(display-mode: standalone)').matches)
+    type.textContent='Installed web app (PWA)';
+  else type.textContent='Web browser';
+}
+refreshAboutEdition();
+updateAboutLinkColor();
+document.getElementById('btn-about-readme').addEventListener('click', () => {
+  if (justWriteActive) return;
+  document.getElementById('settings-overlay').style.display='none';
+  openReadmeTab();
+});
+document.getElementById('btn-about-settings').addEventListener('click',openAboutSettings);
+document.getElementById('chk-about-dont-show').addEventListener('change',event=>setSkipAboutDialog(event.target.checked));
+document.getElementById('chk-about-skip-dialog').addEventListener('change',event=>setSkipAboutDialog(event.target.checked));
+
 document.getElementById('btn-about').addEventListener('click', () => {
-  document.getElementById('about-overlay').style.display = 'flex';
+  if (document.getElementById('chk-about-skip-dialog').checked) openAboutSettings();
+  else document.getElementById('about-overlay').style.display='flex';
 });
 document.getElementById('chk-welcome').addEventListener('change', saveSettings);
 
@@ -3863,9 +3981,11 @@ document.getElementById('chk-welcome').addEventListener('change', saveSettings);
         // Toggle amber
         if (body.classList.contains('amber-crt')) {
           body.classList.remove('amber-crt');
+          updateAboutLinkColor();
           if (document.getElementById('chk-welcome').checked) typeStatusMessage('GREEN CRT MODE RESTORED.');
         } else {
           body.classList.add('amber-crt');
+          updateAboutLinkColor();
           if (document.getElementById('chk-welcome').checked) typeStatusMessage('AMBER CRT MODE ACTIVATE!!');
         }
       }

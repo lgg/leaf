@@ -41,18 +41,18 @@ html = html.replace('<div id="header">', "<div id=\"desktop-titlebar\" role=\"to
 html = html.replace('</head>', '<link rel="stylesheet" href="./desktop-titlebar.css">\n</head>');
 html = html.replace('</body>', '<script src="./desktop-bridge.js"></script>\n<script src="./desktop-titlebar.js"></script>\n</body>');
 html = html.replace('href="https://github.com/lgg/leaf/releases"', 'id="btn-desktop-releases" href="https://github.com/lgg/leaf/releases"');
-html = html.replace(
-  '<p class="about-version">',
-  '<p id="desktop-update-status" role="status" style="font-size:11px;"></p><button id="btn-desktop-check-updates" type="button" title="Check published GitHub releases">check updates</button><p class="about-version">'
-);
-if (!html.includes('btn-desktop-check-updates')) throw new Error('Desktop updater UI injection point not found.');
-html = html.replace(
-  '<button id="btn-desktop-check-updates" type="button" title="Check published GitHub releases">check updates</button>',
+const aboutUpdateSlot = '<div id="about-desktop-update-slot"></div>';
+if (!html.includes(aboutUpdateSlot)) throw new Error('Desktop About settings slot not found.');
+html = html.replace(aboutUpdateSlot,
+  '<div id="about-desktop-update-slot"><h4 class="settings-mini-heading settings-mini-divider">Windows updates</h4>' +
+  '<p id="desktop-update-status" role="status" style="font-size:11px;"></p>' +
   '<button id="btn-desktop-check-updates" type="button" title="Check official GitHub releases">check updates</button>' +
   '<div id="desktop-update-panel" hidden><div id="desktop-update-notes"></div>' +
   '<div class="desktop-update-buttons"><button id="btn-desktop-update-download" type="button">download update</button>' +
-  '<button id="btn-desktop-update-install" type="button" hidden>apply update</button></div></div>'
+  '<button id="btn-desktop-update-install" type="button" hidden>apply update</button></div></div></div>'
 );
+if (!html.includes('btn-desktop-check-updates')) throw new Error('Desktop updater UI injection point not found.');
+
 html = html.replace(
   '<div id="header">',
   '<aside id="desktop-update-notice" role="status" hidden><span id="desktop-update-notice-text"></span>' +

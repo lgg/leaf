@@ -7,7 +7,7 @@ use sha2::{Digest, Sha256};
 use std::{fs, io::Read, path::{Path, PathBuf}, process::{Command, Stdio}, sync::Mutex};
 use tauri::{Manager, State};
 
-const CURRENT_TAG: &str = "v1.10.3-lgg.1-windows-rc.1";
+const CURRENT_TAG: &str = "v1.10.4-lgg.1-windows-rc.1";
 const ASSET_PORTABLE: &str = "Leaf-Windows-10-11-x64-Portable.zip";
 const ASSET_SETUP: &str = "Leaf-Windows-10-11-x64-Setup.exe";
 const HELPER: &str = include_str!("../../desktop/windows-update-agent.ps1");
@@ -62,6 +62,11 @@ fn mode() -> Result<&'static str,String> {
     if exe.to_string_lossy().eq_ignore_ascii_case(&installed.to_string_lossy()) { Ok("installed") }
     else { Ok("portable") }
 }
+#[tauri::command]
+pub(crate) fn desktop_installation_mode() -> Result<String,String> {
+    mode().map(str::to_owned)
+}
+
 fn script_path(app: &tauri::AppHandle) -> Result<PathBuf,String> {
     let folder = app.path().app_cache_dir().map_err(|_| "Cannot locate Leaf cache.")?.join("updates");
     fs::create_dir_all(&folder).map_err(|_| "Cannot create Leaf updater directory.")?;

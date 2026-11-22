@@ -11,7 +11,7 @@ test('platform packaging configuration preserves the same product and version', 
   const linux = JSON.parse(read('src-tauri/tauri.linux.conf.json'));
   const mac = JSON.parse(read('src-tauri/tauri.macos.conf.json'));
   assert.equal(base.productName, 'Leaf');
-  assert.equal(base.version, '1.10.3');
+  assert.equal(base.version, '1.10.4');
   assert.ok(base.bundle.targets.includes('nsis'));
   assert.deepEqual(linux.bundle.targets, ['deb','appimage']);
   assert.deepEqual(mac.bundle.targets, ['app','dmg']);
@@ -24,7 +24,7 @@ test('builds stay self-hosted and never automatically distribute unverified bina
   const mac = read('.github/workflows/desktop-macos.yml');
   assert.match(win, /leaf-runner-ci/);
   assert.match(linux, /leaf-linux-ci/);
-  assert.match(mac, /leaf-macos-ci/);
+  assert.match(mac, /leaf-runner-macos-ci/);
   for (const workflow of [linux, mac]) {
     assert.match(workflow, /workflow_dispatch:/);
     assert.match(workflow, /refs\/heads\/main/);

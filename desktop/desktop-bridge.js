@@ -340,6 +340,17 @@
     }
   }, true);
 
+  // Installation mode is determined natively from the running executable location.
+  // The renderer only receives "installed" or "portable", never local paths.
+  invoke('desktop_installation_mode').then(mode => {
+    const type = document.getElementById('about-install-type');
+    if (type) type.textContent = mode === 'installed'
+      ? 'Standalone desktop · Windows (Setup)' : 'Portable desktop · Windows (ZIP)';
+  }).catch(() => {
+    const type = document.getElementById('about-install-type');
+    if (type) type.textContent = 'Desktop · Windows';
+  });
+
   const releaseButton = document.getElementById('btn-desktop-releases');
   if (releaseButton) releaseButton.addEventListener('click', async event => {
     event.preventDefault();
@@ -388,8 +399,7 @@
   if (dismissUpdate) dismissUpdate.addEventListener('click', hideUpdateNotice);
   const openUpdate = document.getElementById('desktop-update-open');
   if (openUpdate) openUpdate.addEventListener('click', () => {
-    const about = document.getElementById('about-overlay');
-    if (about) about.style.display = 'flex';
+    if (typeof openAboutSettings === 'function') openAboutSettings();
     hideUpdateNotice();
   });
   async function checkUpdates(manual = false) {
@@ -474,7 +484,7 @@
     }
   });
   // One lightweight check after restoration, no silent downloads or repeated
-  // polling. A manual Check updates button remains available in About.
+  // polling. A manual Check updates button remains available in Settings → About.
   setTimeout(() => { checkUpdates(false).catch(() => {}); }, 2000);
 
   if (tauri.window && tauri.window.getCurrentWindow) {
