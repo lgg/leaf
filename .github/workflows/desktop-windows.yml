@@ -79,6 +79,13 @@ jobs:
           }
           Write-Output "Desktop staging passed"
 
+      - name: Test built-in Windows updater agent without network
+        run: |
+          $ErrorActionPreference = 'Stop'
+          & powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File 'desktop/windows-update-agent.ps1' -Mode SelfTest *> "$env:RUNNER_TEMP/leaf-updater-selftest.log"
+          if ($LASTEXITCODE -ne 0) { throw "Windows updater PowerShell self-test failed. Diagnostics remain on the runner." }
+          Write-Output "Windows updater self-test passed"
+
       - name: Test native Rust code using existing Cargo
         run: |
           # Windows PowerShell 5.1 interprets Cargo's normal stderr as an error.
