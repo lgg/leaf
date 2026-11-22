@@ -50,7 +50,7 @@ test('desktop stage creates offline assets without adding web-only service worke
   assert.ok(dist.includes('data-tauri-drag-region'));
   assert.ok(dist.includes('desktop-titlebar.css'));
   assert.ok(dist.includes('desktop-titlebar.js'));
-  assert.ok(!html.includes('desktop-titlebar.js'));
+  assert.ok(!fs.readFileSync(path.join(root, 'editor.html'), 'utf8').includes('desktop-titlebar.js'));
   assert.ok(dist.includes('btn-desktop-save-as'));
   assert.ok(dist.includes('btn-desktop-check-updates'));
   assert.ok(!fs.readFileSync(path.join(root, 'editor.html'), 'utf8').includes('btn-desktop-check-updates'));
