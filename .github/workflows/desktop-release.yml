@@ -69,7 +69,7 @@ jobs:
           if ($env:REQUESTED_TAG -ne "v$($config.version)-lgg.1") { throw "Tag must match the checked-out desktop version and fork suffix." }
           if ($env:REQUESTED_TAG -notmatch '^v[0-9]+\.[0-9]+\.[0-9]+-lgg\.1$') { throw "Invalid tag format." }
           $checks = @(
-            @{id=$env:WIN_RUN; workflow='desktop-windows.yml'; artifacts=@('leaf-windows-portable-smoke-test', 'leaf-windows-nsis-unsigned')},
+            @{id=$env:WIN_RUN; workflow='desktop-windows.yml'; artifacts=@('leaf-windows-portable-smoke-test', 'leaf-windows-user-setup')},
             @{id=$env:LINUX_RUN; workflow='desktop-linux.yml'; artifacts=@('leaf-linux-x64-release-candidate')},
             @{id=$env:MAC_RUN; workflow='desktop-macos.yml'; artifacts=@('leaf-macos-universal-release-candidate')}
           )
@@ -88,9 +88,7 @@ jobs:
           }
           if ($env:PUBLISH -eq 'true') {
             $acceptance = Invoke-RestMethod -Method Get -Headers $headers -Uri "https://api.github.com/repos/lgg/leaf/issues/11"
-            if ($acceptance.state -ne 'closed') { throw "Release blocked: Windows manual GUI acceptance issue #11 is not closed." }
-            $crossPlatform = Invoke-RestMethod -Method Get -Headers $headers -Uri "https://api.github.com/repos/lgg/leaf/issues/22"
-            if ($crossPlatform.state -ne 'closed') { throw "Release blocked: Linux/macOS manual GUI acceptance issue #22 is not closed." }
+            if ($acceptance.state -ne 'closed') { throw "Release blocked: consolidated Windows/Linux/macOS manual GUI acceptance issue #11 is not closed." }
           }
           Write-Output "Exact SHA, version and all platform artifacts verified."
 
@@ -102,10 +100,10 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           path: release-input/windows-portable
 
-      - name: Download verified Windows NSIS installer
+      - name: Download verified Windows per-user Setup installer
         uses: actions/download-artifact@v4
         with:
-          name: leaf-windows-nsis-unsigned
+          name: leaf-windows-user-setup
           run-id: ${{ inputs.windows_run }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
           path: release-input/windows-installer
@@ -157,11 +155,11 @@ jobs:
           $ErrorActionPreference = 'Stop'
           $headers = @{Authorization="Bearer $env:GH_TOKEN"; Accept='application/vnd.github+json'; 'X-GitHub-Api-Version'='2022-11-28'}
           $notes = @'
-          Leaf desktop release: Windows x64 portable + NSIS installer, Linux x64 DEB + AppImage, universal macOS Apple Silicon / Intel app + DMG.
+          Leaf desktop release: Windows x64 portable + existing per-user Setup, Linux x64 DEB + AppImage, universal macOS Apple Silicon / Intel app + DMG.
 
           These builds are unsigned (macOS uses ad-hoc signing) and are distributed without notarization. macOS Gatekeeper and Windows SmartScreen may display warnings. Never disable platform security automatically.
 
-          The app reads/writes Markdown and text files locally and checks GitHub Releases only on request. No automatic updater or cloud sync.
+          The app reads/writes Markdown and text files locally. On Windows, optional GitHub Releases update checks and user-approved verified downloads are supported; no forced installs or cloud sync.
 
           SHA256SUMS.txt covers all six binaries. See docs/RELEASE_MATRIX.md for build and acceptance requirements.
           '@
