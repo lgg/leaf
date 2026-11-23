@@ -132,6 +132,12 @@ if ($Mode -eq 'SelfTest') {
   $stable = @(GetVersion 'v1.10.3-lgg.1')
   if ($prev.Count -ne 6 -or $next.Count -ne 6 -or $stable.Count -ne 6) { Fail 'Version parser returned invalid tuples.' }
   if ((CompareVersion $next $prev) -ne 1 -or (CompareVersion $stable $next) -ne 1) { Fail 'GitHub version comparison failed.' }
+  $oldBroken = @(GetVersion 'v1.11.0-lgg.1-windows-rc.1')
+  $replacement = @(GetVersion 'v1.11.1-lgg.1-windows-rc.1')
+  if ($oldBroken.Count -ne 6 -or $replacement.Count -ne 6 -or
+      (CompareVersion $replacement $oldBroken) -ne 1) {
+    Fail 'Release replacement 1.11.0 to 1.11.1 version comparison failed.'
+  }
   # Exercise the exact user-facing Portable upgrade from the existing
   # v1.10.5 candidate to the requested v1.11.0 release.
   $portablePrevious = @(GetVersion 'v1.10.5-lgg.1-windows-rc.1')
