@@ -1349,7 +1349,21 @@
   .settings-about-preference { border-top:1px solid var(--border); margin-top:16px; padding-top:13px; }
   #settings-panel-about .settings-about-preference label { color:var(--text); opacity:1; font-size:11px; }
   .settings-about-footer { color:var(--muted); margin-top:13px; }
-  #about-modal { width:min(390px,calc(100vw - 24px)); min-width:0; max-height:calc(100dvh - 24px); overflow-y:auto; padding:30px 24px 24px; }
+  #about-modal { width:min(480px,calc(100vw - 24px)); min-width:0; max-height:calc(100dvh - 24px); overflow-y:auto; padding:30px 24px 24px; }
+  #about-modal { width:min(480px,calc(100vw - 24px)); }
+  #about-modal .about-credit { line-height:1.7; margin-bottom:5px; overflow-wrap:anywhere; }
+  #about-modal .about-copy { margin-bottom:13px; }
+  #about-modal .about-version { margin:0; opacity:1; color:var(--text); font-size:12px; }
+  #about-modal .about-dialog-edition { margin:4px 0 14px; font-size:11px; color:var(--muted); }
+  #about-modal .about-dialog-links { display:flex; flex-wrap:wrap; align-items:center; justify-content:center; gap:8px 13px; margin-bottom:16px; font-size:11px; }
+  #about-modal .about-dialog-links button { color:var(--about-link,var(--text)); text-decoration:underline; text-underline-offset:3px; padding:3px; font-size:11px; white-space:normal; }
+  #about-modal .about-star-button { display:inline-flex; justify-content:center; background:var(--about-link,var(--text)); color:var(--about-star-text,var(--bg)) !important; opacity:1; font-weight:700; padding:9px 13px; border-radius:7px; text-decoration:none; font-size:11px; }
+  #about-modal .about-star-button:hover, #about-modal .about-star-button:focus-visible { outline:2px solid var(--text); outline-offset:3px; }
+  #about-modal .about-dialog-coffee { margin:12px 0 15px; font-size:11px; }
+  #about-modal .about-dialog-footer { border-top:1px solid var(--border); padding-top:15px; }
+  #about-modal .about-dialog-checkbox { margin-bottom:13px; line-height:1.45; text-align:left; }
+  #settings-panel-about .settings-about-hint { color:var(--muted); font-size:10px; }
+
   .about-dialog-description { color:var(--text); font-size:11px; line-height:1.6; margin:10px 0 18px; }
   .about-dialog-checkbox { display:flex; align-items:center; justify-content:center; gap:8px; font-size:11px; color:var(--text); cursor:pointer; margin-bottom:18px; }
   .about-dialog-checkbox input { accent-color:var(--accent); cursor:pointer; }
@@ -1652,7 +1666,7 @@
         <div><h3>Leaf</h3><p>A Markdown Editor</p></div>
       </div>
       <div class="settings-about-metadata">
-        <span>Version</span><strong id="about-current-version">v1.10.4-lgg.1</strong>
+        <span>Version</span><strong id="about-current-version">v1.10.5-lgg.1</strong>
         <span>Edition</span><strong id="about-install-type">Web browser</strong>
       </div>
       <h4 class="settings-mini-heading settings-mini-divider">Repositories</h4>
@@ -1666,9 +1680,10 @@
       </div>
       <div id="about-desktop-update-slot"></div>
       <div class="settings-row settings-about-preference">
-        <input id="chk-about-skip-dialog" type="checkbox">
-        <label for="chk-about-skip-dialog">Don't show the separate About window again</label>
+        <input id="chk-about-show-startup" type="checkbox">
+        <label for="chk-about-show-startup">Show welcome window when Leaf starts</label>
       </div>
+      <p class="settings-about-repo settings-about-hint">The welcome window can always be opened manually with the ··· About button.</p>
       <p class="settings-about-repo settings-about-footer">© 2026 · <a href="https://buymeacoffee.com/dandanmian" target="_blank" rel="noopener noreferrer">☕ buy me a coffee</a></p>
     </section>
     </div>
@@ -1682,16 +1697,29 @@
     <img id="about-icon" src="./leaf-icon-192.png" alt="" width="64" height="64">
     <h2 id="about-dialog-title">Leaf</h2>
     <p class="about-sub">A Markdown Editor</p>
-    <p class="about-dialog-description">Version, repositories and updates are in Settings → About.</p>
-    <label class="about-dialog-checkbox" for="chk-about-dont-show"><input id="chk-about-dont-show" type="checkbox"> Don't show this window again</label>
-    <button id="btn-about-settings" type="button" class="about-open-settings">Open About settings</button>
+    <p class="about-credit">Vibe coded by <a href="https://github.com/uncle-jasper" target="_blank" rel="noopener noreferrer">Dan</a> · <a href="https://github.com/uncle-jasper/leaf" target="_blank" rel="noopener noreferrer">original repository</a></p>
+    <p class="about-credit">updated by <a href="https://github.com/lgg" target="_blank" rel="noopener noreferrer">lgg</a> · <a href="https://github.com/lgg/leaf" target="_blank" rel="noopener noreferrer">fork repository</a></p>
+    <p class="about-copy">© 2026</p>
+    <p class="about-version" id="about-dialog-version">v1.10.5-lgg.1</p>
+    <p class="about-dialog-edition" id="about-dialog-install-type">Web browser</p>
+    <div class="about-dialog-links">
+      <a href="https://github.com/lgg/leaf/blob/main/CHANGELOG.md" target="_blank" rel="noopener noreferrer">Changelog</a>
+      <a href="https://github.com/lgg/leaf/releases" target="_blank" rel="noopener noreferrer">Windows downloads &amp; release notes</a>
+      <button id="btn-about-dialog-readme" type="button">README</button>
+    </div>
+    <a class="about-star-button" href="https://github.com/lgg/leaf" target="_blank" rel="noopener noreferrer">☆ Star on GitHub</a>
+    <p class="about-dialog-coffee"><a href="https://buymeacoffee.com/dandanmian" target="_blank" rel="noopener noreferrer">☕ buy me a coffee</a></p>
+    <div class="about-dialog-footer">
+      <label class="about-dialog-checkbox" for="chk-about-dont-show"><input id="chk-about-dont-show" type="checkbox"> Don't show this welcome window again</label>
+      <button id="btn-about-settings" type="button" class="about-open-settings">Open About settings</button>
+    </div>
   </div>
 </div>
 
 <script>
 const README_CONTENT = `# Leaf — distraction-free Markdown editor
 
-**Fork version: v1.10.4-lgg.1** · Based on [uncle-jasper/leaf](https://github.com/uncle-jasper/leaf) v1.7 · Maintained by [lgg](https://github.com/lgg).
+**Fork version: v1.10.5-lgg.1** · Based on [uncle-jasper/leaf](https://github.com/uncle-jasper/leaf) v1.7 · Maintained by [lgg](https://github.com/lgg).
 
 Leaf is a focused, offline-capable Markdown and plain-text editor. It runs as a lightweight, single HTML file in a browser, installs as a PWA on phones, and has an **independent Tauri v2 desktop edition** that can edit real files on disk. No account, sync server, analytics or unnecessary background process.
 
@@ -1715,7 +1743,7 @@ The PWA has source-level automated regression tests. Final physical-device verif
 
 ## Settings: six tabs and separate typography
 
-Settings now contains **Current document**, **Appearance**, **Status bar**, **Editor**, **Mobile display**, and **About** tabs. Appearance begins with the independent focus-mode top-bar auto-hide preference, then themes/colors and separate **interface font/size**. The **editor font/size** controls live in Editor. Both have an exact positive-integer pixel input, styled Save button and 6–128px slider; typing a larger value keeps it exactly while the slider clamps visually. Settings survive restarts without mixing editor and UI fonts.
+Settings contains **Current document**, **Appearance**, **Status bar**, **Editor**, **Mobile display**, and **About** tabs. The About tab has a saved checkbox to control whether the welcome window appears at startup; native desktop defaults to on, the web editor to off. The toolbar About button always remains available. Appearance begins with the independent focus-mode top-bar auto-hide preference, then themes/colors and separate **interface font/size**. The **editor font/size** controls live in Editor. Both have an exact positive-integer pixel input, styled Save button and 6–128px slider; typing a larger value keeps it exactly while the slider clamps visually. Settings survive restarts without mixing editor and UI fonts.
 
 ## Desktop edition — Windows (Tauri v2)
 
@@ -1765,7 +1793,7 @@ Builds can download normal Cargo dependency crates during compilation; the workf
 - Export active Markdown/text documents or a ZIP of all editable tabs.
 - Keyboard shortcuts, settings persistence, focus / Just Write modes.
 
-For deeper implementation notes, see [desktop architecture](docs/DESKTOP.md), [settings audit](docs/SETTINGS_AUDIT.md) and [changelog](CHANGELOG.md). The Settings → About tab includes both repositories, a Star on GitHub action and Windows updates. The old pop-up can be permanently skipped.
+For deeper implementation notes, see [desktop architecture](docs/DESKTOP.md), [settings audit](docs/SETTINGS_AUDIT.md) and [changelog](CHANGELOG.md). Settings → About includes both repositories, a Star on GitHub action, Windows updates and an opt-in startup welcome-window toggle. The welcome window also retains credits, repositories, version and downloads. The window can always be opened manually using ··· About.
 
 ## Verification and release policy
 
@@ -2729,10 +2757,13 @@ document.getElementById('settings-font-size-slider').addEventListener('input', e
 
 
 // ── Settings internal tabs and interface typography ─────
+// Derive the accessible tab order from the actual settings markup instead of
+// maintaining a fragile hardcoded list (the sixth About tab was previously ignored).
+const SETTINGS_TAB_NAMES = Array.from(document.querySelectorAll('#settings-tabs [data-settings-tab]'),
+  tab => tab.dataset.settingsTab);
 function selectSettingsTab(name) {
-  const names = ['document','appearance','status','editor','mobile'];
-  if (!names.includes(name)) return;
-  for (const id of names) {
+  if (!SETTINGS_TAB_NAMES.includes(name)) return;
+  for (const id of SETTINGS_TAB_NAMES) {
     const active = id === name;
     const tab = document.getElementById('settings-tab-' + id);
     const page = document.getElementById('settings-panel-' + id);
@@ -2746,8 +2777,9 @@ function selectSettingsTab(name) {
 document.querySelectorAll('[data-settings-tab]').forEach(tab => {
   tab.addEventListener('click', () => selectSettingsTab(tab.dataset.settingsTab));
   tab.addEventListener('keydown', event => {
-    const names = ['document','appearance','status','editor','mobile'];
+    const names = SETTINGS_TAB_NAMES;
     const old = names.indexOf(tab.dataset.settingsTab);
+    if (old < 0) return;
     let next = old;
     if (event.key === 'ArrowRight') next = (old + 1) % names.length;
     if (event.key === 'ArrowLeft') next = (old + names.length - 1) % names.length;
@@ -3213,7 +3245,7 @@ function saveSettings() {
     focusHeaderAutohide: focusHeaderAutohideEnabled,
     tabPinned:    tabBarPinned,
     showWelcome:  document.getElementById('chk-welcome').checked,
-    skipAboutDialog: document.getElementById('chk-about-skip-dialog').checked,
+    showAboutOnStartup: document.getElementById('chk-about-show-startup').checked,
     crtEnabled:   document.body.classList.contains('crt-on'),
     scrollSynced: scrollSynced,
     customBg:     document.getElementById('color-bg').value,
@@ -3237,8 +3269,15 @@ function saveSettings() {
 
 function loadSettings() {
   try {
+    const aboutStartup = document.getElementById('chk-about-show-startup');
+    // Default: show the welcome dialog in the native Windows app; don't
+    // interrupt first-time visitors to the web editor unless they opt in.
+    aboutStartup.checked = document.body.dataset.leafDesktop === 'true';
     const raw = localStorage.getItem(SETTINGS_KEY);
-    if (!raw) return;
+    if (!raw) {
+      document.getElementById('chk-about-dont-show').checked = !aboutStartup.checked;
+      return;
+    }
     // Version check — clear custom color overrides so updated themes apply cleanly
     const parsed = JSON.parse(raw);
     if (!parsed.version || parsed.version < 2) {
@@ -3290,10 +3329,13 @@ function loadSettings() {
     if (s.showWelcome !== undefined) {
       document.getElementById('chk-welcome').checked = s.showWelcome;
     }
-    if (s.skipAboutDialog !== undefined) {
-      document.getElementById('chk-about-skip-dialog').checked = s.skipAboutDialog;
-      document.getElementById('chk-about-dont-show').checked = s.skipAboutDialog;
+    if (s.showAboutOnStartup !== undefined) {
+      aboutStartup.checked = Boolean(s.showAboutOnStartup);
+    } else if (s.skipAboutDialog !== undefined) {
+      // Migrate preferences from Leaf 1.10.4 without losing "don't show".
+      aboutStartup.checked = !s.skipAboutDialog;
     }
+    document.getElementById('chk-about-dont-show').checked = !aboutStartup.checked;
     if (s.crtEnabled !== undefined && !s.crtEnabled) {
       document.body.classList.remove('crt-on');
       document.getElementById('chk-crt').checked = false;
@@ -3912,39 +3954,51 @@ function updateAboutLinkColor() {
   document.documentElement.style.setProperty('--about-star-text',
     aboutContrast(black,link)>=4.5 ? '#000000' : '#ffffff');
 }
+function showAboutDialog() {
+  updateAboutLinkColor();
+  // This preference affects automatic startup display only, not the toolbar.
+  document.getElementById('chk-about-dont-show').checked =
+    !document.getElementById('chk-about-show-startup').checked;
+  document.getElementById('about-overlay').style.display='flex';
+}
 function openAboutSettings() {
   updateAboutLinkColor();
   selectSettingsTab('about');
   document.getElementById('about-overlay').style.display='none';
   document.getElementById('settings-overlay').style.display='flex';
 }
-function setSkipAboutDialog(checked) {
-  document.getElementById('chk-about-dont-show').checked=checked;
-  document.getElementById('chk-about-skip-dialog').checked=checked;
+function setAboutStartupEnabled(enabled) {
+  document.getElementById('chk-about-show-startup').checked=enabled;
+  document.getElementById('chk-about-dont-show').checked=!enabled;
   saveSettings();
 }
 function refreshAboutEdition() {
-  const type=document.getElementById('about-install-type');
-  if(window.__TAURI__) type.textContent='Desktop · Windows (detecting…)';
-  else if(location.protocol==='file:') type.textContent='Standalone HTML';
+  let edition;
+  if (window.__TAURI__ || document.body.dataset.leafDesktop === 'true') edition='Desktop · Windows (detecting…)';
+  else if(location.protocol==='file:') edition='Standalone HTML';
   else if(window.matchMedia && window.matchMedia('(display-mode: standalone)').matches)
-    type.textContent='Installed web app (PWA)';
-  else type.textContent='Web browser';
+    edition='Installed web app (PWA)';
+  else edition='Web browser';
+  document.getElementById('about-install-type').textContent=edition;
+  document.getElementById('about-dialog-install-type').textContent=edition;
 }
 refreshAboutEdition();
 updateAboutLinkColor();
-document.getElementById('btn-about-readme').addEventListener('click', () => {
+function openAboutReadme() {
   if (justWriteActive) return;
   document.getElementById('settings-overlay').style.display='none';
   openReadmeTab();
-});
+}
+document.getElementById('btn-about-readme').addEventListener('click', openAboutReadme);
+document.getElementById('btn-about-dialog-readme').addEventListener('click', openAboutReadme);
 document.getElementById('btn-about-settings').addEventListener('click',openAboutSettings);
-document.getElementById('chk-about-dont-show').addEventListener('change',event=>setSkipAboutDialog(event.target.checked));
-document.getElementById('chk-about-skip-dialog').addEventListener('change',event=>setSkipAboutDialog(event.target.checked));
-
-document.getElementById('btn-about').addEventListener('click', () => {
-  if (document.getElementById('chk-about-skip-dialog').checked) openAboutSettings();
-  else document.getElementById('about-overlay').style.display='flex';
+document.getElementById('chk-about-dont-show').addEventListener('change',event=>setAboutStartupEnabled(!event.target.checked));
+document.getElementById('chk-about-show-startup').addEventListener('change',event=>setAboutStartupEnabled(event.target.checked));
+document.getElementById('btn-about').addEventListener('click',showAboutDialog);
+// Show only when opted in; native first-run defaults to on, web defaults off.
+// Loaded preferences have already been restored at initialization.
+window.addEventListener('load', () => {
+  if (document.getElementById('chk-about-show-startup').checked) showAboutDialog();
 });
 document.getElementById('chk-welcome').addEventListener('change', saveSettings);
 
