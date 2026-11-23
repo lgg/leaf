@@ -36,9 +36,9 @@ test('Tauri capabilities do not enable unrestricted file system APIs', () => {
 test('Tauri and web release identifiers are coherent', () => {
   const config = require('../src-tauri/tauri.conf.json');
   const cargo = fs.readFileSync(path.join(root, 'src-tauri', 'Cargo.toml'), 'utf8');
-  assert.equal(config.version, '1.10.4');
-  assert.match(cargo, /version = "1\.10\.4"/);
-  assert.match(fs.readFileSync(path.join(root, 'README.md'), 'utf8'), /1\.10\.4-lgg\.1/);
+  assert.equal(config.version, '1.10.5');
+  assert.match(cargo, /version = "1\.10\.5"/);
+  assert.match(fs.readFileSync(path.join(root, 'README.md'), 'utf8'), /1\.10\.5-lgg\.1/);
 });
 
 test('desktop stage creates offline assets without adding web-only service worker', () => {
@@ -68,6 +68,10 @@ test('desktop stage creates offline assets without adding web-only service worke
   assert.ok(aboutSection.includes('id="btn-desktop-check-updates"'), 'updater controls live in Settings About');
   assert.ok(aboutSection.includes('id="desktop-update-panel"'));
   assert.ok(dist.includes('id="about-install-type"'));
+  assert.ok(dist.includes('id="about-dialog-install-type"'));
+  assert.ok(dist.includes('id="chk-about-show-startup"'));
+  assert.ok(dist.includes('id="about-dialog-version"'));
+  assert.ok(dist.includes('id="settings-panel-about"'));
   assert.ok(!fs.readFileSync(path.join(root, 'editor.html'), 'utf8').includes('btn-desktop-check-updates'));
   assert.ok(dist.includes('id="btn-desktop-releases"'));
   assert.ok(!fs.readFileSync(path.join(root, 'editor.html'), 'utf8').includes('id="btn-desktop-releases"'));
@@ -179,6 +183,9 @@ test('About distinguishes embedded README help from the actual changelog', () =>
   const html = fs.readFileSync(path.join(root, 'editor.html'), 'utf8');
   assert.ok(html.includes('<button type="button" id="btn-about-readme">README</button>'));
   assert.ok(html.includes("document.getElementById('btn-about-readme').addEventListener('click'"));
+  assert.ok(html.includes('<button id="btn-about-dialog-readme" type="button">README</button>'));
+  assert.ok(html.includes('id="about-dialog-version"'));
+  assert.ok(html.includes('id="about-dialog-install-type"'));
   assert.ok(html.includes('https://github.com/lgg/leaf/blob/main/CHANGELOG.md'));
   assert.ok(html.includes('https://github.com/lgg/leaf/releases'));
 });
@@ -591,7 +598,7 @@ test('native Windows updater checks prereleases and requires separate download a
   const main = fs.readFileSync(path.join(root,'src-tauri','src','main.rs'),'utf8');
   const updateCss = fs.readFileSync(path.join(root,'desktop','desktop-updater.css'),'utf8');
   const release = fs.readFileSync(path.join(root,'.github','workflows','windows-preview-release.yml'),'utf8');
-  assert.match(rust, /CURRENT_TAG: &str = "v1\.10\.4-lgg\.1-windows-rc\.1"/);
+  assert.match(rust, /CURRENT_TAG: &str = "v1\.10\.5-lgg\.1-windows-rc\.1"/);
   for (const action of ['desktop_check_update','desktop_download_update','desktop_apply_update']) {
     assert.ok(main.includes('desktop_updater::'+action));
     assert.ok(bridge.includes("'"+action+"'"));
@@ -618,6 +625,6 @@ test('native Windows updater checks prereleases and requires separate download a
   assert.ok(stage.includes('desktop-updater.css'));
   assert.ok(updateCss.includes('#desktop-update-panel'));
   assert.ok(!fs.readFileSync(path.join(root,'editor.html'),'utf8').includes('id="desktop-update-panel"'));
-  assert.ok(release.includes('TAG_NAME: v1.10.4-lgg.1-windows-rc.1'));
+  assert.ok(release.includes('TAG_NAME: v1.10.5-lgg.1-windows-rc.1'));
   assert.doesNotThrow(() => new Function(bridge));
 });
