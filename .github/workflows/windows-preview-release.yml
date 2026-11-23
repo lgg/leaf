@@ -101,7 +101,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PRODUCER_SHA: ${{ github.event.workflow_run.head_sha }}
-          TAG_NAME: v1.10.4-lgg.1-windows-rc.1
+          TAG_NAME: v1.10.5-lgg.1-windows-rc.1
         run: |
           $ErrorActionPreference = 'Stop'
           $headers = @{Authorization="Bearer $env:GH_TOKEN"; Accept='application/vnd.github+json'; 'X-GitHub-Api-Version'='2022-11-28'}
@@ -124,7 +124,7 @@ jobs:
           - Leaf-Windows-10-11-x64-Setup.exe — user-scoped graphical installer using built-in Windows/.NET, with Start menu shortcut and Apps & features uninstall. No administrator access required.
           - SHA256SUMS.txt — SHA-256 hashes for both assets.
 
-          Changes in this release: Settings → About shows the exact web/Windows installation mode, links to the fork and original repository, and a Star on GitHub action. About links stay readable with any theme (including custom colors); a saved checkbox skips the old popup. Windows update checks, verified downloads and install actions now live under Settings → About. Previous font, updater and window improvements are retained.
+          Changes in this release: fixes the previously unclickable Settings → About tab, restores version, links and credits to the welcome window, and adds a saved reversible startup welcome-window toggle. The manual About action remains available even when automatic display is off. Windows portable and installed edition labels are synchronized, with opt-in verified update controls in Settings → About. Previous theme link contrast and Windows install-button fixes are retained.
 
           Windows 10/11 require Microsoft Edge WebView2 Runtime. Both builds are unsigned; Microsoft SmartScreen may show a warning. This release is a **prerelease**, not a claim that manual GUI acceptance has passed. Known limitations: installer does not register default .md/.txt file associations; no signed automatic updater. Only open files you trust.
 
