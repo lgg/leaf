@@ -615,6 +615,13 @@ test('native Windows updater checks prereleases and requires separate download a
   assert.ok(helper.includes('[IO.File]::Replace'));
   assert.ok(helper.includes('Wait-Process -Id $WaitPid'));
   assert.ok(helper.includes('Start-Process -FilePath $Package'));
+  // CREATE_NO_WINDOW applies to all three native PowerShell interactions:
+  // check, download and the detached final apply helper. WindowStyle Hidden
+  // alone previously still flashed a full-sized blue console.
+  assert.ok(rust.includes('use std::os::windows::process::CommandExt;'));
+  assert.ok(rust.includes('const CREATE_NO_WINDOW: u32 = 0x0800_0000;'));
+  assert.equal(rust.split('.creation_flags(CREATE_NO_WINDOW)').length-1, 2,
+    'both synchronous checks/downloads and asynchronous apply must hide the console');
   assert.ok(helper.includes("if ($Mode -eq 'Apply')"));
   assert.ok(bridge.includes('setTimeout(() => { checkUpdates(false)'));
   assert.ok(bridge.includes('await flushSession()'));
@@ -631,5 +638,11 @@ test('native Windows updater checks prereleases and requires separate download a
   assert.ok(updateCss.includes('#desktop-update-panel'));
   assert.ok(!fs.readFileSync(path.join(root,'editor.html'),'utf8').includes('id="desktop-update-panel"'));
   assert.ok(release.includes('TAG_NAME: v1.11.1-lgg.1-windows-rc.1'));
+  assert.ok(release.includes('Clear release staging directories before downloading'));
+  assert.ok(release.includes("Remove-Item -LiteralPath $folder -Recurse -Force"));
+  assert.equal(release.split('merge-multiple: true').length-1,2);
+  assert.ok(release.includes('Nested artifact folders would hide the actual producer packages'));
+  assert.ok(release.includes('byte-identical to a previously published release'));
+  assert.ok(release.includes('Published release hash is inconsistent with the successful current Windows build.'));
   assert.doesNotThrow(() => new Function(bridge));
 });
