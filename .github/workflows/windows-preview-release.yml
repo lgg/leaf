@@ -35,6 +35,7 @@ jobs:
           }
 
       - name: Require successful producer at exact live main SHA with both artifacts
+        id: verify-producer
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PRODUCER_ID: ${{ github.event.workflow_run.id }}
@@ -49,16 +50,30 @@ jobs:
           if ($run.head_sha -ne $env:PRODUCER_SHA -or $run.head_branch -ne 'main' -or $run.conclusion -ne 'success' -or $run.status -ne 'completed') { throw 'Release blocked: producer run is not successful on exact main.' }
           if ($run.path -notlike '*desktop-windows.yml*') { throw 'Release blocked: wrong producer workflow.' }
           $artifacts = Invoke-RestMethod -Headers $headers -Uri "https://api.github.com/repos/lgg/leaf/actions/runs/$env:PRODUCER_ID/artifacts?per_page=100"
-          foreach ($name in @('leaf-windows-portable-smoke-test','leaf-windows-user-setup')) {
-            $matches = @($artifacts.artifacts | Where-Object { $_.name -eq $name -and -not $_.expired -and $_.size_in_bytes -gt 1024 })
-            if ($matches.Count -ne 1) { throw "Release blocked: $name is absent, expired or ambiguous." }
+          if (-not $run.run_started_at) { throw 'Producer attempt timestamp is missing.' }
+          $attemptStart = [DateTimeOffset]::Parse($run.run_started_at).ToUniversalTime()
+          foreach ($item in @(@{Name='leaf-windows-portable-smoke-test'; Output='portable_artifact_id'},
+                             @{Name='leaf-windows-user-setup'; Output='setup_artifact_id'})) {
+            # Re-running failed GitHub Actions jobs keeps artifacts from older
+            # attempts on the same run ID. Accept only the successful attempt.
+            $candidates = @($artifacts.artifacts | Where-Object {
+              $_.name -eq $item.Name -and -not $_.expired -and $_.size_in_bytes -gt 1024 -and
+              ([DateTimeOffset]::Parse($_.created_at).ToUniversalTime() -ge $attemptStart)
+            })
+            if ($candidates.Count -ne 1) {
+              throw "Release blocked: $($item.Name) is missing or ambiguous for the successful attempt."
+            }
+            if ([string]$candidates[0].id -notmatch '^[0-9]+$') { throw 'Artifact ID is invalid.' }
+            $line = $item.Output + '=' + $candidates[0].id + [Environment]::NewLine
+            # On Windows PowerShell 5.1, avoid BOM when writing GitHub outputs.
+            [System.IO.File]::AppendAllText($env:GITHUB_OUTPUT, $line, (New-Object System.Text.UTF8Encoding($false)))
           }
-          Write-Output 'Both release candidates verified from the successful exact-main Windows run.'
+          Write-Output 'Both release candidates verified by unique artifact ID on successful exact-main attempt.'
 
       - name: Download verified portable package from producer
         uses: actions/download-artifact@v4
         with:
-          name: leaf-windows-portable-smoke-test
+          artifact-ids: ${{ steps.verify-producer.outputs.portable_artifact_id }}
           run-id: ${{ github.event.workflow_run.id }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
           path: release-input/portable
@@ -66,7 +81,7 @@ jobs:
       - name: Download verified setup package from producer
         uses: actions/download-artifact@v4
         with:
-          name: leaf-windows-user-setup
+          artifact-ids: ${{ steps.verify-producer.outputs.setup_artifact_id }}
           run-id: ${{ github.event.workflow_run.id }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
           path: release-input/setup
