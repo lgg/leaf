@@ -6,8 +6,14 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::{fs, io::Read, path::{Path, PathBuf}, process::{Command, Stdio}, sync::Mutex};
 use tauri::{Manager, State};
+// GUI apps must suppress the Windows console at process creation: PowerShell's
+// -WindowStyle Hidden alone can flash a blue console before it processes args.
+#[cfg(target_os="windows")]
+use std::os::windows::process::CommandExt;
+#[cfg(target_os="windows")]
+const CREATE_NO_WINDOW: u32 = 0x0800_0000;
 
-const CURRENT_TAG: &str = "v1.11.0-lgg.1-windows-rc.1";
+const CURRENT_TAG: &str = "v1.11.1-lgg.1-windows-rc.1";
 const ASSET_PORTABLE: &str = "Leaf-Windows-10-11-x64-Portable.zip";
 const ASSET_SETUP: &str = "Leaf-Windows-10-11-x64-Setup.exe";
 const HELPER: &str = include_str!("../../desktop/windows-update-agent.ps1");
@@ -88,6 +94,7 @@ fn invoke_helper(app: &tauri::AppHandle, arguments: &[String]) -> Result<String,
             .args(["-NoProfile","-NonInteractive","-ExecutionPolicy","Bypass","-File"])
             .arg(script)
             .args(arguments)
+            .creation_flags(CREATE_NO_WINDOW)
             .output().map_err(|_| "Cannot start built-in Windows update service.")?;
         if !output.status.success() { return Err("GitHub update check/download failed. Check connection, storage, or GitHub availability.".into()); }
         if output.stdout.len() > 16384 { return Err("Update metadata exceeded its limit.".into()); }
@@ -180,6 +187,7 @@ pub(crate) fn desktop_apply_update(app: tauri::AppHandle, state: State<'_, Updat
             .arg("-ExpectedSha").arg(&pending.sha256)
             .arg("-Target").arg(&target)
             .stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::null())
+            .creation_flags(CREATE_NO_WINDOW)
             .spawn().map_err(|_| "Cannot launch the update handoff helper.")?;
         Ok(())
     }

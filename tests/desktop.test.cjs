@@ -36,9 +36,9 @@ test('Tauri capabilities do not enable unrestricted file system APIs', () => {
 test('Tauri and web release identifiers are coherent', () => {
   const config = require('../src-tauri/tauri.conf.json');
   const cargo = fs.readFileSync(path.join(root, 'src-tauri', 'Cargo.toml'), 'utf8');
-  assert.equal(config.version, '1.11.0');
-  assert.match(cargo, /version = "1\.11\.0"/);
-  assert.match(fs.readFileSync(path.join(root, 'README.md'), 'utf8'), /1\.11\.0-lgg\.1/);
+  assert.equal(config.version, '1.11.1');
+  assert.match(cargo, /version = "1\.11\.1"/);
+  assert.match(fs.readFileSync(path.join(root, 'README.md'), 'utf8'), /1\.11\.1-lgg\.1/);
 });
 
 test('desktop stage creates offline assets without adding web-only service worker', () => {
@@ -71,6 +71,17 @@ test('desktop stage creates offline assets without adding web-only service worke
   assert.ok(dist.includes('id="about-dialog-install-type"'));
   assert.ok(dist.includes('id="chk-about-show-startup"'));
   assert.ok(dist.includes('id="about-dialog-version"'));
+  assert.ok(dist.includes('const SETTINGS_TAB_NAMES = Array.from('), 'all six settings tabs must be interactive');
+  assert.ok(dist.includes('id="about-dialog-version">v1.11.1-lgg.1'), 'welcome popup must have actual new version');
+  assert.ok(dist.includes('id="about-current-version">v1.11.1-lgg.1'), 'Settings About must have current version');
+  const popup = dist.slice(dist.indexOf('<!-- About Modal -->'),dist.indexOf('<script>',dist.indexOf('<!-- About Modal -->')));
+  assert.ok(popup.includes('original repository') && popup.includes('fork repository'), 'welcome popup credits must not regress');
+  assert.ok(!popup.includes('Version, repositories and updates are in Settings'));
+  assert.ok(!popup.includes('buy me a coffee') && !popup.includes('buy Dan a coffee'));
+  const original = aboutSection.indexOf('Original Leaf by Dan');
+  const coffee = aboutSection.indexOf('>buy Dan a coffee</a>');
+  assert.ok(original >= 0 && coffee > original && coffee-original < 500, 'support link stays beside original repository');
+
   assert.ok(dist.includes('id="settings-panel-about"'));
   assert.ok(!fs.readFileSync(path.join(root, 'editor.html'), 'utf8').includes('btn-desktop-check-updates'));
   assert.ok(dist.includes('id="btn-desktop-releases"'));
@@ -603,7 +614,7 @@ test('native Windows updater checks prereleases and requires separate download a
   const main = fs.readFileSync(path.join(root,'src-tauri','src','main.rs'),'utf8');
   const updateCss = fs.readFileSync(path.join(root,'desktop','desktop-updater.css'),'utf8');
   const release = fs.readFileSync(path.join(root,'.github','workflows','windows-preview-release.yml'),'utf8');
-  assert.match(rust, /CURRENT_TAG: &str = "v1\.11\.0-lgg\.1-windows-rc\.1"/);
+  assert.match(rust, /CURRENT_TAG: &str = "v1\.11\.1-lgg\.1-windows-rc\.1"/);
   for (const action of ['desktop_check_update','desktop_download_update','desktop_apply_update']) {
     assert.ok(main.includes('desktop_updater::'+action));
     assert.ok(bridge.includes("'"+action+"'"));
@@ -615,6 +626,13 @@ test('native Windows updater checks prereleases and requires separate download a
   assert.ok(helper.includes('[IO.File]::Replace'));
   assert.ok(helper.includes('Wait-Process -Id $WaitPid'));
   assert.ok(helper.includes('Start-Process -FilePath $Package'));
+  // CREATE_NO_WINDOW applies to all three native PowerShell interactions:
+  // check, download and the detached final apply helper. WindowStyle Hidden
+  // alone previously still flashed a full-sized blue console.
+  assert.ok(rust.includes('use std::os::windows::process::CommandExt;'));
+  assert.ok(rust.includes('const CREATE_NO_WINDOW: u32 = 0x0800_0000;'));
+  assert.equal(rust.split('.creation_flags(CREATE_NO_WINDOW)').length-1, 2,
+    'both synchronous checks/downloads and asynchronous apply must hide the console');
   assert.ok(helper.includes("if ($Mode -eq 'Apply')"));
   assert.ok(bridge.includes('setTimeout(() => { checkUpdates(false)'));
   assert.ok(bridge.includes('await flushSession()'));
@@ -630,6 +648,12 @@ test('native Windows updater checks prereleases and requires separate download a
   assert.ok(stage.includes('desktop-updater.css'));
   assert.ok(updateCss.includes('#desktop-update-panel'));
   assert.ok(!fs.readFileSync(path.join(root,'editor.html'),'utf8').includes('id="desktop-update-panel"'));
-  assert.ok(release.includes('TAG_NAME: v1.11.0-lgg.1-windows-rc.1'));
+  assert.ok(release.includes('TAG_NAME: v1.11.1-lgg.1-windows-rc.1'));
+  assert.ok(release.includes('Clear release staging directories before downloading'));
+  assert.ok(release.includes("Remove-Item -LiteralPath $folder -Recurse -Force"));
+  assert.equal(release.split('merge-multiple: true').length-1,2);
+  assert.ok(release.includes('Nested artifact folders would hide the actual producer packages'));
+  assert.ok(release.includes('byte-identical to a previously published release'));
+  assert.ok(release.includes('Published release hash is inconsistent with the successful current Windows build.'));
   assert.doesNotThrow(() => new Function(bridge));
 });

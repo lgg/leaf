@@ -1,5 +1,14 @@
 # Leaf — fork changelog
 
+## v1.11.1-lgg.1 — 2026-11-23 (Restore actual Windows UI and hide updater console)
+
+- Fixed the Windows release publisher reading stale Portable ZIP and Setup files from a previous self-hosted job. Clean the staging directories before downloading, unpack immutable artifact IDs into the expected root, reject nested/stale files, and refuse to publish binary payloads whose SHA-256 matches any older release.
+- The v1.11.0 published release mistakenly contained older v1.10.4 binaries despite source checks and CI passing. v1.11.1 is the replacement build; do not use the v1.11.0 download for testing.
+- Suppressed the blue PowerShell console during update checks, download and final handoff by using the Windows CREATE_NO_WINDOW process-creation flag.
+- Restored the source-of-truth About settings, complete welcome window, and original-author support link in the actual distributable EXE; added release provenance checks and regression coverage.
+- Windows 10/11 only; macOS runner and packaging untouched.
+
+
 ## v1.11.0-lgg.1 — 2026-11-23 (Portable self-update UX test)
 
 - Removed the coffee link from the welcome/About popup, keeping it focused on credits, versions, the repositories, downloads and Star on GitHub.
