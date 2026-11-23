@@ -390,21 +390,24 @@
     }
   }, true);
 
-  // Installation mode is determined natively from the running executable location.
-  // The renderer only receives "installed" or "portable", never local paths.
-  invoke('desktop_installation_mode').then(mode => {
-    const edition = mode === 'installed'
-      ? 'Standalone desktop · Windows (Setup)' : 'Portable desktop · Windows (ZIP)';
-    // Keep the permanent About tab and restored welcome window in sync.
+  // The native backend reports the actual OS. Never label a Linux/macOS app
+  // as Windows or launch Windows-only update helpers on another platform.
+  const desktopPlatform = invoke('desktop_platform').catch(() => 'unsupported');
+  const setDesktopEdition = edition => {
     for (const id of ['about-install-type','about-dialog-install-type']) {
       const type = document.getElementById(id);
       if (type) type.textContent = edition;
     }
-  }).catch(() => {
-    for (const id of ['about-install-type','about-dialog-install-type']) {
-      const type = document.getElementById(id);
-      if (type) type.textContent = 'Desktop · Windows';
-    }
+  };
+  desktopPlatform.then(platform => {
+    if (platform === 'macos') return setDesktopEdition('Desktop · macOS (universal)');
+    if (platform === 'linux') return setDesktopEdition('Desktop · Linux');
+    if (platform !== 'windows') return setDesktopEdition('Desktop · Unsupported platform');
+    // Only Windows distinguishes the existing per-user Setup and Portable ZIP.
+    return invoke('desktop_installation_mode')
+      .then(mode => setDesktopEdition(mode === 'installed'
+        ? 'Standalone desktop · Windows (Setup)' : 'Portable desktop · Windows (ZIP)'))
+      .catch(() => setDesktopEdition('Desktop · Windows'));
   });
 
   const releaseButton = document.getElementById('btn-desktop-releases');
@@ -499,7 +502,11 @@
       if (checkButton) checkButton.disabled = false;
     }
   }
-  if (checkButton) checkButton.addEventListener('click', () => checkUpdates(true));
+  if (checkButton) checkButton.addEventListener('click', () => {
+    desktopPlatform.then(platform => {
+      if (platform === 'windows') return checkUpdates(true);
+    });
+  });
   if (downloadButton) downloadButton.addEventListener('click', async () => {
     if (!availableUpdate || downloadedUpdate) return;
     if (!confirm('Download verified Leaf ' + availableUpdate.tag +
@@ -546,7 +553,11 @@
   });
   // One lightweight check after restoration, no silent downloads or repeated
   // polling. A manual Check updates button remains available in Settings → About.
-  setTimeout(() => { checkUpdates(false).catch(() => {}); }, 2000);
+  desktopPlatform.then(platform => {
+    if (platform === 'windows') {
+      setTimeout(() => { checkUpdates(false).catch(() => {}); }, 2000);
+    }
+  });
 
   if (tauri.window && tauri.window.getCurrentWindow) {
     const win = tauri.window.getCurrentWindow();

@@ -36,9 +36,9 @@ test('Tauri capabilities do not enable unrestricted file system APIs', () => {
 test('Tauri and web release identifiers are coherent', () => {
   const config = require('../src-tauri/tauri.conf.json');
   const cargo = fs.readFileSync(path.join(root, 'src-tauri', 'Cargo.toml'), 'utf8');
-  assert.equal(config.version, '1.11.3');
-  assert.match(cargo, /version = "1\.11\.3"/);
-  assert.match(fs.readFileSync(path.join(root, 'README.md'), 'utf8'), /1\.11\.3-lgg\.1/);
+  assert.equal(config.version, '1.11.4');
+  assert.match(cargo, /version = "1\.11\.4"/);
+  assert.match(fs.readFileSync(path.join(root, 'README.md'), 'utf8'), /1\.11\.4-lgg\.1/);
 });
 
 test('desktop stage creates offline assets without adding web-only service worker', () => {
@@ -72,7 +72,7 @@ test('desktop stage creates offline assets without adding web-only service worke
   assert.ok(dist.includes('id="chk-about-show-startup"'));
   assert.ok(dist.includes('id="about-dialog-version"'));
   assert.ok(dist.includes('const SETTINGS_TAB_NAMES = Array.from('), 'all six settings tabs must be interactive');
-  assert.ok(dist.includes('id="about-dialog-version">v1.11.3-lgg.1'), 'welcome popup must have actual new version');
+  assert.ok(dist.includes('id="about-dialog-version">v1.11.4-lgg.1'), 'welcome popup must have actual new version');
   // Regressions seen in v1.11.1: old native startup defaults forced Welcome
   // back on, and Settings remained visible underneath the popup after restart.
   assert.ok(dist.includes("const ABOUT_STARTUP_KEY = 'leaf-about-startup-explicit-v1'"));
@@ -82,7 +82,7 @@ test('desktop stage creates offline assets without adding web-only service worke
   assert.ok(dist.includes("document.getElementById('settings-overlay').style.display='none';"));
   assert.ok(!dist.includes("aboutStartup.checked = document.body.dataset.leafDesktop === 'true'"));
 
-  assert.ok(dist.includes('id="about-current-version">v1.11.3-lgg.1'), 'Settings About must have current version');
+  assert.ok(dist.includes('id="about-current-version">v1.11.4-lgg.1'), 'Settings About must have current version');
   const popup = dist.slice(dist.indexOf('<!-- About Modal -->'),dist.indexOf('<script>',dist.indexOf('<!-- About Modal -->')));
   assert.ok(popup.includes('original repository') && popup.includes('fork repository'), 'welcome popup credits must not regress');
   assert.ok(!popup.includes('Version, repositories and updates are in Settings'));
@@ -630,7 +630,7 @@ test('native Windows updater checks prereleases and requires separate download a
   const main = fs.readFileSync(path.join(root,'src-tauri','src','main.rs'),'utf8');
   const updateCss = fs.readFileSync(path.join(root,'desktop','desktop-updater.css'),'utf8');
   const release = fs.readFileSync(path.join(root,'.github','workflows','windows-preview-release.yml'),'utf8');
-  assert.match(rust, /CURRENT_TAG: &str = "v1\.11\.3-lgg\.1-windows-rc\.1"/);
+  assert.match(rust, /CURRENT_TAG: &str = "v1\.11\.4-lgg\.1-windows-rc\.1"/);
   for (const action of ['desktop_check_update','desktop_download_update','desktop_apply_update']) {
     assert.ok(main.includes('desktop_updater::'+action));
     assert.ok(bridge.includes("'"+action+"'"));
@@ -664,7 +664,7 @@ test('native Windows updater checks prereleases and requires separate download a
   assert.ok(stage.includes('desktop-updater.css'));
   assert.ok(updateCss.includes('#desktop-update-panel'));
   assert.ok(!fs.readFileSync(path.join(root,'editor.html'),'utf8').includes('id="desktop-update-panel"'));
-  assert.ok(release.includes('TAG_NAME: v1.11.3-lgg.1-windows-rc.1'));
+  assert.ok(release.includes('TAG_NAME: v1.11.4-lgg.1-windows-rc.1'));
   assert.ok(release.includes('Clear release staging directories before downloading'));
   assert.ok(release.includes("Remove-Item -LiteralPath $folder -Recurse -Force"));
   assert.equal(release.split('merge-multiple: true').length-1,2);
@@ -731,4 +731,39 @@ test('desktop resolves only allowlisted embedded README relative links to GitHub
   assert.ok(bridge.includes("'https://github.com/lgg/leaf/blob/main/' + target"));
   assert.ok(bridge.includes('knownDocs.has(target)'));
   assert.ok(bridge.includes("invoke('desktop_open_external', {url:safeTarget})"));
+});
+
+
+test('native runtime identity hides Windows update UI/commands on Linux and macOS', () => {
+  const native = fs.readFileSync(path.join(root,'src-tauri','src','main.rs'),'utf8');
+  const bridge = fs.readFileSync(path.join(root,'desktop','desktop-bridge.js'),'utf8').replace(/\r\n/g, '\n');
+  const stage = fs.readFileSync(path.join(root,'desktop','stage.cjs'),'utf8');
+  assert.ok(native.includes("fn desktop_platform() -> &'static str"));
+  assert.ok(native.includes('desktop_open_external, desktop_platform, desktop_show_releases'));
+  assert.ok(bridge.includes("const desktopPlatform = invoke('desktop_platform')"));
+  assert.ok(bridge.includes("platform === 'macos'"));
+  assert.ok(bridge.includes("platform === 'linux'"));
+  assert.ok(bridge.includes("if (platform === 'windows') return checkUpdates(true)"));
+  assert.ok(bridge.includes("if (platform === 'windows') {\n      setTimeout"));
+  assert.ok(stage.includes('data-leaf-platform="'));
+  assert.ok(stage.includes(':not([data-leaf-platform="windows"]) #about-desktop-update-slot'));
+});
+
+test('native file loader rejects non-regular files before OS file open', () => {
+  const native = fs.readFileSync(path.join(root,'src-tauri','src','main.rs'),'utf8');
+  const metadata = native.indexOf('let metadata = fs::metadata(&canonical)');
+  const reject = native.indexOf('if !metadata.is_file()', metadata);
+  const fileOpen = native.indexOf('let file = fs::File::open(&canonical)', metadata);
+  assert.ok(metadata >= 0 && reject > metadata && fileOpen > reject);
+  assert.ok(native.includes('non_regular_markdown_paths_are_rejected_before_opening'));
+});
+
+test('Tauri direct window destruction is limited to guarded desktop close path', () => {
+  const title = fs.readFileSync(path.join(root,'desktop','desktop-titlebar.js'),'utf8');
+  const bridge = fs.readFileSync(path.join(root,'desktop','desktop-bridge.js'),'utf8').replace(/\r\n/g, '\n');
+  const capability = require('../src-tauri/capabilities/default.json');
+  assert.ok(capability.permissions.includes('core:window:allow-destroy'));
+  assert.ok(title.includes("appWindow.close()"));
+  assert.ok(!title.includes('appWindow.destroy()'));
+  assert.ok(bridge.includes('await flushSession();\n        await win.destroy();'));
 });

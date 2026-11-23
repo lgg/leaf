@@ -11,7 +11,7 @@ test('platform packaging configuration preserves the same product and version', 
   const linux = JSON.parse(read('src-tauri/tauri.linux.conf.json'));
   const mac = JSON.parse(read('src-tauri/tauri.macos.conf.json'));
   assert.equal(base.productName, 'Leaf');
-  assert.equal(base.version, '1.11.3');
+  assert.equal(base.version, '1.11.4');
   assert.ok(!base.bundle.targets || !base.bundle.targets.includes('nsis'));
   assert.ok(!base.bundle.fileAssociations || base.bundle.fileAssociations.length === 0);
   assert.deepEqual(linux.bundle.targets, ['deb','appimage']);
@@ -72,7 +72,7 @@ test('Windows 10/11 preview installer requires no new runner installations and i
   assert.match(release, /Nested artifact folders would hide the actual producer packages/);
   assert.match(release, /byte-identical to a previously published release/);
   assert.match(release, /Published release hash is inconsistent with the successful current Windows build/);
-  assert.match(release, /EXPECTED_TAG: v1\.11\.3-lgg\.1-windows-rc\.1/);
+  assert.match(release, /EXPECTED_TAG: v1\.11\.4-lgg\.1-windows-rc\.1/);
   assert.match(release, /exeText\.Contains\(\$env:EXPECTED_TAG\)/);
   assert.match(release, /Release executable does not contain the exact expected native updater version/);
 
@@ -92,4 +92,20 @@ test('full desktop release uses existing Windows Setup and the consolidated manu
   assert.doesNotMatch(release, /repos\/lgg\/leaf\/issues\/22/);
   assert.match(release, /leaf-linux-x64-release-candidate/);
   assert.match(release, /leaf-macos-universal-release-candidate/);
+});
+
+
+test('cross-platform build workflows require no installations and verify both macOS binary architectures', () => {
+  const linux = read('.github/workflows/desktop-linux.yml');
+  const mac = read('.github/workflows/desktop-macos.yml');
+  const stage = read('desktop/stage.cjs');
+  assert.match(linux, /workflow_dispatch:/);
+  assert.match(mac, /workflow_dispatch:/);
+  assert.match(mac, /CARGO_NET_OFFLINE: 'true'/);
+  assert.match(mac, /RUSTUP_AUTO_INSTALL: '0'/);
+  assert.match(mac, /lipo "\$appbin" -verify_arch arm64 x86_64/);
+  assert.doesNotMatch(mac, /lipo -verify_arch aarch64/);
+  assert.match(linux, /SHA256SUMS\.linux\.txt/);
+  assert.match(mac, /SHA256SUMS\.macos\.txt/);
+  assert.match(stage, /LEAF_DESKTOP_PLATFORM/);
 });

@@ -37,3 +37,9 @@ No installer file associations, Explorer `Open with` integration or signed Tauri
 5. Preserve the working opt-in Windows update experience; no forced/silent installation and no unapproved runner changes.
 
 Tracking: **#12** is the distribution umbrella. Platform-specific implementation tasks are linked there, and **#11** owns all manual acceptance. Historical #22 is superseded by the consolidated #11 checklist.
+
+## Cross-platform source hardening (coding issues #38/#39/#40)
+
+The desktop bridge uses a native compile-time `desktop_platform` command to label Linux/macOS editions correctly and suppress Windows PowerShell/update controls outside Windows. Desktop HTML also has a build-time platform marker for CSS-only hiding before the native bridge loads. Windows updater and its exact downloaded-asset verification remain unchanged.
+
+Linux packaging produces `SHA256SUMS.linux.txt` alongside its .deb/AppImage candidates. The macOS workflow uses Mach-O `arm64` (Rust target `aarch64-apple-darwin`) and `x86_64` when verifying both universal slices with `lipo`, and produces `SHA256SUMS.macos.txt`. These are **source/workflow improvements, not proof of completed builds**. Until approved self-hosted platform runs succeed and manual #11 is checked, do not claim Linux/macOS artifacts are ready.
