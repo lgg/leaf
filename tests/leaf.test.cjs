@@ -190,7 +190,7 @@ test('restoring workspace keeps independent labels, filenames and active tab', (
 });
 
 test('actual localStorage settings round-trip restores font, theme and hidden UI options', () => {
-  const source = between('function saveSettings() {', "\n['theme-select'].forEach");
+  const source = between('const ABOUT_STARTUP_KEY =', "\n['theme-select'].forEach");
   const data = {};
   const storage = {
     getItem:key => data[key] || null,
@@ -226,7 +226,7 @@ test('actual localStorage settings round-trip restores font, theme and hidden UI
     "function workspaceNotice(){} function applyCustomColors(){}" +
     "function updatePinIcon(){} function updateSyncIcon(){}" +
     "function applyStatusBarVisibility(){} function syncThemeUI(){} function applyMobilePreferences(){}";
-  const settings = new Function('deps',init+source+';return {saveSettings,loadSettings};')({storage,document});
+  const settings = new Function('deps',init+source+';return {saveSettings,loadSettings,persistAboutStartupPreference,readAboutStartupPreference};')({storage,document});
   nodes['theme-select'].value='black';
   nodes['settings-font-select'].value="'Open Sans', Arial, sans-serif";
   nodes['settings-font-size-input'].value='22';
@@ -244,6 +244,7 @@ test('actual localStorage settings round-trip restores font, theme and hidden UI
   nodes['chk-mobile-status'].checked=true;
   nodes['chk-mobile-autohide'].checked=false;
   nodes['chk-about-show-startup'].checked=true;
+  settings.persistAboutStartupPreference(true);
   settings.saveSettings();
   assert.ok(data['leaf-editor-settings']);
   nodes['theme-select'].value='paper';
@@ -280,34 +281,37 @@ test('actual localStorage settings round-trip restores font, theme and hidden UI
   assert.equal(nodes['chk-mobile-autohide'].checked,false);
   assert.equal(nodes['chk-about-show-startup'].checked,true);
   assert.equal(nodes['chk-about-dont-show'].checked,false);
-  // 1.10.4's old "don't show" state must migrate without surprising the user.
+  // A previous desktop build could store showAboutOnStartup:true by default.
+  // Without a v1.11.2-specific explicit opt-in, never show it again.
   const migrated=JSON.parse(data['leaf-editor-settings']);
-  delete migrated.showAboutOnStartup;
+  migrated.showAboutOnStartup=true;
+  migrated.skipAboutDialog=false;
+  delete data['leaf-about-startup-explicit-v1'];
+  data['leaf-editor-settings']=JSON.stringify(migrated);
+  for(const desktop of ['', 'true']) {
+    body.dataset.leafDesktop=desktop;
+    settings.loadSettings();
+    assert.equal(nodes['chk-about-show-startup'].checked,false);
+    assert.equal(nodes['chk-about-dont-show'].checked,true);
+  }
   migrated.skipAboutDialog=true;
   data['leaf-editor-settings']=JSON.stringify(migrated);
   settings.loadSettings();
   assert.equal(nodes['chk-about-show-startup'].checked,false);
-  assert.equal(nodes['chk-about-dont-show'].checked,true);
-  // An old unchecked "don't show" flag is NOT consent to show a popup on
-  // startup for existing web users: 1.10.4 never automatically displayed it.
-  migrated.skipAboutDialog=false;
-  data['leaf-editor-settings']=JSON.stringify(migrated);
-  body.dataset.leafDesktop='';
-  settings.loadSettings();
-  assert.equal(nodes['chk-about-show-startup'].checked,false);
-  body.dataset.leafDesktop='true';
-  settings.loadSettings();
-  assert.equal(nodes['chk-about-show-startup'].checked,true);
-  // First-time web visits are quiet, while first-time native Windows starts
-  // show the welcome window unless disabled.
+  // The default is quiet even when no settings exist on either platform.
   delete data['leaf-editor-settings'];
-  body.dataset.leafDesktop='';
   settings.loadSettings();
   assert.equal(nodes['chk-about-show-startup'].checked,false);
-  body.dataset.leafDesktop='true';
+  assert.equal(nodes['chk-about-dont-show'].checked,true);
+  // An intentional opt-in is retained, unlike the old implicit defaults.
+  settings.persistAboutStartupPreference(true);
   settings.loadSettings();
+  assert.equal(settings.readAboutStartupPreference(),true);
   assert.equal(nodes['chk-about-show-startup'].checked,true);
-  assert.equal(nodes['chk-about-dont-show'].checked,false);
+  settings.persistAboutStartupPreference(false);
+  settings.loadSettings();
+  assert.equal(nodes['chk-about-show-startup'].checked,false);
+  assert.equal(nodes['chk-about-dont-show'].checked,true);
 });
 
 test('every settings tab, including About, responds to clicks and keyboard navigation', () => {
@@ -361,53 +365,61 @@ test('welcome startup preference and manual About action are independent', () =>
   const source=between('function showAboutDialog() {',
     "document.getElementById('chk-welcome').addEventListener");
   const nodes={};
-  const create=(id)=>nodes[id]||(nodes[id]={
+  const create=id=>nodes[id]||(nodes[id]={
     checked:false,style:{display:'none'},textContent:'',listeners:{},
     addEventListener(type,handler){this.listeners[type]=handler}
   });
-  const hooks={};const selected=[],saves={count:0},reads={count:0};
-  const document={
-    body:{dataset:{leafDesktop:'true'}},
-    getElementById:create,
-    querySelectorAll:()=>[]
-  };
-  const window={
-    __TAURI__:{},
-    addEventListener:(type,handler)=>{hooks[type]=handler}
-  };
+  const hooks={},selected=[],saves={count:0},reads={count:0},preferences={enabled:false};
+  const document={body:{dataset:{leafDesktop:'true'}},getElementById:create,querySelectorAll:()=>[]};
+  const window={__TAURI__:{},addEventListener:(type,handler)=>{hooks[type]=handler}};
   const env=
     "const document=deps.document,window=deps.window,location={protocol:'file:'};" +
     "const justWriteActive=false;" +
     "function updateAboutLinkColor(){}" +
     "function selectSettingsTab(name){deps.selected.push(name)}" +
     "function saveSettings(){deps.saves.count++}" +
+    "function readAboutStartupPreference(){return deps.preferences.enabled}" +
+    "function persistAboutStartupPreference(v){deps.preferences.enabled=v}" +
     "function openReadmeTab(){deps.reads.count++}";
-  const actions=new Function('deps',env+source+
+  new Function('deps',env+source+
     ';return {showAboutDialog,openAboutSettings,setAboutStartupEnabled,refreshAboutEdition};')(
-      {document,window,selected,saves,reads});
+      {document,window,selected,saves,reads,preferences});
   assert.equal(typeof hooks.load,'function');
-  create('chk-about-show-startup').checked=true;
+  create('chk-about-show-startup').checked=true; // stale 1.11.1 UI setting
+  hooks.load();
+  assert.equal(create('about-overlay').style.display,'none');
+  create('chk-about-show-startup').listeners.change({target:{checked:true}});
+  assert.equal(preferences.enabled,true);
   hooks.load();
   assert.equal(create('about-overlay').style.display,'flex');
-  create('chk-about-dont-show').checked=true;
+  assert.equal(create('settings-overlay').style.display,'none');
   create('chk-about-dont-show').listeners.change({target:{checked:true}});
   assert.equal(create('chk-about-show-startup').checked,false);
-  assert.equal(saves.count,1);
+  assert.equal(preferences.enabled,false);
+  assert.equal(saves.count,2);
   create('about-overlay').style.display='none';
-  // Preference off must never disable manual access to original popup.
+  create('settings-overlay').style.display='none';
+  hooks.load(); // close and reopen app
+  assert.equal(create('about-overlay').style.display,'none');
+  assert.equal(create('settings-overlay').style.display,'none');
+  // Toolbar About must always be accessible and never stack over Settings.
+  create('settings-overlay').style.display='flex';
   create('btn-about').listeners.click();
   assert.equal(create('about-overlay').style.display,'flex');
+  assert.equal(create('settings-overlay').style.display,'none');
   assert.equal(create('chk-about-dont-show').checked,true);
-  create('chk-about-show-startup').listeners.change({target:{checked:true}});
-  assert.equal(create('chk-about-dont-show').checked,false);
-  assert.equal(saves.count,2);
   create('btn-about-settings').listeners.click();
   assert.equal(selected.at(-1),'about');
   assert.equal(create('settings-overlay').style.display,'flex');
   assert.equal(create('about-overlay').style.display,'none');
+  create('chk-about-show-startup').listeners.change({target:{checked:true}});
+  assert.equal(preferences.enabled,true);
+  assert.equal(create('chk-about-dont-show').checked,false);
+  assert.equal(saves.count,3);
   assert.equal(create('about-install-type').textContent,'Desktop · Windows (detecting…)');
   assert.equal(create('about-dialog-install-type').textContent,'Desktop · Windows (detecting…)');
 });
+
 
 test('settings order, responsive layout and unobtrusive backup control', () => {
   const modal = html.split('<!-- Settings Modal -->')[1].split('<!-- About Modal -->')[0];
@@ -595,14 +607,14 @@ test('valid custom HEX input saves the choice; invalid input does not', () => {
 
 test('GitHub Pages service worker prefers fresh HTML and keeps an offline fallback', () => {
   const sw=fs.readFileSync(path.join(__dirname,'..','sw.js'),'utf8');
-  assert.ok(sw.includes("const CACHE = 'leaf-lgg-v14'"));
+  assert.ok(sw.includes("const CACHE = 'leaf-lgg-v15'"));
   assert.ok(sw.includes("request.mode === 'navigate'"));
   assert.ok(sw.includes("fetch(request).then(response"));
   assert.ok(sw.includes("caches.match('./editor.html')"));
 });
 
 test('fork version matches README, changelog and visible About version', () => {
-  const version='1.11.1-lgg.1';
+  const version='1.11.2-lgg.1';
   const readme=fs.readFileSync(path.join(__dirname,'..','README.md'),'utf8').replace(/\r\n/g, '\n');
   const changelog=fs.readFileSync(path.join(__dirname,'..','CHANGELOG.md'),'utf8');
   assert.ok(html.includes('id="about-current-version">v'+version+'</strong>'));
@@ -890,6 +902,20 @@ test('preferences, independent tab names, input edits and recovery are wired', (
   assert.ok(js.includes("const backups = availableWorkspaceRecoveries()"));
 });
 
+
+test('About action links precede repository credits, with Dan coffee inline', () => {
+  const section=html.split('id="settings-panel-about"')[1].split('<!-- About Modal -->')[0];
+  const heading=section.indexOf('>Repositories</h4>');
+  const actions=section.indexOf('class="settings-about-actions"');
+  const fork=section.indexOf('Fork maintained by');
+  const original=section.indexOf('Original Leaf by Dan');
+  const coffee=section.indexOf('>buy Dan a coffee</a>');
+  assert.ok(heading>=0 && heading<actions && actions<fork && fork<original && original<coffee);
+  assert.match(section, /<p class="settings-about-repo">Original Leaf by Dan · [^\n]*buy Dan a coffee<\/a><\/p>/);
+  assert.ok(section.includes('class="settings-about-coffee"'));
+  assert.ok(html.includes('.settings-about-coffee { white-space:nowrap; }'));
+  assert.equal((section.match(/buy Dan a coffee/g)||[]).length,1);
+});
 
 test('Settings About has accessible credits, edition, Star link and dismissible popup', () => {
   const settings=html.split('id="settings-panel-about"')[1].split('<!-- About Modal -->')[0];

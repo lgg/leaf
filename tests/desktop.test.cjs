@@ -36,9 +36,9 @@ test('Tauri capabilities do not enable unrestricted file system APIs', () => {
 test('Tauri and web release identifiers are coherent', () => {
   const config = require('../src-tauri/tauri.conf.json');
   const cargo = fs.readFileSync(path.join(root, 'src-tauri', 'Cargo.toml'), 'utf8');
-  assert.equal(config.version, '1.11.1');
-  assert.match(cargo, /version = "1\.11\.1"/);
-  assert.match(fs.readFileSync(path.join(root, 'README.md'), 'utf8'), /1\.11\.1-lgg\.1/);
+  assert.equal(config.version, '1.11.2');
+  assert.match(cargo, /version = "1\.11\.2"/);
+  assert.match(fs.readFileSync(path.join(root, 'README.md'), 'utf8'), /1\.11\.2-lgg\.1/);
 });
 
 test('desktop stage creates offline assets without adding web-only service worker', () => {
@@ -72,8 +72,17 @@ test('desktop stage creates offline assets without adding web-only service worke
   assert.ok(dist.includes('id="chk-about-show-startup"'));
   assert.ok(dist.includes('id="about-dialog-version"'));
   assert.ok(dist.includes('const SETTINGS_TAB_NAMES = Array.from('), 'all six settings tabs must be interactive');
-  assert.ok(dist.includes('id="about-dialog-version">v1.11.1-lgg.1'), 'welcome popup must have actual new version');
-  assert.ok(dist.includes('id="about-current-version">v1.11.1-lgg.1'), 'Settings About must have current version');
+  assert.ok(dist.includes('id="about-dialog-version">v1.11.2-lgg.1'), 'welcome popup must have actual new version');
+  // Regressions seen in v1.11.1: old native startup defaults forced Welcome
+  // back on, and Settings remained visible underneath the popup after restart.
+  assert.ok(dist.includes("const ABOUT_STARTUP_KEY = 'leaf-about-startup-explicit-v1'"));
+  assert.ok(dist.includes("if (readAboutStartupPreference()) showAboutDialog()"));
+  assert.ok(dist.includes("document.getElementById('settings-overlay').style.display = 'none';"));
+  assert.ok(dist.includes("document.getElementById('about-overlay').style.display = 'none';"));
+  assert.ok(dist.includes("document.getElementById('settings-overlay').style.display='none';"));
+  assert.ok(!dist.includes("aboutStartup.checked = document.body.dataset.leafDesktop === 'true'"));
+
+  assert.ok(dist.includes('id="about-current-version">v1.11.2-lgg.1'), 'Settings About must have current version');
   const popup = dist.slice(dist.indexOf('<!-- About Modal -->'),dist.indexOf('<script>',dist.indexOf('<!-- About Modal -->')));
   assert.ok(popup.includes('original repository') && popup.includes('fork repository'), 'welcome popup credits must not regress');
   assert.ok(!popup.includes('Version, repositories and updates are in Settings'));
@@ -81,6 +90,13 @@ test('desktop stage creates offline assets without adding web-only service worke
   const original = aboutSection.indexOf('Original Leaf by Dan');
   const coffee = aboutSection.indexOf('>buy Dan a coffee</a>');
   assert.ok(original >= 0 && coffee > original && coffee-original < 500, 'support link stays beside original repository');
+  const heading=aboutSection.indexOf('>Repositories</h4>');
+  const actions=aboutSection.indexOf('class="settings-about-actions"');
+  const fork=aboutSection.indexOf('Fork maintained by');
+  assert.ok(heading>=0 && heading<actions && actions<fork && fork<original,
+    'GitHub actions move directly under Repositories and before both credits');
+  assert.match(aboutSection, /<p class="settings-about-repo">Original Leaf by Dan · [^\n]*buy Dan a coffee<\/a><\/p>/);
+
 
   assert.ok(dist.includes('id="settings-panel-about"'));
   assert.ok(!fs.readFileSync(path.join(root, 'editor.html'), 'utf8').includes('btn-desktop-check-updates'));
@@ -614,7 +630,7 @@ test('native Windows updater checks prereleases and requires separate download a
   const main = fs.readFileSync(path.join(root,'src-tauri','src','main.rs'),'utf8');
   const updateCss = fs.readFileSync(path.join(root,'desktop','desktop-updater.css'),'utf8');
   const release = fs.readFileSync(path.join(root,'.github','workflows','windows-preview-release.yml'),'utf8');
-  assert.match(rust, /CURRENT_TAG: &str = "v1\.11\.1-lgg\.1-windows-rc\.1"/);
+  assert.match(rust, /CURRENT_TAG: &str = "v1\.11\.2-lgg\.1-windows-rc\.1"/);
   for (const action of ['desktop_check_update','desktop_download_update','desktop_apply_update']) {
     assert.ok(main.includes('desktop_updater::'+action));
     assert.ok(bridge.includes("'"+action+"'"));
@@ -648,7 +664,7 @@ test('native Windows updater checks prereleases and requires separate download a
   assert.ok(stage.includes('desktop-updater.css'));
   assert.ok(updateCss.includes('#desktop-update-panel'));
   assert.ok(!fs.readFileSync(path.join(root,'editor.html'),'utf8').includes('id="desktop-update-panel"'));
-  assert.ok(release.includes('TAG_NAME: v1.11.1-lgg.1-windows-rc.1'));
+  assert.ok(release.includes('TAG_NAME: v1.11.2-lgg.1-windows-rc.1'));
   assert.ok(release.includes('Clear release staging directories before downloading'));
   assert.ok(release.includes("Remove-Item -LiteralPath $folder -Recurse -Force"));
   assert.equal(release.split('merge-multiple: true').length-1,2);
