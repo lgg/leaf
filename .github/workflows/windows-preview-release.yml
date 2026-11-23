@@ -252,3 +252,44 @@ jobs:
           $published = Invoke-RestMethod -Uri "https://api.github.com/repos/lgg/leaf/releases/$($release.id)" -Method Patch -Headers $headers -Body (@{draft=$false; prerelease=$true} | ConvertTo-Json) -ContentType 'application/json'
           if ($published.draft -ne $false -or $published.prerelease -ne $true) { throw 'Release publication state could not be verified.' }
           Write-Output 'Windows-only GitHub prerelease published with both packages and SHA256SUMS.'
+
+      # Only after the corrected new Release has passed all validation,
+      # quarantine v1.11.0 if its ZIP and Setup are provably byte-for-byte
+      # identical to the old v1.10.4 payloads. Keep the tag for audit history.
+      - name: Quarantine verified stale v1.11.0 release after publishing replacement
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $headers = @{Authorization="Bearer $env:GH_TOKEN"; Accept='application/vnd.github+json'; 'X-GitHub-Api-Version'='2022-11-28'}
+          $all = @(Invoke-RestMethod -Headers $headers -Uri 'https://api.github.com/repos/lgg/leaf/releases?per_page=100')
+          $bad = @($all | Where-Object { $_.tag_name -eq 'v1.11.0-lgg.1-windows-rc.1' })
+          $original = @($all | Where-Object { $_.tag_name -eq 'v1.10.4-lgg.1-windows-rc.1' })
+          if ($bad.Count -ne 1 -or $original.Count -ne 1 -or $bad[0].draft) {
+            Write-Output 'No published stale release requires quarantine.'
+            exit 0
+          }
+          foreach ($name in @('Leaf-Windows-10-11-x64-Portable.zip','Leaf-Windows-10-11-x64-Setup.exe')) {
+            $oldAsset = @($original[0].assets | Where-Object { $_.name -eq $name })
+            $badAsset = @($bad[0].assets | Where-Object { $_.name -eq $name })
+            if ($oldAsset.Count -ne 1 -or $badAsset.Count -ne 1 -or
+                $oldAsset[0].digest -ne $badAsset[0].digest -or
+                $oldAsset[0].size -ne $badAsset[0].size) {
+              Write-Output 'Previous payloads differ; no release modification attempted.'
+              exit 0
+            }
+          }
+          $warning = 'WARNING: This v1.11.0 release was mispublished with v1.10.4 Windows binaries. Do not install or update to it. Use v1.11.1 instead.'
+          $endpoint = 'https://api.github.com/repos/lgg/leaf/releases/' + $bad[0].id
+          try {
+            $updated = Invoke-RestMethod -Method Patch -Uri $endpoint -Headers $headers -Body (@{draft=$true; body=$warning} | ConvertTo-Json) -ContentType 'application/json'
+            if (-not $updated.draft) { throw 'Old release remained published.' }
+            Write-Output 'Quarantined the provably stale 1.11.0 release as a draft.'
+          } catch {
+            # If GitHub refuses to re-draft a published release, clearly label
+            # it as defective so nobody mistakes its older binary for 1.11.
+            $updated = Invoke-RestMethod -Method Patch -Uri $endpoint -Headers $headers -Body (@{body=$warning} | ConvertTo-Json) -ContentType 'application/json'
+            if ($updated.body -ne $warning) { throw 'Old release warning could not be verified.' }
+            Write-Output 'Flagged v1.11.0 as defective. New v1.11.1 release is unaffected.'
+          }
