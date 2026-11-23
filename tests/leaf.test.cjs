@@ -1141,3 +1141,28 @@ test('six tabbed settings pages separate editor and interface typography', () =>
   assert.ok(html.includes('uiFontSize:   String(appliedUiFontSize)'));
   assert.ok(html.includes('if (s.uiFontSize !== undefined) applyUiFontSize(s.uiFontSize, false)'));
 });
+
+
+test('Markdown preview escapes raw HTML and blocks unsafe target schemes', () => {
+  const source = between('function markdownAttr(value) {', 'function renderPreview');
+  const {parseMarkdown, markdownTarget} = new Function(source +
+    ';return {parseMarkdown,markdownTarget};')();
+  assert.equal(markdownTarget('javascript:alert(1)',false), '#');
+  assert.equal(markdownTarget('file:///C:/example.md',false), '#');
+  assert.equal(markdownTarget('data:text/html,evil',true), '#');
+  assert.equal(markdownTarget('mailto:team@example.com',true), '#');
+  assert.equal(markdownTarget('mailto:team@example.com',false),'mailto:team@example.com');
+  assert.equal(markdownTarget('https://example.com/a',false),'https://example.com/a');
+  const raw = parseMarkdown('<img src=x onerror=alert(1)>');
+  assert.ok(raw.includes('&lt;img src=x onerror=alert(1)&gt;'));
+  assert.ok(!raw.includes('<img src=x'));
+  const unsafe = parseMarkdown('[click](javascript:alert(1))');
+  assert.ok(unsafe.includes('href="#"'));
+  assert.ok(!unsafe.includes('href="javascript:'));
+  const image = parseMarkdown('![pic](file:///C:/private-file.md)');
+  assert.ok(image.includes('src="#"'));
+  assert.ok(!image.includes('src="file:'));
+  const quoted = parseMarkdown('[click](https://example.com/" onclick="bad)');
+  assert.ok(quoted.includes('&quot;'));
+  assert.ok(!quoted.includes('" onclick="'));
+});
