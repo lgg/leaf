@@ -2,7 +2,7 @@
 # No arbitrary URLs, commands or package paths are accepted from the WebView.
 param(
   [Parameter(Mandatory=$true)][ValidateSet('Check','Download','Apply','SelfTest')][string]$Mode,
-  [string]$CurrentTag = 'v1.10.3-lgg.1-windows-rc.1',
+  [string]$CurrentTag = 'v1.11.0-lgg.1-windows-rc.1',
   [string]$Tag = '',
   [ValidateSet('portable','installed')][string]$AppMode = 'portable',
   [string]$CacheFolder = '',
@@ -132,6 +132,14 @@ if ($Mode -eq 'SelfTest') {
   $stable = @(GetVersion 'v1.10.3-lgg.1')
   if ($prev.Count -ne 6 -or $next.Count -ne 6 -or $stable.Count -ne 6) { Fail 'Version parser returned invalid tuples.' }
   if ((CompareVersion $next $prev) -ne 1 -or (CompareVersion $stable $next) -ne 1) { Fail 'GitHub version comparison failed.' }
+  # Exercise the exact user-facing Portable upgrade from the existing
+  # v1.10.5 candidate to the requested v1.11.0 release.
+  $portablePrevious = @(GetVersion 'v1.10.5-lgg.1-windows-rc.1')
+  $portableNext = @(GetVersion 'v1.11.0-lgg.1-windows-rc.1')
+  if ($portablePrevious.Count -ne 6 -or $portableNext.Count -ne 6 -or
+      (CompareVersion $portableNext $portablePrevious) -ne 1) {
+    Fail 'Portable 1.10.5 -> 1.11.0 update comparison failed.'
+  }
   if ($null -ne (GetVersion 'v1.10.3-lgg.1-evil/../../')) { Fail 'Untrusted version passed parser.' }
   if ((FileNameForMode 'portable') -cne 'Leaf-Windows-10-11-x64-Portable.zip') { Fail 'Portable asset mismatch.' }
   if ((FileNameForMode 'installed') -cne 'Leaf-Windows-10-11-x64-Setup.exe') { Fail 'Installed asset mismatch.' }

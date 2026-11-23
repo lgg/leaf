@@ -595,14 +595,14 @@ test('valid custom HEX input saves the choice; invalid input does not', () => {
 
 test('GitHub Pages service worker prefers fresh HTML and keeps an offline fallback', () => {
   const sw=fs.readFileSync(path.join(__dirname,'..','sw.js'),'utf8');
-  assert.ok(sw.includes("const CACHE = 'leaf-lgg-v12'"));
+  assert.ok(sw.includes("const CACHE = 'leaf-lgg-v13'"));
   assert.ok(sw.includes("request.mode === 'navigate'"));
   assert.ok(sw.includes("fetch(request).then(response"));
   assert.ok(sw.includes("caches.match('./editor.html')"));
 });
 
 test('fork version matches README, changelog and visible About version', () => {
-  const version='1.10.5-lgg.1';
+  const version='1.11.0-lgg.1';
   const readme=fs.readFileSync(path.join(__dirname,'..','README.md'),'utf8').replace(/\r\n/g, '\n');
   const changelog=fs.readFileSync(path.join(__dirname,'..','CHANGELOG.md'),'utf8');
   assert.ok(html.includes('id="about-current-version">v'+version+'</strong>'));
@@ -899,11 +899,18 @@ test('Settings About has accessible credits, edition, Star link and dismissible 
   assert.ok(settings.includes('id="about-star-github"'));
   assert.ok(settings.includes('id="about-install-type"'));
   assert.ok(settings.includes('id="chk-about-show-startup"'));
+  const originalRepo=settings.indexOf('Original Leaf by Dan');
+  const coffee=settings.indexOf('>buy Dan a coffee</a>');
+  assert.ok(originalRepo>=0 && coffee>originalRepo, 'support link belongs beside original repository');
+  assert.ok(coffee-originalRepo<500, 'support link is at repository level');
+  assert.ok(settings.includes('href="https://buymeacoffee.com/dandanmian"'));
+  assert.ok(!settings.includes('☕'), 'support link has no icon');
+  assert.ok(!popup.includes('buy Dan a coffee') && !popup.includes('buy me a coffee'));
   assert.ok(settings.includes('Show welcome window when Leaf starts'));
   assert.ok(settings.includes('The welcome window can always be opened manually'));
   for (const token of ['id="about-dialog-version"','id="about-dialog-install-type"',
       'original repository','fork repository','Windows downloads &amp; release notes',
-      '☆ Star on GitHub','☕ buy me a coffee']) {
+      '☆ Star on GitHub']) {
     assert.ok(popup.includes(token), token);
   }
   assert.ok(popup.includes('id="chk-about-dont-show"'));

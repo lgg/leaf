@@ -1,5 +1,12 @@
 # Leaf — fork changelog
 
+## v1.11.0-lgg.1 — 2026-11-23 (Portable self-update UX test)
+
+- Removed the coffee link from the welcome/About popup, keeping it focused on credits, versions, the repositories, downloads and Star on GitHub.
+- Moved the original author’s support link alongside the original repository in Settings → About, with the clean label **buy Dan a coffee** and no icon.
+- Bumped the portable/installed Windows build and secure updater tags to 1.11.0 so existing 1.10.5 Portable users can test the update flow using GitHub Releases.
+- No changes to macOS runners or packaging.
+
 ## v1.10.5-lgg.1 — 2026-11-23 (About tab and welcome dialog fixes)
 
 - Fixed the sixth Settings → About tab: both click and keyboard navigation now derive tabs from the rendered settings menu, preventing skipped new tabs.
