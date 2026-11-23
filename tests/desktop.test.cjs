@@ -71,6 +71,17 @@ test('desktop stage creates offline assets without adding web-only service worke
   assert.ok(dist.includes('id="about-dialog-install-type"'));
   assert.ok(dist.includes('id="chk-about-show-startup"'));
   assert.ok(dist.includes('id="about-dialog-version"'));
+  assert.ok(dist.includes('const SETTINGS_TAB_NAMES = Array.from('), 'all six settings tabs must be interactive');
+  assert.ok(dist.includes('id="about-dialog-version">v1.11.1-lgg.1'), 'welcome popup must have actual new version');
+  assert.ok(dist.includes('id="about-current-version">v1.11.1-lgg.1'), 'Settings About must have current version');
+  const popup = dist.slice(dist.indexOf('<!-- About Modal -->'),dist.indexOf('<script>',dist.indexOf('<!-- About Modal -->')));
+  assert.ok(popup.includes('original repository') && popup.includes('fork repository'), 'welcome popup credits must not regress');
+  assert.ok(!popup.includes('Version, repositories and updates are in Settings'));
+  assert.ok(!popup.includes('buy me a coffee') && !popup.includes('buy Dan a coffee'));
+  const original = aboutSection.indexOf('Original Leaf by Dan');
+  const coffee = aboutSection.indexOf('>buy Dan a coffee</a>');
+  assert.ok(original >= 0 && coffee > original && coffee-original < 500, 'support link stays beside original repository');
+
   assert.ok(dist.includes('id="settings-panel-about"'));
   assert.ok(!fs.readFileSync(path.join(root, 'editor.html'), 'utf8').includes('btn-desktop-check-updates'));
   assert.ok(dist.includes('id="btn-desktop-releases"'));
