@@ -736,7 +736,7 @@ test('desktop resolves only allowlisted embedded README relative links to GitHub
 
 test('native runtime identity hides Windows update UI/commands on Linux and macOS', () => {
   const native = fs.readFileSync(path.join(root,'src-tauri','src','main.rs'),'utf8');
-  const bridge = fs.readFileSync(path.join(root,'desktop','desktop-bridge.js'),'utf8');
+  const bridge = fs.readFileSync(path.join(root,'desktop','desktop-bridge.js'),'utf8').replace(/\r\n/g, '\n');
   const stage = fs.readFileSync(path.join(root,'desktop','stage.cjs'),'utf8');
   assert.ok(native.includes("fn desktop_platform() -> &'static str"));
   assert.ok(native.includes('desktop_open_external, desktop_platform, desktop_show_releases'));
@@ -760,7 +760,7 @@ test('native file loader rejects non-regular files before OS file open', () => {
 
 test('Tauri direct window destruction is limited to guarded desktop close path', () => {
   const title = fs.readFileSync(path.join(root,'desktop','desktop-titlebar.js'),'utf8');
-  const bridge = fs.readFileSync(path.join(root,'desktop','desktop-bridge.js'),'utf8');
+  const bridge = fs.readFileSync(path.join(root,'desktop','desktop-bridge.js'),'utf8').replace(/\r\n/g, '\n');
   const capability = require('../src-tauri/capabilities/default.json');
   assert.ok(capability.permissions.includes('core:window:allow-destroy'));
   assert.ok(title.includes("appWindow.close()"));
