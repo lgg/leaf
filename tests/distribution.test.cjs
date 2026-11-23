@@ -11,7 +11,7 @@ test('platform packaging configuration preserves the same product and version', 
   const linux = JSON.parse(read('src-tauri/tauri.linux.conf.json'));
   const mac = JSON.parse(read('src-tauri/tauri.macos.conf.json'));
   assert.equal(base.productName, 'Leaf');
-  assert.equal(base.version, '1.10.4');
+  assert.equal(base.version, '1.10.5');
   assert.ok(base.bundle.targets.includes('nsis'));
   assert.deepEqual(linux.bundle.targets, ['deb','appimage']);
   assert.deepEqual(mac.bundle.targets, ['app','dmg']);
