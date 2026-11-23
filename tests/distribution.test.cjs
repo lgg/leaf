@@ -12,7 +12,8 @@ test('platform packaging configuration preserves the same product and version', 
   const mac = JSON.parse(read('src-tauri/tauri.macos.conf.json'));
   assert.equal(base.productName, 'Leaf');
   assert.equal(base.version, '1.11.2');
-  assert.ok(base.bundle.targets.includes('nsis'));
+  assert.ok(!base.bundle.targets || !base.bundle.targets.includes('nsis'));
+  assert.ok(!base.bundle.fileAssociations || base.bundle.fileAssociations.length === 0);
   assert.deepEqual(linux.bundle.targets, ['deb','appimage']);
   assert.deepEqual(mac.bundle.targets, ['app','dmg']);
   assert.equal(mac.bundle.macOS.signingIdentity, '-');
@@ -31,7 +32,7 @@ test('builds stay self-hosted and never automatically distribute unverified bina
     assert.doesNotMatch(workflow, /ubuntu-latest|macos-latest|windows-latest/);
   }
   assert.match(win, /Verify compiled EXE contains no private workstation paths/);
-  assert.match(win, /inputs\.build_installer/);
+  assert.doesNotMatch(win, /inputs\.build_installer|makensis\.exe|--bundles nsis/);
   assert.doesNotMatch(win, /ubuntu-latest|macos-latest|windows-latest/);
 });
 
