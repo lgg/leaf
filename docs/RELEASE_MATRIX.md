@@ -1,39 +1,39 @@
-# Leaf desktop — multi-platform release matrix
+# Leaf desktop — multi-platform distribution matrix
 
-> **Windows-only early-access exception (2026-11-21):** the user approved a Windows 10/11 x64 prerelease before Linux/macOS are ready. The separate [Windows preview publisher](../.github/workflows/windows-preview-release.yml) runs only after successful self-hosted Windows `main` CI, requires both the built-in .NET user installer and portable ZIP from the same commit, and publishes a GitHub **prerelease** with SHA256SUMS. Manual GUI acceptance remains open; a full stable cross-platform release continues to use the gate below. The Windows preview installer is not NSIS and does not register default file associations. No system tools are installed on the runner.
+**Scope decision (2026-11-23):** Keep the proven Windows Portable ZIP and existing .NET per-user Setup EXE. Do **not** build NSIS/MSI installers, register `.md`/`.txt` file associations or implement the separate signed Tauri updater. The current explicit user-approved Windows GitHub Releases updater remains supported (official HTTPS, asset size and SHA-256 verification, no forced downloads or installations).
 
-**Status (2026-11-21): source and CI wiring only; cross-platform builds and real GUI acceptance are not yet verified. Do not describe an artifact as a public release until every gate below passes.**
+Windows **v1.11.2-lgg.1-windows-rc.1** is already published as an unsigned prerelease after successful exact-`main` Windows CI and publisher validation. This is not a claim that all real GUI acceptance scenarios have passed. General release may proceed only after complete manual acceptance in **#11**.
 
-## Target outputs
+## Target assets
 
-| Platform | Required release assets | Runner |
+| Platform | Release assets | Runner |
 | --- | --- | --- |
-| Windows x64 | Portable `leaf-desktop.exe` (ZIP), unsigned NSIS setup `.exe` | Existing self-hosted `leaf-runner-ci` |
-| Linux x64 | `Leaf-linux-x64.deb`, `Leaf-linux-x64.AppImage` | Self-hosted Linux x64, label `leaf-linux-ci` |
-| macOS universal | `Leaf-macos-universal.dmg`, `Leaf-macos-universal-app.tar.gz` (.app for arm64 + x86_64) | Self-hosted macOS, label `leaf-macos-ci` |
+| Windows x64 | Existing `Leaf-Windows-10-11-x64-Portable.zip` and `Leaf-Windows-10-11-x64-Setup.exe` (per-user .NET) | Existing self-hosted `leaf-runner-ci` |
+| Linux x64 | `Leaf-linux-x64.deb`, `Leaf-linux-x64.AppImage` | Self-hosted Linux `leaf-linux-ci` |
+| macOS universal | `Leaf-macos-universal.dmg`, `Leaf-macos-universal-app.tar.gz` (.app with arm64 + x86_64) | Self-hosted macOS `leaf-runner-macos-ci` |
 
-No GitHub-hosted runners are used. Neither CI workflow installs system packages, Rust targets, Tauri CLI, NSIS or SDKs. Build tools and native UI dependencies must already be available; fail closed if not. The Tauri bundlers may fetch helper assets into tool caches, so installer packaging is opt-in, and Linux/macOS workflows are only manually dispatched after the maintainer approves and provisions the machine.
+Do not use GitHub-hosted runners. Do not install system software, Rust/Node/toolchains, SDKs or download bundler prerequisites onto any self-hosted runner without the owner's explicit authorization. Mac runner belongs to a friend and must remain no-install/offline per existing workflow safeguards. Bundle prerequisites must be preinstalled and cached before launching build workflows.
 
 ## Windows
 
-The normal `desktop-windows.yml` push workflow builds and privacy-scans the EXE, then creates the portable ZIP. The optional `workflow_dispatch` input `build_installer=true` also attempts an **unsigned NSIS installer** if `cargo-tauri` and `makensis.exe` are already available, using the already-checked release executable. If either tool is absent, it fails the requested installer step rather than publishing a partial installer. It may still need pre-cached Tauri NSIS bundle assets.
+`desktop-windows.yml` builds, privacy-scans and retains the EXE and Portable ZIP and packages the existing unsigned **.NET per-user Setup** on the same exact commit; no NSIS dependency or optional installer switch. `windows-preview-release.yml` publishes both from validated `main` workflow artifacts with SHA-256 and binary provenance checks. Real-device GUI acceptance and updater smoke checks belong in **#11**.
 
-Windows OS file associations require an installer; portable EXE is intentionally not presented as having them. Check exact-commit build hashes and the `Verify compiled EXE contains no private workstation paths` gate before any distribution.
+No installer file associations, Explorer `Open with` integration or signed Tauri updater are planned. Native in-app Open/Save As, drag-and-drop and the user-approved Windows update flow remain supported.
 
 ## Linux
 
-`desktop-linux.yml` builds .deb and AppImage for x64, after JavaScript/Rust tests. Recommended oldest supported build host is Ubuntu 22.04 or Debian 12 to avoid new glibc dependencies. Pre-provision Rust, cargo-tauri, Node, `webkit2gtk-4.1` development headers, `pkg-config`, `dpkg-deb` and AppImage bundler requirements. WebKitGTK is a native system prerequisite; an AppImage is not a promise of completely standalone runtime support. No silent provisioning.
+`desktop-linux.yml` prepares `.deb` and AppImage after JS/Rust tests; requires a pre-provisioned Linux x64 self-hosted runner, Rust/Node/cargo-tauri, `webkit2gtk-4.1` development files, `pkg-config`, `dpkg-deb` and approved AppImage bundler prerequisites. Prefer an older-compatible build host; AppImage still needs supported WebKitGTK runtime on the target desktop.
 
 ## macOS
 
-`desktop-macos.yml` builds a universal x86_64 + arm64 app and a DMG, using preinstalled Rust targets on a real macOS runner. System `sips`/`iconutil` generate an `.icns` from the committed PNG. Bundles are **ad-hoc signed** (`signingIdentity: "-"`) rather than Developer ID signed or notarized. Gatekeeper warnings may require user approval in System Settings on macOS; do not bypass OS security controls automatically.
+`desktop-macos.yml` targets universal Apple Silicon + Intel `.app` and `.dmg` using pre-existing local tools, both Rust targets and an Apple SDK. It is **manual-dispatch only**, fails if prerequisites are missing, uses `CARGO_NET_OFFLINE=true` and `RUSTUP_AUTO_INSTALL=0`. No toolchain or dependency download may be initiated on the friend's machine. The initial app is ad-hoc signed (not Developer ID notarized) and may require explicit user approval in macOS System Settings.
 
 ## Release gates
 
-1. Merge all validated code and ensure Windows `main` CI and Pages checks are green at the exact release commit.
-2. Run Windows installer packaging via manual workflow and verify portable and installer run on Windows with synthetic files. Document all scenarios in issue #11, including stale-file and recovery edge cases.
-3. Provision Linux and macOS self-hosted runners; dispatch both platform workflows on the *same exact main commit*. Confirm uploads contain every matrix asset; smoke-test binaries on actual machines.
-4. Freeze commit, pin release tag only to it, generate a SHA-256 manifest for downloaded assets, publish GitHub Release with platform-specific artifacts and clear notice about unsigned installers.
-5. Do not claim signed automatic updates; the app only checks GitHub Releases and offers manual downloads. A future opt-in signed updater requires signing secrets.
+1. Finish independent Linux and macOS packaging code/runner prerequisites and produce successful artifacts from the **same exact main SHA** as Windows.
+2. Verify provenance, binary privacy checks and SHA-256 for every package.
+3. Complete actual Windows, Linux and macOS GUI/manual acceptance in **#11** using synthetic documents; CI success alone is insufficient.
+4. The `desktop-release.yml` full-matrix publisher must require both existing Windows assets, Linux DEB/AppImage, macOS app/DMG. A `publish=true` full release must reject an open #11; drafts may be prepared while acceptance is pending.
+5. Preserve the working opt-in Windows update experience; no forced/silent installation and no unapproved runner changes.
 
-The remaining distribution prerequisites are tracked in issue #12. A green CI build alone is not evidence of real desktop GUI acceptance.
+Tracking: **#12** is the distribution umbrella. Platform-specific implementation tasks are linked there, and **#11** owns all manual acceptance. Historical #22 is superseded by the consolidated #11 checklist.
