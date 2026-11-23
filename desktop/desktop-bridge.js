@@ -6,6 +6,7 @@
   const invoke = tauri.core.invoke;
   let restoring = true;
   let sessionTimer = null;
+  let sessionFirstEditAt = 0;
   let pendingSession = Promise.resolve();
   let saveQueue = Promise.resolve();
   let closing = false;
@@ -44,11 +45,18 @@
   }
   function scheduleSession() {
     if (restoring || sessionRecoveryBlocked) return;
+    const now = Date.now();
+    if (!sessionFirstEditAt) sessionFirstEditAt = now;
     clearTimeout(sessionTimer);
-    sessionTimer = setTimeout(storeSession, 450);
+    const remaining = Math.max(0, 2000 - (now - sessionFirstEditAt));
+    sessionTimer = setTimeout(() => {
+      sessionFirstEditAt = 0;
+      storeSession();
+    }, Math.min(350, remaining));
   }
   async function flushSession() {
     clearTimeout(sessionTimer);
+    sessionFirstEditAt = 0;
     if (sessionRecoveryBlocked) {
       saveActiveTabState();
       // Without a valid original recovery session, desktop_save_session must
@@ -67,6 +75,20 @@
   scheduleWorkspaceSave = function () {
     scheduleSession();
   };
+  // Desktop drafts live in the native Rust recovery session. Prevent the
+  // shared browser editor's pagehide/visibility handlers from duplicating
+  // private file bodies into WebView localStorage.
+  persistWorkspace = function () {};
+  refreshRecoveryControl = function () {
+    const row = document.getElementById('workspace-recovery-row');
+    if (row) row.hidden = true;
+  };
+  const legacyRecoveryButton = document.getElementById('btn-recover-workspace');
+  if (legacyRecoveryButton) legacyRecoveryButton.addEventListener('click', event => {
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    workspaceNotice('Desktop drafts are restored from the native session.');
+  }, true);
 
   // A second OS Open must refresh a clean tab after an external disk edit.
   // Dirty documents always win: never clobber the user's unsaved changes.
@@ -274,15 +296,43 @@
           typeof restoreWorkspace === 'function' && restoreWorkspace()) {
         // One-time migration from older desktop previews that used browser storage.
         // These copies are UNBOUND drafts; never assume a path from the browser.
+        // Include separate conflict backups without deleting original browser data.
+        const backupCopies = typeof availableWorkspaceRecoveries === 'function'
+          ? availableWorkspaceRecoveries() : [];
         for (const tab of tabs) {
           tab.nativePath = null;
           tab.nativeRev = null;
           tab.nativeEol = 'lf';
           if (!tab.readonly) tab.dirty = true;
         }
+        const signatures = new Set(tabs.map(tab => [tab.name, tab.content].join('\u0000')));
+        let importedBackups = 0;
+        for (const backup of backupCopies) {
+          try {
+            const payload = JSON.parse(backup.raw);
+            for (const oldTab of payload.tabs || []) {
+              if (tabs.length >= 60) break;
+              if (!oldTab || oldTab.readonly || typeof oldTab.content !== 'string') continue;
+              const name = typeof oldTab.name === 'string' ? oldTab.name : 'recovery.md';
+              const signature = [name, oldTab.content].join('\u0000');
+              if (signatures.has(signature)) continue;
+              signatures.add(signature);
+              tabs.push({
+                id: nextTabId++, name, label: (oldTab.label || name) + ' · recovery',
+                browserTitle: '', content: oldTab.content, handle: null, dirty: true,
+                readonly: false, nativePath: null, nativeRev: null, nativeEol: 'lf'
+              });
+              importedBackups++;
+            }
+          } catch (_) {
+            // Malformed legacy backups remain untouched for later recovery.
+          }
+        }
         isDirty = !!current()?.dirty;
         renderTabs();
-        workspaceNotice('Older desktop drafts were recovered from browser storage. Save As to choose their file locations.');
+        workspaceNotice('Older desktop drafts were recovered from browser storage' +
+          (importedBackups ? ' (plus ' + importedBackups + ' separate backup tabs)' : '') +
+          '. Use Save As to choose their file locations.');
       }
       if (data.tabs && data.tabs.length) {
         const recoveryCopies = [];
