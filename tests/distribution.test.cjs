@@ -71,6 +71,10 @@ test('Windows 10/11 preview installer requires no new runner installations and i
   assert.match(release, /Nested artifact folders would hide the actual producer packages/);
   assert.match(release, /byte-identical to a previously published release/);
   assert.match(release, /Published release hash is inconsistent with the successful current Windows build/);
+  assert.match(release, /EXPECTED_TAG: v1\.11\.1-lgg\.1-windows-rc\.1/);
+  assert.match(release, /exeText\.Contains\(\$env:EXPECTED_TAG\)/);
+  assert.match(release, /Release executable does not contain the exact expected native updater version/);
+
   assert.doesNotMatch(release, /name: leaf-windows-portable-smoke-test\s*\n\s*run-id:/);
   assert.match(release, /Leaf-Windows-10-11-x64-Portable.zip/);
   assert.match(release, /Leaf-Windows-10-11-x64-Setup.exe/);
