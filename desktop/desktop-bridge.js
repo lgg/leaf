@@ -343,12 +343,18 @@
   // Installation mode is determined natively from the running executable location.
   // The renderer only receives "installed" or "portable", never local paths.
   invoke('desktop_installation_mode').then(mode => {
-    const type = document.getElementById('about-install-type');
-    if (type) type.textContent = mode === 'installed'
+    const edition = mode === 'installed'
       ? 'Standalone desktop · Windows (Setup)' : 'Portable desktop · Windows (ZIP)';
+    // Keep the permanent About tab and restored welcome window in sync.
+    for (const id of ['about-install-type','about-dialog-install-type']) {
+      const type = document.getElementById(id);
+      if (type) type.textContent = edition;
+    }
   }).catch(() => {
-    const type = document.getElementById('about-install-type');
-    if (type) type.textContent = 'Desktop · Windows';
+    for (const id of ['about-install-type','about-dialog-install-type']) {
+      const type = document.getElementById(id);
+      if (type) type.textContent = 'Desktop · Windows';
+    }
   });
 
   const releaseButton = document.getElementById('btn-desktop-releases');

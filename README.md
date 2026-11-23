@@ -1,6 +1,6 @@
 # Leaf — distraction-free Markdown editor
 
-**Fork version: v1.10.4-lgg.1** · Based on [uncle-jasper/leaf](https://github.com/uncle-jasper/leaf) v1.7 · Maintained by [lgg](https://github.com/lgg).
+**Fork version: v1.10.5-lgg.1** · Based on [uncle-jasper/leaf](https://github.com/uncle-jasper/leaf) v1.7 · Maintained by [lgg](https://github.com/lgg).
 
 Leaf is a focused, offline-capable Markdown and plain-text editor. It runs as a lightweight, single HTML file in a browser, installs as a PWA on phones, and has an **independent Tauri v2 desktop edition** that can edit real files on disk. No account, sync server, analytics or unnecessary background process.
 
@@ -24,7 +24,7 @@ The PWA has source-level automated regression tests. Final physical-device verif
 
 ## Settings: six tabs and separate typography
 
-Settings now contains **Current document**, **Appearance**, **Status bar**, **Editor**, **Mobile display**, and **About** tabs. Appearance begins with the independent focus-mode top-bar auto-hide preference, then themes/colors and separate **interface font/size**. The **editor font/size** controls live in Editor. Both have an exact positive-integer pixel input, styled Save button and 6–128px slider; typing a larger value keeps it exactly while the slider clamps visually. Settings survive restarts without mixing editor and UI fonts.
+Settings contains **Current document**, **Appearance**, **Status bar**, **Editor**, **Mobile display**, and **About** tabs. The About tab has a saved checkbox to control whether the welcome window appears at startup; native desktop defaults to on, the web editor to off. The toolbar About button always remains available. Appearance begins with the independent focus-mode top-bar auto-hide preference, then themes/colors and separate **interface font/size**. The **editor font/size** controls live in Editor. Both have an exact positive-integer pixel input, styled Save button and 6–128px slider; typing a larger value keeps it exactly while the slider clamps visually. Settings survive restarts without mixing editor and UI fonts.
 
 ## Desktop edition — Windows (Tauri v2)
 
@@ -74,7 +74,7 @@ Builds can download normal Cargo dependency crates during compilation; the workf
 - Export active Markdown/text documents or a ZIP of all editable tabs.
 - Keyboard shortcuts, settings persistence, focus / Just Write modes.
 
-For deeper implementation notes, see [desktop architecture](docs/DESKTOP.md), [settings audit](docs/SETTINGS_AUDIT.md) and [changelog](CHANGELOG.md). The Settings → About tab includes both repositories, a Star on GitHub action and Windows updates. The old pop-up can be permanently skipped.
+For deeper implementation notes, see [desktop architecture](docs/DESKTOP.md), [settings audit](docs/SETTINGS_AUDIT.md) and [changelog](CHANGELOG.md). Settings → About includes both repositories, a Star on GitHub action, Windows updates and an opt-in startup welcome-window toggle. The welcome window also retains credits, repositories, version and downloads. The window can always be opened manually using ··· About.
 
 ## Verification and release policy
 
