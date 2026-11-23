@@ -104,7 +104,7 @@ jobs:
 
       - name: Verify Windows portable and installer payload and write SHA256SUMS
         env:
-          EXPECTED_TAG: v1.11.1-lgg.1-windows-rc.1
+          EXPECTED_TAG: v1.11.2-lgg.1-windows-rc.1
         run: |
           $ErrorActionPreference = 'Stop'
           $portable = @(Get-ChildItem 'release-input/portable' -File)
@@ -157,7 +157,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PRODUCER_SHA: ${{ github.event.workflow_run.head_sha }}
-          TAG_NAME: v1.11.1-lgg.1-windows-rc.1
+          TAG_NAME: v1.11.2-lgg.1-windows-rc.1
         run: |
           $ErrorActionPreference = 'Stop'
           $headers = @{Authorization="Bearer $env:GH_TOKEN"; Accept='application/vnd.github+json'; 'X-GitHub-Api-Version'='2022-11-28'}
@@ -203,7 +203,7 @@ jobs:
           - Leaf-Windows-10-11-x64-Setup.exe — user-scoped graphical installer using built-in Windows/.NET, with Start menu shortcut and Apps & features uninstall. No administrator access required.
           - SHA256SUMS.txt — SHA-256 hashes for both assets.
 
-          Changes in this release: restores the actual 1.11 UI (working Settings → About, complete welcome credits/links, buy Dan a coffee only next to the original repository) after the older Windows release publisher accidentally reused stale binaries from a self-hosted runner workspace. The release job now clears staging, extracts artifacts directly, enforces exact version and fresh content, and verifies hashes. Native Windows PowerShell updater processes now start without a visible console window. Portable-to-Portable updating and automatic relaunch remain opt-in.
+          Changes in this release: fixes repeated Welcome and overlapping Settings popups on Portable restart. Automatic Welcome now requires a separately saved explicit opt-in; legacy auto-show defaults are ignored, while manual About access always works. On Settings → About, Star on GitHub, Changelog, Windows releases and README are directly below Repositories, before both repository credits; buy Dan a coffee is inline beside the original repository link. Existing Windows update handoff and verifiable clean-release protections remain in place.
 
           Windows 10/11 require Microsoft Edge WebView2 Runtime. Both builds are unsigned; Microsoft SmartScreen may show a warning. This release is a **prerelease**, not a claim that manual GUI acceptance has passed. Known limitations: installer does not register default .md/.txt file associations; no signed automatic updater. Only open files you trust.
 
