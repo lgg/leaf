@@ -185,7 +185,9 @@ jobs:
           if ($published.draft -ne $false -or $published.prerelease -ne $true) { throw 'Release publication state could not be verified.' }
           Write-Output 'Windows-only GitHub prerelease published with both packages and SHA256SUMS.'
 ) { throw 'Artifact ID is invalid.' }
-            "$($item.Output)=$($candidates[0].id)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+            # Windows PowerShell 5.1 must write GitHub outputs as UTF-8 without BOM.
+            [System.IO.File]::AppendAllText($env:GITHUB_OUTPUT,
+              "$($item.Output)=$($candidates[0].id)`n", (New-Object System.Text.UTF8Encoding($false)))
           }
           Write-Output 'Both release candidates verified by unique artifact ID on successful exact-main attempt.'
 
