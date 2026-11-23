@@ -365,53 +365,61 @@ test('welcome startup preference and manual About action are independent', () =>
   const source=between('function showAboutDialog() {',
     "document.getElementById('chk-welcome').addEventListener");
   const nodes={};
-  const create=(id)=>nodes[id]||(nodes[id]={
+  const create=id=>nodes[id]||(nodes[id]={
     checked:false,style:{display:'none'},textContent:'',listeners:{},
     addEventListener(type,handler){this.listeners[type]=handler}
   });
-  const hooks={};const selected=[],saves={count:0},reads={count:0};
-  const document={
-    body:{dataset:{leafDesktop:'true'}},
-    getElementById:create,
-    querySelectorAll:()=>[]
-  };
-  const window={
-    __TAURI__:{},
-    addEventListener:(type,handler)=>{hooks[type]=handler}
-  };
+  const hooks={},selected=[],saves={count:0},reads={count:0},preferences={enabled:false};
+  const document={body:{dataset:{leafDesktop:'true'}},getElementById:create,querySelectorAll:()=>[]};
+  const window={__TAURI__:{},addEventListener:(type,handler)=>{hooks[type]=handler}};
   const env=
     "const document=deps.document,window=deps.window,location={protocol:'file:'};" +
     "const justWriteActive=false;" +
     "function updateAboutLinkColor(){}" +
     "function selectSettingsTab(name){deps.selected.push(name)}" +
     "function saveSettings(){deps.saves.count++}" +
+    "function readAboutStartupPreference(){return deps.preferences.enabled}" +
+    "function persistAboutStartupPreference(v){deps.preferences.enabled=v}" +
     "function openReadmeTab(){deps.reads.count++}";
-  const actions=new Function('deps',env+source+
+  new Function('deps',env+source+
     ';return {showAboutDialog,openAboutSettings,setAboutStartupEnabled,refreshAboutEdition};')(
-      {document,window,selected,saves,reads});
+      {document,window,selected,saves,reads,preferences});
   assert.equal(typeof hooks.load,'function');
-  create('chk-about-show-startup').checked=true;
+  create('chk-about-show-startup').checked=true; // stale 1.11.1 UI setting
+  hooks.load();
+  assert.equal(create('about-overlay').style.display,'none');
+  create('chk-about-show-startup').listeners.change({target:{checked:true}});
+  assert.equal(preferences.enabled,true);
   hooks.load();
   assert.equal(create('about-overlay').style.display,'flex');
-  create('chk-about-dont-show').checked=true;
+  assert.equal(create('settings-overlay').style.display,'none');
   create('chk-about-dont-show').listeners.change({target:{checked:true}});
   assert.equal(create('chk-about-show-startup').checked,false);
-  assert.equal(saves.count,1);
+  assert.equal(preferences.enabled,false);
+  assert.equal(saves.count,2);
   create('about-overlay').style.display='none';
-  // Preference off must never disable manual access to original popup.
+  create('settings-overlay').style.display='none';
+  hooks.load(); // close and reopen app
+  assert.equal(create('about-overlay').style.display,'none');
+  assert.equal(create('settings-overlay').style.display,'none');
+  // Toolbar About must always be accessible and never stack over Settings.
+  create('settings-overlay').style.display='flex';
   create('btn-about').listeners.click();
   assert.equal(create('about-overlay').style.display,'flex');
+  assert.equal(create('settings-overlay').style.display,'none');
   assert.equal(create('chk-about-dont-show').checked,true);
-  create('chk-about-show-startup').listeners.change({target:{checked:true}});
-  assert.equal(create('chk-about-dont-show').checked,false);
-  assert.equal(saves.count,2);
   create('btn-about-settings').listeners.click();
   assert.equal(selected.at(-1),'about');
   assert.equal(create('settings-overlay').style.display,'flex');
   assert.equal(create('about-overlay').style.display,'none');
+  create('chk-about-show-startup').listeners.change({target:{checked:true}});
+  assert.equal(preferences.enabled,true);
+  assert.equal(create('chk-about-dont-show').checked,false);
+  assert.equal(saves.count,3);
   assert.equal(create('about-install-type').textContent,'Desktop · Windows (detecting…)');
   assert.equal(create('about-dialog-install-type').textContent,'Desktop · Windows (detecting…)');
 });
+
 
 test('settings order, responsive layout and unobtrusive backup control', () => {
   const modal = html.split('<!-- Settings Modal -->')[1].split('<!-- About Modal -->')[0];
@@ -894,6 +902,20 @@ test('preferences, independent tab names, input edits and recovery are wired', (
   assert.ok(js.includes("const backups = availableWorkspaceRecoveries()"));
 });
 
+
+test('About action links precede repository credits, with Dan coffee inline', () => {
+  const section=html.split('id="settings-panel-about"')[1].split('<!-- About Modal -->')[0];
+  const heading=section.indexOf('>Repositories</h4>');
+  const actions=section.indexOf('class="settings-about-actions"');
+  const fork=section.indexOf('Fork maintained by');
+  const original=section.indexOf('Original Leaf by Dan');
+  const coffee=section.indexOf('>buy Dan a coffee</a>');
+  assert.ok(heading>=0 && heading<actions && actions<fork && fork<original && original<coffee);
+  assert.match(section, /<p class="settings-about-repo">Original Leaf by Dan · [^\n]*buy Dan a coffee<\/a><\/p>/);
+  assert.ok(section.includes('class="settings-about-coffee"'));
+  assert.ok(html.includes('.settings-about-coffee { white-space:nowrap; }'));
+  assert.equal((section.match(/buy Dan a coffee/g)||[]).length,1);
+});
 
 test('Settings About has accessible credits, edition, Star link and dismissible popup', () => {
   const settings=html.split('id="settings-panel-about"')[1].split('<!-- About Modal -->')[0];
