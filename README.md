@@ -1,6 +1,6 @@
 # Leaf — distraction-free Markdown editor
 
-**Fork version: v1.11.1-lgg.1** · Based on [uncle-jasper/leaf](https://github.com/uncle-jasper/leaf) v1.7 · Maintained by [lgg](https://github.com/lgg).
+**Fork version: v1.11.2-lgg.1** · Based on [uncle-jasper/leaf](https://github.com/uncle-jasper/leaf) v1.7 · Maintained by [lgg](https://github.com/lgg).
 
 Leaf is a focused, offline-capable Markdown and plain-text editor. It runs as a lightweight, single HTML file in a browser, installs as a PWA on phones, and has an **independent Tauri v2 desktop edition** that can edit real files on disk. No account, sync server, analytics or unnecessary background process.
 
@@ -24,7 +24,7 @@ The PWA has source-level automated regression tests. Final physical-device verif
 
 ## Settings: six tabs and separate typography
 
-Settings contains **Current document**, **Appearance**, **Status bar**, **Editor**, **Mobile display**, and **About** tabs. The About tab has a saved checkbox to control whether the welcome window appears at startup; native desktop defaults to on, the web editor to off. The toolbar About button always remains available. Appearance begins with the independent focus-mode top-bar auto-hide preference, then themes/colors and separate **interface font/size**. The **editor font/size** controls live in Editor. Both have an exact positive-integer pixel input, styled Save button and 6–128px slider; typing a larger value keeps it exactly while the slider clamps visually. Settings survive restarts without mixing editor and UI fonts.
+Settings contains **Current document**, **Appearance**, **Status bar**, **Editor**, **Mobile display**, and **About** tabs. The About tab has a saved checkbox to control whether the welcome window appears at startup; automatic welcome is opt-in on all editions. The toolbar About button always remains available. Appearance begins with the independent focus-mode top-bar auto-hide preference, then themes/colors and separate **interface font/size**. The **editor font/size** controls live in Editor. Both have an exact positive-integer pixel input, styled Save button and 6–128px slider; typing a larger value keeps it exactly while the slider clamps visually. Settings survive restarts without mixing editor and UI fonts.
 
 ## Desktop edition — Windows (Tauri v2)
 
