@@ -1340,7 +1340,8 @@
   .settings-about-metadata span { color:var(--muted); }
   .settings-about-metadata strong { color:var(--text); overflow-wrap:anywhere; }
   .settings-about-repo { margin:7px 0; font-size:11px; line-height:1.6; color:var(--text); }
-  .settings-about-actions { display:flex; align-items:center; flex-wrap:wrap; gap:11px 15px; margin:18px 0 14px; font-size:11px; }
+  .settings-about-actions { display:flex; align-items:center; flex-wrap:wrap; gap:11px 15px; margin:9px 0 17px; font-size:11px; }
+  .settings-about-coffee { white-space:nowrap; }
   .settings-about-actions button, .about-open-settings { color:var(--text); background:var(--bg); border:1px solid var(--border); padding:9px 12px; border-radius:6px; font-size:11px; }
   .settings-about-actions button:hover, .about-open-settings:hover { border-color:var(--text); }
   #settings-panel-about .about-star-button { display:inline-flex; color:var(--about-star-text, var(--text)) !important; background:var(--about-link, var(--bg)); border-radius:7px; padding:10px 13px; border:1px solid var(--about-link, var(--border)); text-decoration:none; font-weight:700; opacity:1; }
@@ -1664,19 +1665,18 @@
         <div><h3>Leaf</h3><p>A Markdown Editor</p></div>
       </div>
       <div class="settings-about-metadata">
-        <span>Version</span><strong id="about-current-version">v1.11.1-lgg.1</strong>
+        <span>Version</span><strong id="about-current-version">v1.11.2-lgg.1</strong>
         <span>Edition</span><strong id="about-install-type">Web browser</strong>
       </div>
       <h4 class="settings-mini-heading settings-mini-divider">Repositories</h4>
-      <p class="settings-about-repo">Fork maintained by <a href="https://github.com/lgg" target="_blank" rel="noopener noreferrer">lgg</a> · <a href="https://github.com/lgg/leaf" target="_blank" rel="noopener noreferrer">lgg/leaf</a></p>
-      <p class="settings-about-repo">Original Leaf by Dan · <a href="https://github.com/uncle-jasper/leaf" target="_blank" rel="noopener noreferrer">uncle-jasper/leaf</a></p>
-      <p class="settings-about-repo"><a href="https://buymeacoffee.com/dandanmian" target="_blank" rel="noopener noreferrer">buy Dan a coffee</a></p>
       <div class="settings-about-actions">
         <a id="about-star-github" class="about-star-button" href="https://github.com/lgg/leaf" target="_blank" rel="noopener noreferrer">☆ Star on GitHub</a>
         <a href="https://github.com/lgg/leaf/blob/main/CHANGELOG.md" target="_blank" rel="noopener noreferrer">Changelog</a>
         <a href="https://github.com/lgg/leaf/releases" target="_blank" rel="noopener noreferrer">Windows releases</a>
         <button type="button" id="btn-about-readme">README</button>
       </div>
+      <p class="settings-about-repo">Fork maintained by <a href="https://github.com/lgg" target="_blank" rel="noopener noreferrer">lgg</a> · <a href="https://github.com/lgg/leaf" target="_blank" rel="noopener noreferrer">lgg/leaf</a></p>
+      <p class="settings-about-repo">Original Leaf by Dan · <a href="https://github.com/uncle-jasper/leaf" target="_blank" rel="noopener noreferrer">uncle-jasper/leaf</a> · <a class="settings-about-coffee" href="https://buymeacoffee.com/dandanmian" target="_blank" rel="noopener noreferrer">buy Dan a coffee</a></p>
       <div id="about-desktop-update-slot"></div>
       <div class="settings-row settings-about-preference">
         <input id="chk-about-show-startup" type="checkbox">
@@ -1698,7 +1698,7 @@
     <p class="about-credit">Vibe coded by <a href="https://github.com/uncle-jasper" target="_blank" rel="noopener noreferrer">Dan</a> · <a href="https://github.com/uncle-jasper/leaf" target="_blank" rel="noopener noreferrer">original repository</a></p>
     <p class="about-credit">updated by <a href="https://github.com/lgg" target="_blank" rel="noopener noreferrer">lgg</a> · <a href="https://github.com/lgg/leaf" target="_blank" rel="noopener noreferrer">fork repository</a></p>
     <p class="about-copy">© 2026</p>
-    <p class="about-version" id="about-dialog-version">v1.11.1-lgg.1</p>
+    <p class="about-version" id="about-dialog-version">v1.11.2-lgg.1</p>
     <p class="about-dialog-edition" id="about-dialog-install-type">Web browser</p>
     <div class="about-dialog-links">
       <a href="https://github.com/lgg/leaf/blob/main/CHANGELOG.md" target="_blank" rel="noopener noreferrer">Changelog</a>
@@ -1716,7 +1716,7 @@
 <script>
 const README_CONTENT = `# Leaf — distraction-free Markdown editor
 
-**Fork version: v1.11.1-lgg.1** · Based on [uncle-jasper/leaf](https://github.com/uncle-jasper/leaf) v1.7 · Maintained by [lgg](https://github.com/lgg).
+**Fork version: v1.11.2-lgg.1** · Based on [uncle-jasper/leaf](https://github.com/uncle-jasper/leaf) v1.7 · Maintained by [lgg](https://github.com/lgg).
 
 Leaf is a focused, offline-capable Markdown and plain-text editor. It runs as a lightweight, single HTML file in a browser, installs as a PWA on phones, and has an **independent Tauri v2 desktop edition** that can edit real files on disk. No account, sync server, analytics or unnecessary background process.
 
@@ -1740,7 +1740,7 @@ The PWA has source-level automated regression tests. Final physical-device verif
 
 ## Settings: six tabs and separate typography
 
-Settings contains **Current document**, **Appearance**, **Status bar**, **Editor**, **Mobile display**, and **About** tabs. The About tab has a saved checkbox to control whether the welcome window appears at startup; native desktop defaults to on, the web editor to off. The toolbar About button always remains available. Appearance begins with the independent focus-mode top-bar auto-hide preference, then themes/colors and separate **interface font/size**. The **editor font/size** controls live in Editor. Both have an exact positive-integer pixel input, styled Save button and 6–128px slider; typing a larger value keeps it exactly while the slider clamps visually. Settings survive restarts without mixing editor and UI fonts.
+Settings contains **Current document**, **Appearance**, **Status bar**, **Editor**, **Mobile display**, and **About** tabs. The About tab has a saved checkbox to control whether the welcome window appears at startup; automatic welcome is opt-in on all editions. The toolbar About button always remains available. Appearance begins with the independent focus-mode top-bar auto-hide preference, then themes/colors and separate **interface font/size**. The **editor font/size** controls live in Editor. Both have an exact positive-integer pixel input, styled Save button and 6–128px slider; typing a larger value keeps it exactly while the slider clamps visually. Settings survive restarts without mixing editor and UI fonts.
 
 ## Desktop edition — Windows (Tauri v2)
 
@@ -3228,6 +3228,21 @@ document.addEventListener('fullscreenchange', () => { if (!document.fullscreenEl
 
 // ── Settings persistence ──────────────────────────────────
 const SETTINGS_KEY = 'leaf-editor-settings';
+// Only a deliberate opt-in in v1.11.2+ enables automatic welcome on startup.
+// Older native builds defaulted to showing the popup and could persist that
+// implicit default as "true". Do not migrate that value into an opt-in.
+const ABOUT_STARTUP_KEY = 'leaf-about-startup-explicit-v1';
+function readAboutStartupPreference() {
+  try { return localStorage.getItem(ABOUT_STARTUP_KEY) === 'true'; }
+  catch (_) { return false; }
+}
+function persistAboutStartupPreference(enabled) {
+  try {
+    localStorage.setItem(ABOUT_STARTUP_KEY, enabled ? 'true' : 'false');
+  } catch (_) {
+    workspaceNotice('Welcome preference could not be saved. It will remain off by default on restart.');
+  }
+}
 
 function saveSettings() {
   try {
@@ -3267,9 +3282,9 @@ function saveSettings() {
 function loadSettings() {
   try {
     const aboutStartup = document.getElementById('chk-about-show-startup');
-    // Default: show the welcome dialog in the native Windows app; don't
-    // interrupt first-time visitors to the web editor unless they opt in.
-    aboutStartup.checked = document.body.dataset.leafDesktop === 'true';
+    // Strict opt-in for desktop, web and PWA. Never inherit the old
+    // "showAboutOnStartup: true" default from previous portable releases.
+    aboutStartup.checked = readAboutStartupPreference();
     const raw = localStorage.getItem(SETTINGS_KEY);
     if (!raw) {
       document.getElementById('chk-about-dont-show').checked = !aboutStartup.checked;
@@ -3326,14 +3341,10 @@ function loadSettings() {
     if (s.showWelcome !== undefined) {
       document.getElementById('chk-welcome').checked = s.showWelcome;
     }
-    if (s.showAboutOnStartup !== undefined) {
-      aboutStartup.checked = Boolean(s.showAboutOnStartup);
-    } else if (s.skipAboutDialog === true) {
-      // 1.10.4 did not automatically show the About popup. Preserve an
-      // explicit "don't show" choice without treating old unchecked values
-      // as an opt-in for surprise startup popups in web/PWA.
-      aboutStartup.checked = false;
-    }
+    // Legacy fields (showAboutOnStartup / skipAboutDialog) were coupled to
+    // implicit defaults; only the dedicated explicit preference controls
+    // startup from this version onward.
+    aboutStartup.checked = readAboutStartupPreference();
     document.getElementById('chk-about-dont-show').checked = !aboutStartup.checked;
     if (s.crtEnabled !== undefined && !s.crtEnabled) {
       document.body.classList.remove('crt-on');
@@ -3845,6 +3856,9 @@ window.addEventListener('beforeunload', e => {
 
 // ── Init ──────────────────────────────────────────────────
 loadSettings();
+// Never carry dialog visibility through session restoration or app updates.
+document.getElementById('settings-overlay').style.display = 'none';
+document.getElementById('about-overlay').style.display = 'none';
 applyMobilePreferences();
 syncThemeUI();
 applyStatusBarVisibility();
@@ -3955,6 +3969,8 @@ function updateAboutLinkColor() {
 }
 function showAboutDialog() {
   updateAboutLinkColor();
+  // These are alternative modal surfaces, never overlapping dialogs.
+  document.getElementById('settings-overlay').style.display='none';
   // This preference affects automatic startup display only, not the toolbar.
   document.getElementById('chk-about-dont-show').checked =
     !document.getElementById('chk-about-show-startup').checked;
@@ -3969,6 +3985,10 @@ function openAboutSettings() {
 function setAboutStartupEnabled(enabled) {
   document.getElementById('chk-about-show-startup').checked=enabled;
   document.getElementById('chk-about-dont-show').checked=!enabled;
+  // Persist the opt-in separately: an unrelated settings change must never
+  // accidentally turn startup prompts back on, and saving a complex settings
+  // record must not silently lose this preference.
+  persistAboutStartupPreference(enabled);
   saveSettings();
 }
 function refreshAboutEdition() {
@@ -3994,10 +4014,10 @@ document.getElementById('btn-about-settings').addEventListener('click',openAbout
 document.getElementById('chk-about-dont-show').addEventListener('change',event=>setAboutStartupEnabled(!event.target.checked));
 document.getElementById('chk-about-show-startup').addEventListener('change',event=>setAboutStartupEnabled(event.target.checked));
 document.getElementById('btn-about').addEventListener('click',showAboutDialog);
-// Show only when opted in; native first-run defaults to on, web defaults off.
-// Loaded preferences have already been restored at initialization.
+// Automatic welcome is explicit opt-in only. Read storage at the moment
+// of startup, not a checkbox that might have been initialized by an old build.
 window.addEventListener('load', () => {
-  if (document.getElementById('chk-about-show-startup').checked) showAboutDialog();
+  if (readAboutStartupPreference()) showAboutDialog();
 });
 document.getElementById('chk-welcome').addEventListener('change', saveSettings);
 
