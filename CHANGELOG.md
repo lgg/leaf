@@ -1,6 +1,13 @@
 # Leaf — fork changelog
 
-## v1.11.5-lgg.1 — 2026-11-23 (Cross-platform preparation and native file safety)
+## v1.11.5-lgg.1 — 2026-11-23 (Packaging integrity and recovery protection)
+
+- Verify Linux/macOS package integrity, offline build prerequisites, and producer SHA-256 manifests before release publication.
+- Clear stale multi-platform release staging and validate exact package filenames and checksums.
+- Reject symlink swaps and non-regular paths in the final native Save revision check; reject oversized or >60-tab recovery sessions without silently truncating drafts.
+- Retain Windows Portable ZIP, per-user Setup, and opt-in SHA-256 verified updater. Linux/macOS release candidates and manual GUI acceptance remain gated by #38/#39/#11.
+
+## v1.11.4-lgg.1 — 2026-11-23 (Cross-platform preparation and native file safety)
 
 - Desktop now identifies Windows, Linux and macOS using the native runtime rather than labelling every edition Windows. The existing Windows-only GitHub Releases updater is hidden and never invoked on other platforms; Windows Portable/Setup update flow remains unchanged.
 - The native file loader rejects non-regular `.md`/`.txt` paths before opening (including named pipes/devices) and adds focused Rust/Node regression coverage.
