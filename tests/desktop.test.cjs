@@ -189,7 +189,7 @@ test('desktop restart never rebinds a removed file to an unsaved draft', () => {
 test('desktop routes safe external links through OS while rejecting unsupported schemes', () => {
   const bridge = fs.readFileSync(path.join(root, 'desktop', 'desktop-bridge.js'), 'utf8');
   const native = fs.readFileSync(path.join(root, 'src-tauri','src','main.rs'), 'utf8');
-  assert.ok(bridge.includes("invoke('desktop_open_external', {url:target})"));
+  assert.ok(bridge.includes("invoke('desktop_open_external', {url:safeTarget})"));
   assert.ok(bridge.includes("link.id === 'btn-desktop-releases'"));
   assert.ok(bridge.includes("event.stopImmediatePropagation()"));
   assert.ok(native.includes('fn permitted_external_url('));
@@ -720,4 +720,15 @@ test('desktop never writes browser recovery copies and retains legacy conflict b
   assert.ok(bridge.includes('const backupCopies = typeof availableWorkspaceRecoveries'));
   assert.ok(bridge.includes("nativePath: null, nativeRev: null, nativeEol: 'lf'"));
   assert.ok(!bridge.includes('localStorage.setItem('));
+});
+
+
+test('desktop resolves only allowlisted embedded README relative links to GitHub', () => {
+  const bridge = fs.readFileSync(path.join(root, 'desktop','desktop-bridge.js'),'utf8');
+  for (const name of ['CHANGELOG.md','docs/DESKTOP.md','docs/SETTINGS_AUDIT.md']) {
+    assert.ok(bridge.includes("'" + name + "'"));
+  }
+  assert.ok(bridge.includes("'https://github.com/lgg/leaf/blob/main/' + target"));
+  assert.ok(bridge.includes('knownDocs.has(target)'));
+  assert.ok(bridge.includes("invoke('desktop_open_external', {url:safeTarget})"));
 });
