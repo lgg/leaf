@@ -52,6 +52,17 @@ test('Windows 10/11 preview installer requires no new runner installations and i
   assert.match(release, /head_branch == 'main'/);
   assert.match(release, /leaf-runner-ci/);
   assert.match(release, /leaf-windows-user-setup/);
+  // GitHub Actions retry attempts keep older upload-artifact assets on the
+  // same workflow run. Verify producer's latest successful attempt and download
+  // each immutable artifact ID, never ambiguous duplicate names.
+  assert.match(release, /run\.run_started_at/);
+  assert.match(release, /DateTimeOffset\]::Parse\(\$_\.created_at\)/);
+  assert.match(release, /candidates\.Count -ne 1/);
+  assert.match(release, /steps\.verify-producer\.outputs\.portable_artifact_id/);
+  assert.match(release, /steps\.verify-producer\.outputs\.setup_artifact_id/);
+  assert.match(release, /artifact-ids:/);
+  assert.match(release, /AppendAllText/);
+  assert.doesNotMatch(release, /name: leaf-windows-portable-smoke-test\s*\n\s*run-id:/);
   assert.match(release, /Leaf-Windows-10-11-x64-Portable.zip/);
   assert.match(release, /Leaf-Windows-10-11-x64-Setup.exe/);
   assert.match(release, /prerelease=\$true/);
