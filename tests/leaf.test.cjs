@@ -190,7 +190,7 @@ test('restoring workspace keeps independent labels, filenames and active tab', (
 });
 
 test('actual localStorage settings round-trip restores font, theme and hidden UI options', () => {
-  const source = between('function saveSettings() {', "\n['theme-select'].forEach");
+  const source = between('const ABOUT_STARTUP_KEY =', "\n['theme-select'].forEach");
   const data = {};
   const storage = {
     getItem:key => data[key] || null,
@@ -226,7 +226,7 @@ test('actual localStorage settings round-trip restores font, theme and hidden UI
     "function workspaceNotice(){} function applyCustomColors(){}" +
     "function updatePinIcon(){} function updateSyncIcon(){}" +
     "function applyStatusBarVisibility(){} function syncThemeUI(){} function applyMobilePreferences(){}";
-  const settings = new Function('deps',init+source+';return {saveSettings,loadSettings};')({storage,document});
+  const settings = new Function('deps',init+source+';return {saveSettings,loadSettings,persistAboutStartupPreference,readAboutStartupPreference};')({storage,document});
   nodes['theme-select'].value='black';
   nodes['settings-font-select'].value="'Open Sans', Arial, sans-serif";
   nodes['settings-font-size-input'].value='22';
@@ -244,6 +244,7 @@ test('actual localStorage settings round-trip restores font, theme and hidden UI
   nodes['chk-mobile-status'].checked=true;
   nodes['chk-mobile-autohide'].checked=false;
   nodes['chk-about-show-startup'].checked=true;
+  settings.persistAboutStartupPreference(true);
   settings.saveSettings();
   assert.ok(data['leaf-editor-settings']);
   nodes['theme-select'].value='paper';
@@ -280,34 +281,37 @@ test('actual localStorage settings round-trip restores font, theme and hidden UI
   assert.equal(nodes['chk-mobile-autohide'].checked,false);
   assert.equal(nodes['chk-about-show-startup'].checked,true);
   assert.equal(nodes['chk-about-dont-show'].checked,false);
-  // 1.10.4's old "don't show" state must migrate without surprising the user.
+  // A previous desktop build could store showAboutOnStartup:true by default.
+  // Without a v1.11.2-specific explicit opt-in, never show it again.
   const migrated=JSON.parse(data['leaf-editor-settings']);
-  delete migrated.showAboutOnStartup;
+  migrated.showAboutOnStartup=true;
+  migrated.skipAboutDialog=false;
+  delete data['leaf-about-startup-explicit-v1'];
+  data['leaf-editor-settings']=JSON.stringify(migrated);
+  for(const desktop of ['', 'true']) {
+    body.dataset.leafDesktop=desktop;
+    settings.loadSettings();
+    assert.equal(nodes['chk-about-show-startup'].checked,false);
+    assert.equal(nodes['chk-about-dont-show'].checked,true);
+  }
   migrated.skipAboutDialog=true;
   data['leaf-editor-settings']=JSON.stringify(migrated);
   settings.loadSettings();
   assert.equal(nodes['chk-about-show-startup'].checked,false);
-  assert.equal(nodes['chk-about-dont-show'].checked,true);
-  // An old unchecked "don't show" flag is NOT consent to show a popup on
-  // startup for existing web users: 1.10.4 never automatically displayed it.
-  migrated.skipAboutDialog=false;
-  data['leaf-editor-settings']=JSON.stringify(migrated);
-  body.dataset.leafDesktop='';
-  settings.loadSettings();
-  assert.equal(nodes['chk-about-show-startup'].checked,false);
-  body.dataset.leafDesktop='true';
-  settings.loadSettings();
-  assert.equal(nodes['chk-about-show-startup'].checked,true);
-  // First-time web visits are quiet, while first-time native Windows starts
-  // show the welcome window unless disabled.
+  // The default is quiet even when no settings exist on either platform.
   delete data['leaf-editor-settings'];
-  body.dataset.leafDesktop='';
   settings.loadSettings();
   assert.equal(nodes['chk-about-show-startup'].checked,false);
-  body.dataset.leafDesktop='true';
+  assert.equal(nodes['chk-about-dont-show'].checked,true);
+  // An intentional opt-in is retained, unlike the old implicit defaults.
+  settings.persistAboutStartupPreference(true);
   settings.loadSettings();
+  assert.equal(settings.readAboutStartupPreference(),true);
   assert.equal(nodes['chk-about-show-startup'].checked,true);
-  assert.equal(nodes['chk-about-dont-show'].checked,false);
+  settings.persistAboutStartupPreference(false);
+  settings.loadSettings();
+  assert.equal(nodes['chk-about-show-startup'].checked,false);
+  assert.equal(nodes['chk-about-dont-show'].checked,true);
 });
 
 test('every settings tab, including About, responds to clicks and keyboard navigation', () => {
