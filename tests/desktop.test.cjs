@@ -673,3 +673,51 @@ test('native Windows updater checks prereleases and requires separate download a
   assert.ok(release.includes('Published release hash is inconsistent with the successful current Windows build.'));
   assert.doesNotThrow(() => new Function(bridge));
 });
+
+
+test('native Save returns metadata only and does not retransmit full Markdown contents', () => {
+  const rust = fs.readFileSync(path.join(root,'src-tauri','src','main.rs'),'utf8');
+  const bridge = fs.readFileSync(path.join(root,'desktop','desktop-bridge.js'),'utf8');
+  assert.ok(rust.includes('struct SaveReceipt {'));
+  assert.ok(rust.includes('Result<Option<SaveReceipt>, String>'));
+  assert.ok(rust.includes('Ok(Some(saved.into()))'));
+  assert.ok(rust.includes('save_receipt_contains_metadata_but_not_original_document_text'));
+  for (const name of ['doc.path','doc.name','doc.revision','doc.lineEnding']) assert.ok(bridge.includes(name));
+  assert.doesNotThrow(() => new Function(bridge));
+});
+
+test('native recovery session saves within two seconds even during continuous typing', () => {
+  const bridge = fs.readFileSync(path.join(root,'desktop','desktop-bridge.js'),'utf8');
+  assert.ok(bridge.includes('const remaining = Math.max(0, 2000 - (now - sessionFirstEditAt))'));
+  assert.ok(bridge.includes('Math.min(350, remaining)'));
+  const start = bridge.indexOf('  function scheduleSession() {');
+  const end = bridge.indexOf('  async function flushSession() {', start);
+  assert.ok(start >= 0 && end > start);
+  const delays = [];
+  let now = 1000;
+  const factory = new Function('Date','clearTimeout','setTimeout','storeSession',
+    'let restoring=false, sessionRecoveryBlocked=false, sessionTimer=null, sessionFirstEditAt=0;\n' +
+    bridge.slice(start,end) + '\nreturn scheduleSession;');
+  const schedule = factory({now: () => now}, () => {}, (_,delay) => {delays.push(delay);return delays.length;}, () => {});
+  schedule();
+  assert.equal(delays.at(-1),350);
+  now = 2400;
+  schedule();
+  assert.equal(delays.at(-1),350);
+  now = 2990;
+  schedule();
+  assert.equal(delays.at(-1),10);
+  now = 3200;
+  schedule();
+  assert.equal(delays.at(-1),0);
+});
+
+test('desktop never writes browser recovery copies and retains legacy conflict backups', () => {
+  const bridge = fs.readFileSync(path.join(root,'desktop','desktop-bridge.js'),'utf8');
+  assert.ok(bridge.includes('persistWorkspace = function () {};'));
+  assert.ok(bridge.includes('refreshRecoveryControl = function () {'));
+  assert.ok(bridge.includes('event.stopImmediatePropagation();'));
+  assert.ok(bridge.includes('const backupCopies = typeof availableWorkspaceRecoveries'));
+  assert.ok(bridge.includes("nativePath: null, nativeRev: null, nativeEol: 'lf'"));
+  assert.ok(!bridge.includes('localStorage.setItem('));
+});
