@@ -2,7 +2,7 @@
 # No arbitrary URLs, commands or package paths are accepted from the WebView.
 param(
   [Parameter(Mandatory=$true)][ValidateSet('Check','Download','Apply','SelfTest')][string]$Mode,
-  [string]$CurrentTag = 'v1.11.0-lgg.1-windows-rc.1',
+  [string]$CurrentTag = 'v1.11.1-lgg.1-windows-rc.1',
   [string]$Tag = '',
   [ValidateSet('portable','installed')][string]$AppMode = 'portable',
   [string]$CacheFolder = '',
