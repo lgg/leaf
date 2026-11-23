@@ -103,6 +103,8 @@ jobs:
           path: release-input/setup
 
       - name: Verify Windows portable and installer payload and write SHA256SUMS
+        env:
+          EXPECTED_TAG: v1.11.1-lgg.1-windows-rc.1
         run: |
           $ErrorActionPreference = 'Stop'
           $portable = @(Get-ChildItem 'release-input/portable' -File)
@@ -119,8 +121,24 @@ jobs:
           Add-Type -AssemblyName System.IO.Compression.FileSystem
           $archive = [System.IO.Compression.ZipFile]::OpenRead($portable[0].FullName)
           try {
-            if ($archive.Entries.Count -ne 1 -or $archive.Entries[0].FullName -ne 'leaf-desktop.exe' -or $archive.Entries[0].Length -lt 1024) {
-              throw 'Portable ZIP must contain only the Windows Leaf desktop executable.'
+            if ($archive.Entries.Count -ne 1 -or $archive.Entries[0].FullName -ne 'leaf-desktop.exe' -or
+                $archive.Entries[0].Length -lt 1024 -or $archive.Entries[0].Length -gt 104857600) {
+              throw 'Portable ZIP must contain only the bounded Windows Leaf desktop executable.'
+            }
+            # The exact release identity must be embedded in the NEW compiled
+            # executable. A repackaged old EXE is not a valid new release,
+            # regardless of ZIP timestamps or the release tag.
+            $entryStream = $archive.Entries[0].Open()
+            $memory = New-Object System.IO.MemoryStream
+            try {
+              $entryStream.CopyTo($memory)
+              $exeText = [System.Text.Encoding]::ASCII.GetString($memory.ToArray())
+              if (-not $exeText.Contains($env:EXPECTED_TAG)) {
+                throw 'Release executable does not contain the exact expected native updater version.'
+              }
+            } finally {
+              $entryStream.Dispose()
+              $memory.Dispose()
             }
           } finally { $archive.Dispose() }
           $process = Start-Process -FilePath $setup[0].FullName -ArgumentList '/verify' -NoNewWindow -Wait -PassThru
