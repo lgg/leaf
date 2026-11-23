@@ -6,6 +6,14 @@ on:
 permissions:
   contents: read
 
+# Source/dependency fetching is approved only after the owner pre-provisions
+# the runner. Cargo and rustup must never silently bootstrap missing tools.
+env:
+  CARGO_NET_OFFLINE: 'true'
+  RUSTUP_AUTO_INSTALL: '0'
+  GIT_TERMINAL_PROMPT: '0'
+  LEAF_DESKTOP_PLATFORM: 'linux'
+
 jobs:
   linux-packages:
     if: github.repository == 'lgg/leaf' && github.ref == 'refs/heads/main'
@@ -25,11 +33,12 @@ jobs:
       - name: Require preinstalled Linux build tools and WebKitGTK
         run: |
           set -euo pipefail
-          for tool in git node cargo rustc cargo-tauri dpkg-deb pkg-config; do
+          for tool in git node cargo rustc rustup cargo-tauri dpkg-deb pkg-config sha256sum; do
             command -v "$tool" >/dev/null || { echo "::error::Missing preinstalled $tool; no installation attempted"; exit 1; }
           done
           pkg-config --exists webkit2gtk-4.1 || { echo "::error::Missing preinstalled WebKitGTK 4.1 development headers"; exit 1; }
-          echo "Preinstalled build dependencies verified"
+          rustup target list --installed | grep -Fxq x86_64-unknown-linux-gnu || { echo "::error::Linux x64 Rust target is not installed"; exit 1; }
+          echo "Preinstalled build dependencies verified (Cargo remains offline)"
 
       - name: Fetch exact trusted commit
         run: |
@@ -59,8 +68,10 @@ jobs:
           [ -f "$deb" ] && [ -f "$appimage" ] || { echo "::error::Linux packages missing"; exit 1; }
           cp "$deb" release-assets/Leaf-linux-x64.deb
           cp "$appimage" release-assets/Leaf-linux-x64.AppImage
-          (cd release-assets && sha256sum Leaf-linux-x64.deb Leaf-linux-x64.AppImage > SHA256SUMS.linux.txt)
-          echo "Linux packages and SHA-256 manifest created"
+          dpkg-deb --info release-assets/Leaf-linux-x64.deb >/dev/null || { echo "::error::Invalid Debian package"; exit 1; }
+          test -x release-assets/Leaf-linux-x64.AppImage || { echo "::error::AppImage is not executable"; exit 1; }
+          (cd release-assets && sha256sum Leaf-linux-x64.deb Leaf-linux-x64.AppImage > SHA256SUMS.linux.txt && sha256sum -c SHA256SUMS.linux.txt >/dev/null)
+          echo "Linux packages validated with SHA-256 manifest"
 
       - name: Save Linux release candidates
         uses: actions/upload-artifact@v4

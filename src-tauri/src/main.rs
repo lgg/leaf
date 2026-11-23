@@ -114,6 +114,17 @@ fn digest(bytes: &[u8]) -> String {
 // Hash the on-disk revision in bounded chunks to avoid allocating an entire
 // externally grown file while checking its contents just before replacement.
 fn read_revision_bounded(path: &Path) -> Result<String, String> {
+    // The original file may have been replaced by an external process since
+    // the first revision check. Do not block on a swapped FIFO/device or
+    // accidentally follow a new symlink during the final overwrite guard.
+    let metadata = fs::symlink_metadata(path)
+        .map_err(|_| "Original file disappeared before saving.".to_string())?;
+    if !metadata.file_type().is_file() {
+        return Err("Original file is no longer a regular document. Use Save As.".into());
+    }
+    if metadata.len() > MAX_DOCUMENT_BYTES as u64 {
+        return Err("File grew beyond 32 MB during saving. Your draft is intact.".into());
+    }
     let mut file = fs::File::open(path)
         .map_err(|_| "File became inaccessible during saving.".to_string())?;
     let mut hasher = Sha256::new();
@@ -200,12 +211,26 @@ fn read_session_bounded(reader: impl Read) -> Option<Session> {
     serde_json::from_slice::<Session>(&bytes).ok()
 }
 
+// Never silently discard surplus tabs or invalid oversized drafts and then
+// overwrite the original recovery file with a truncated snapshot.
+fn validate_session_shape(session: Session) -> Result<Session, String> {
+    if session.tabs.len() > 60 {
+        return Err("Recovery session contains more than 60 tabs. Original drafts were not changed; use Save As to recover manually.".into());
+    }
+    if session.tabs.iter().any(|tab|
+        tab.draft.as_ref().is_some_and(|draft| draft.len() > MAX_DOCUMENT_BYTES)
+    ) {
+        return Err("Recovery session contains an oversized draft. Original drafts were not changed; use Save As to recover manually.".into());
+    }
+    Ok(session)
+}
+
 fn read_session(app: &tauri::AppHandle) -> Result<Session, String> {
     let path = session_file(app)?;
     match fs::File::open(path) {
         Ok(file) => read_session_bounded(file).ok_or_else(|| {
             "Recovery session is unreadable or exceeds 64 MB. The original file is preserved.".into()
-        }),
+        }).and_then(validate_session_shape),
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(Session::default()),
         Err(_) => Err("Recovery session cannot be accessed. The original file is preserved.".into()),
     }
@@ -443,7 +468,8 @@ async fn desktop_export_zip(app: tauri::AppHandle, bytes: Vec<u8>) -> Result<boo
 fn desktop_restore(app: tauri::AppHandle, state: State<'_, DesktopState>) -> Result<Restored, String> {
     let session = protect_failed_restore(&state, read_session(&app))?;
     let mut tabs = Vec::new();
-    for saved in session.tabs.into_iter().take(60) {
+    // The complete session was validated before returning; never truncate it.
+    for saved in session.tabs.into_iter() {
         if let Some(ref path) = saved.path {
             match read_document(Path::new(path)) {
                 Ok(doc) => {
@@ -756,6 +782,39 @@ mod tests {
         fs::remove_file(&path).unwrap();
         assert!(write_checked(&path, "new", Some((&revision, &revision))).is_err());
         assert!(!path.exists());
+    }
+
+    #[test]
+    fn recovery_rejects_surplus_tabs_instead_of_dropping_unsaved_drafts() {
+        let tabs = (0..61).map(|i| SessionTab {
+            path: None, name: format!("draft-{i}.md"), label: String::new(),
+            browser_title: String::new(), dirty: true, draft: Some(format!("body-{i}")),
+            revision: None,
+        }).collect();
+        let session = Session { active_index: 60, tabs };
+        let encoded = serde_json::to_vec(&session).unwrap();
+        assert!(read_session_bounded(encoded.as_slice()).is_some());
+        assert!(validate_session_shape(session).is_err());
+    }
+
+    #[test]
+    fn final_revision_guard_rejects_non_regular_files_before_opening() {
+        let directory = tempfile::tempdir().unwrap();
+        let masquerading_folder = directory.path().join("not-a-document.md");
+        fs::create_dir(&masquerading_folder).unwrap();
+        assert!(read_revision_bounded(&masquerading_folder).is_err());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn final_revision_guard_rejects_swapped_symlinks() {
+        let directory = tempfile::tempdir().unwrap();
+        let document = directory.path().join("draft.md");
+        let destination = directory.path().join("external.md");
+        fs::write(&destination, b"existing content").unwrap();
+        std::os::unix::fs::symlink(&destination, &document).unwrap();
+        assert!(read_revision_bounded(&document).is_err());
+        assert_eq!(fs::read(&destination).unwrap(), b"existing content");
     }
 
     #[test]

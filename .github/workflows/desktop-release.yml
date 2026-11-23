@@ -54,6 +54,16 @@ jobs:
           git checkout -q --detach FETCH_HEAD 2>$null
           if ($LASTEXITCODE -ne 0) { throw "Checkout failed." }
 
+      - name: Clear old multi-platform staging files on persistent Windows runner
+        run: |
+          $ErrorActionPreference = 'Stop'
+          foreach ($name in @('release-input', 'release-assets')) {
+            if (Test-Path -LiteralPath $name) {
+              Remove-Item -LiteralPath $name -Recurse -Force
+            }
+          }
+          Write-Output "Old release staging files cleared."
+
       - name: Validate tag, provenance and complete release matrix
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -127,6 +137,33 @@ jobs:
       - name: Verify package filenames and build SHA256SUMS
         run: |
           $ErrorActionPreference = 'Stop'
+          # Compare exact named assets against each producer's own manifest.
+          $producerManifests = @(
+            @{folder='release-input/linux'; file='SHA256SUMS.linux.txt'; names=@('Leaf-linux-x64.deb','Leaf-linux-x64.AppImage')},
+            @{folder='release-input/macos'; file='SHA256SUMS.macos.txt'; names=@('Leaf-macos-universal-app.tar.gz','Leaf-macos-universal.dmg')}
+          )
+          foreach ($manifest in $producerManifests) {
+            $manifestPath = Join-Path $manifest.folder $manifest.file
+            if (-not (Test-Path -LiteralPath $manifestPath -PathType Leaf)) { throw "Missing package producer SHA-256 manifest." }
+            $lines = @(Get-Content -LiteralPath $manifestPath | Where-Object { $_.Trim() })
+            if ($lines.Count -ne $manifest.names.Count) { throw "Incomplete or ambiguous producer hash manifest." }
+            $verified = @{}
+            foreach ($line in $lines) {
+              if ($line -cmatch '^([0-9a-f]{64})  ([A-Za-z0-9._-]+)$') {
+                $expected = $Matches[1]
+                $filename = $Matches[2]
+              } else { throw "Malformed producer SHA-256 record." }
+              if ($manifest.names -cnotcontains $filename -or $verified.ContainsKey($filename)) {
+                throw "Unexpected or duplicated producer SHA-256 filename."
+              }
+              $asset = Join-Path $manifest.folder $filename
+              if (-not (Test-Path -LiteralPath $asset -PathType Leaf)) { throw "Producer package is missing." }
+              $actual = (Get-FileHash -LiteralPath $asset -Algorithm SHA256).Hash.ToLowerInvariant()
+              if ($actual -cne $expected) { throw "Producer SHA-256 mismatch; release blocked." }
+              $verified[$filename] = $true
+            }
+            if ($verified.Count -ne $manifest.names.Count) { throw "Producer manifest is incomplete." }
+          }
           New-Item -ItemType Directory -Path release-assets -Force | Out-Null
           $items = @(
             @{source='release-input/windows-portable'; filter='*.zip'; dest='Leaf-windows-x64-portable.zip'},

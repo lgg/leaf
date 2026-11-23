@@ -104,7 +104,7 @@ jobs:
 
       - name: Verify Windows portable and installer payload and write SHA256SUMS
         env:
-          EXPECTED_TAG: v1.11.4-lgg.1-windows-rc.1
+          EXPECTED_TAG: v1.11.5-lgg.1-windows-rc.1
         run: |
           $ErrorActionPreference = 'Stop'
           $portable = @(Get-ChildItem 'release-input/portable' -File)
@@ -157,7 +157,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PRODUCER_SHA: ${{ github.event.workflow_run.head_sha }}
-          TAG_NAME: v1.11.4-lgg.1-windows-rc.1
+          TAG_NAME: v1.11.5-lgg.1-windows-rc.1
         run: |
           $ErrorActionPreference = 'Stop'
           $headers = @{Authorization="Bearer $env:GH_TOKEN"; Accept='application/vnd.github+json'; 'X-GitHub-Api-Version'='2022-11-28'}

@@ -12,6 +12,7 @@ env:
   CARGO_NET_OFFLINE: 'true'
   RUSTUP_AUTO_INSTALL: '0'
   GIT_TERMINAL_PROMPT: '0'
+  LEAF_DESKTOP_PLATFORM: 'macos'
 
 jobs:
   macos-packages:
@@ -81,13 +82,15 @@ jobs:
           # Mach-O names this slice arm64 (Rust's corresponding target is aarch64).
           # lipo expects the input file before -verify_arch.
           lipo "$appbin" -verify_arch arm64 x86_64 >/dev/null || { echo "::error::Universal app is missing an expected CPU architecture"; exit 1; }
+          codesign --verify --deep --strict "$root/macos/Leaf.app" >/dev/null 2>&1 || { echo "::error::Ad-hoc app code signature verification failed"; exit 1; }
           dmg=$(find "$root/dmg" -maxdepth 1 -type f -name '*.dmg' | head -n 1)
           test -f "$dmg" || { echo "::error::Missing DMG"; exit 1; }
+          hdiutil verify "$dmg" >/dev/null || { echo "::error::DMG integrity verification failed"; exit 1; }
           mkdir -p release-assets
           tar -czf release-assets/Leaf-macos-universal-app.tar.gz -C "$root/macos" Leaf.app
           cp "$dmg" release-assets/Leaf-macos-universal.dmg
-          (cd release-assets && shasum -a 256 Leaf-macos-universal-app.tar.gz Leaf-macos-universal.dmg > SHA256SUMS.macos.txt)
-          echo "Universal macOS application, DMG and offline SHA-256 manifest created"
+          (cd release-assets && shasum -a 256 Leaf-macos-universal-app.tar.gz Leaf-macos-universal.dmg > SHA256SUMS.macos.txt && shasum -a 256 -c SHA256SUMS.macos.txt >/dev/null)
+          echo "Universal macOS application, DMG, code signature and checksums verified"
 
       - name: Save unsigned macOS release candidates
         uses: actions/upload-artifact@v4

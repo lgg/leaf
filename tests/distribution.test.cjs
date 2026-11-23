@@ -11,7 +11,7 @@ test('platform packaging configuration preserves the same product and version', 
   const linux = JSON.parse(read('src-tauri/tauri.linux.conf.json'));
   const mac = JSON.parse(read('src-tauri/tauri.macos.conf.json'));
   assert.equal(base.productName, 'Leaf');
-  assert.equal(base.version, '1.11.4');
+  assert.equal(base.version, '1.11.5');
   assert.ok(!base.bundle.targets || !base.bundle.targets.includes('nsis'));
   assert.ok(!base.bundle.fileAssociations || base.bundle.fileAssociations.length === 0);
   assert.deepEqual(linux.bundle.targets, ['deb','appimage']);
@@ -72,7 +72,7 @@ test('Windows 10/11 preview installer requires no new runner installations and i
   assert.match(release, /Nested artifact folders would hide the actual producer packages/);
   assert.match(release, /byte-identical to a previously published release/);
   assert.match(release, /Published release hash is inconsistent with the successful current Windows build/);
-  assert.match(release, /EXPECTED_TAG: v1\.11\.4-lgg\.1-windows-rc\.1/);
+  assert.match(release, /EXPECTED_TAG: v1\.11\.5-lgg\.1-windows-rc\.1/);
   assert.match(release, /exeText\.Contains\(\$env:EXPECTED_TAG\)/);
   assert.match(release, /Release executable does not contain the exact expected native updater version/);
 
@@ -108,4 +108,22 @@ test('cross-platform build workflows require no installations and verify both ma
   assert.match(linux, /SHA256SUMS\.linux\.txt/);
   assert.match(mac, /SHA256SUMS\.macos\.txt/);
   assert.match(stage, /LEAF_DESKTOP_PLATFORM/);
+});
+
+
+test('Linux and macOS build candidates are integrity-checked before release', () => {
+  const linux = read('.github/workflows/desktop-linux.yml');
+  const mac = read('.github/workflows/desktop-macos.yml');
+  const release = read('.github/workflows/desktop-release.yml');
+  assert.match(linux, /CARGO_NET_OFFLINE: 'true'/);
+  assert.match(linux, /RUSTUP_AUTO_INSTALL: '0'/);
+  assert.match(linux, /dpkg-deb --info/);
+  assert.match(linux, /sha256sum -c SHA256SUMS\.linux\.txt/);
+  assert.match(mac, /codesign --verify --deep --strict/);
+  assert.match(mac, /hdiutil verify/);
+  assert.match(mac, /shasum -a 256 -c SHA256SUMS\.macos\.txt/);
+  assert.match(release, /Clear old multi-platform staging files/);
+  assert.match(release, /SHA256SUMS\.linux\.txt/);
+  assert.match(release, /SHA256SUMS\.macos\.txt/);
+  assert.match(release, /Producer SHA-256 mismatch; release blocked/);
 });
