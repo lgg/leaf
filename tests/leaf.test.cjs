@@ -288,6 +288,16 @@ test('actual localStorage settings round-trip restores font, theme and hidden UI
   settings.loadSettings();
   assert.equal(nodes['chk-about-show-startup'].checked,false);
   assert.equal(nodes['chk-about-dont-show'].checked,true);
+  // An old unchecked "don't show" flag is NOT consent to show a popup on
+  // startup for existing web users: 1.10.4 never automatically displayed it.
+  migrated.skipAboutDialog=false;
+  data['leaf-editor-settings']=JSON.stringify(migrated);
+  body.dataset.leafDesktop='';
+  settings.loadSettings();
+  assert.equal(nodes['chk-about-show-startup'].checked,false);
+  body.dataset.leafDesktop='true';
+  settings.loadSettings();
+  assert.equal(nodes['chk-about-show-startup'].checked,true);
   // First-time web visits are quiet, while first-time native Windows starts
   // show the welcome window unless disabled.
   delete data['leaf-editor-settings'];

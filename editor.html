@@ -3331,9 +3331,11 @@ function loadSettings() {
     }
     if (s.showAboutOnStartup !== undefined) {
       aboutStartup.checked = Boolean(s.showAboutOnStartup);
-    } else if (s.skipAboutDialog !== undefined) {
-      // Migrate preferences from Leaf 1.10.4 without losing "don't show".
-      aboutStartup.checked = !s.skipAboutDialog;
+    } else if (s.skipAboutDialog === true) {
+      // 1.10.4 did not automatically show the About popup. Preserve an
+      // explicit "don't show" choice without treating old unchecked values
+      // as an opt-in for surprise startup popups in web/PWA.
+      aboutStartup.checked = false;
     }
     document.getElementById('chk-about-dont-show').checked = !aboutStartup.checked;
     if (s.crtEnabled !== undefined && !s.crtEnabled) {
