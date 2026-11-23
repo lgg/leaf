@@ -1,5 +1,14 @@
 # Leaf — fork changelog
 
+## v1.11.2-lgg.1 — 2026-11-23 (Welcome restart persistence and About layout)
+
+- Fixed repeated Welcome popup and a Settings dialog appearing behind it on Portable restart. Startup display is now **off by default** across desktop, web and PWA; only a separately persisted explicit opt-in enables it. Legacy auto-enabled preferences from v1.11.1 cannot turn the popup back on.
+- The popup's **Don't show this welcome window again** checkbox writes the dedicated preference immediately; Settings → About can always re-enable startup. Manually opening About remains available, and Welcome/Settings are mutually exclusive.
+- Moved **Star on GitHub**, **Changelog**, **Windows releases**, and **README** directly below the Repositories heading, above repository credits.
+- Placed **buy Dan a coffee** without an icon in the same paragraph as Dan's original repository; keep the support link text on one line.
+- Added startup/restart, legacy-preference and real staged-desktop layout regressions. Windows-only release; no macOS runner activity.
+
+
 ## v1.11.1-lgg.1 — 2026-11-23 (Restore actual Windows UI and hide updater console)
 
 - Fixed the Windows release publisher reading stale Portable ZIP and Setup files from a previous self-hosted job. Clean the staging directories before downloading, unpack immutable artifact IDs into the expected root, reject nested/stale files, and refuse to publish binary payloads whose SHA-256 matches any older release.
