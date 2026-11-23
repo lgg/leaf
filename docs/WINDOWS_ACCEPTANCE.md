@@ -34,7 +34,7 @@ Use Leaf's Open dialog on that same file again. The existing clean tab must show
 Exit Leaf using recovery confirmation and restart. The moved file must not be silently recreated; the unsaved text must be available as a separate, unbound recovery draft for Save As.
 7. **Plain text and hyperlinks:** open 07-plain-text.txt and verify edit/save. In 08-links.md, HTTPS should open the OS browser and javascript: links must be blocked.
 8. **Additional GUI checks:** use two or more tabs, custom titles, native drag/drop, Ctrl+O, cancellation of Save As, recovery of a read-only file, ZIP export, About and GitHub Releases links. Verify no silent installation or updater is triggered.
-9. **Installer and association:** do not mark these passed unless an installer is actually produced with an explicitly approved toolchain. A portable EXE alone does not validate Windows associations or the updater.
+9. **Existing per-user Setup:** install and remove the current .NET user-scoped Setup on a test PC; confirm Start menu shortcut, launch and uninstall. Windows file associations, Explorer Open with integration and NSIS are explicitly out of scope. The current user-approved Portable/Setup updater has separate checks in consolidated issue #11.
 
 ## Local synthetic verification
 

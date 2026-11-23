@@ -11,8 +11,9 @@ test('platform packaging configuration preserves the same product and version', 
   const linux = JSON.parse(read('src-tauri/tauri.linux.conf.json'));
   const mac = JSON.parse(read('src-tauri/tauri.macos.conf.json'));
   assert.equal(base.productName, 'Leaf');
-  assert.equal(base.version, '1.11.2');
-  assert.ok(base.bundle.targets.includes('nsis'));
+  assert.equal(base.version, '1.11.3');
+  assert.ok(!base.bundle.targets || !base.bundle.targets.includes('nsis'));
+  assert.ok(!base.bundle.fileAssociations || base.bundle.fileAssociations.length === 0);
   assert.deepEqual(linux.bundle.targets, ['deb','appimage']);
   assert.deepEqual(mac.bundle.targets, ['app','dmg']);
   assert.equal(mac.bundle.macOS.signingIdentity, '-');
@@ -31,7 +32,7 @@ test('builds stay self-hosted and never automatically distribute unverified bina
     assert.doesNotMatch(workflow, /ubuntu-latest|macos-latest|windows-latest/);
   }
   assert.match(win, /Verify compiled EXE contains no private workstation paths/);
-  assert.match(win, /inputs\.build_installer/);
+  assert.doesNotMatch(win, /inputs\.build_installer|makensis\.exe|--bundles nsis/);
   assert.doesNotMatch(win, /ubuntu-latest|macos-latest|windows-latest/);
 });
 
@@ -71,7 +72,7 @@ test('Windows 10/11 preview installer requires no new runner installations and i
   assert.match(release, /Nested artifact folders would hide the actual producer packages/);
   assert.match(release, /byte-identical to a previously published release/);
   assert.match(release, /Published release hash is inconsistent with the successful current Windows build/);
-  assert.match(release, /EXPECTED_TAG: v1\.11\.2-lgg\.1-windows-rc\.1/);
+  assert.match(release, /EXPECTED_TAG: v1\.11\.3-lgg\.1-windows-rc\.1/);
   assert.match(release, /exeText\.Contains\(\$env:EXPECTED_TAG\)/);
   assert.match(release, /Release executable does not contain the exact expected native updater version/);
 
@@ -80,4 +81,15 @@ test('Windows 10/11 preview installer requires no new runner installations and i
   assert.match(release, /Leaf-Windows-10-11-x64-Setup.exe/);
   assert.match(release, /prerelease=\$true/);
   assert.doesNotMatch(release, /ubuntu-latest|macos-latest|windows-latest/);
+});
+
+
+test('full desktop release uses existing Windows Setup and the consolidated manual gate', () => {
+  const release = read('.github/workflows/desktop-release.yml');
+  assert.match(release, /leaf-windows-user-setup/);
+  assert.doesNotMatch(release, /leaf-windows-nsis-unsigned/);
+  assert.match(release, /repos\/lgg\/leaf\/issues\/11/);
+  assert.doesNotMatch(release, /repos\/lgg\/leaf\/issues\/22/);
+  assert.match(release, /leaf-linux-x64-release-candidate/);
+  assert.match(release, /leaf-macos-universal-release-candidate/);
 });

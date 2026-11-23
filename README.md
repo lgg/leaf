@@ -1,6 +1,6 @@
 # Leaf — distraction-free Markdown editor
 
-**Fork version: v1.11.2-lgg.1** · Based on [uncle-jasper/leaf](https://github.com/uncle-jasper/leaf) v1.7 · Maintained by [lgg](https://github.com/lgg).
+**Fork version: v1.11.3-lgg.1** · Based on [uncle-jasper/leaf](https://github.com/uncle-jasper/leaf) v1.7 · Maintained by [lgg](https://github.com/lgg).
 
 Leaf is a focused, offline-capable Markdown and plain-text editor. It runs as a lightweight, single HTML file in a browser, installs as a PWA on phones, and has an **independent Tauri v2 desktop edition** that can edit real files on disk. No account, sync server, analytics or unnecessary background process.
 
@@ -37,14 +37,14 @@ Leaf desktop uses the **same editor** with a small, separate Rust/Tauri layer. T
 - **Save As** (`Ctrl+Shift+S`) chooses a new destination with the native OS dialog.
 - Native saves preserve standard Windows CRLF line endings when the original file used CRLF.
 - An interrupted or failed save retains the unsaved editor text; a disk-conflict warning never silently overwrites external changes.
-- The early-access Windows setup adds a Start menu shortcut and an Apps & features uninstall entry. It does not change default `.md` / `.txt` file associations; Tauri NSIS metadata supports associations when the full native installer toolchain is available. File paths passed at launch can be opened on startup.
+- The early-access Windows setup adds a Start menu shortcut and an Apps & features uninstall entry. It does not change default `.md` / `.txt` file associations; File associations and Explorer Open with integration are intentionally out of scope; use the native in-app Open dialog or drag and drop.
 - Tabs, order, custom labels and per-document titles persist in local app settings. Unlike the web/PWA, desktop file text is not duplicated into browser localStorage; recovery drafts live in the native session. On restart, Leaf reads real files again from disk. Unsaved drafts can be recovered explicitly; missing files become recovery drafts that must be saved to a new location.
 - Drag and drop existing Markdown/text files onto the desktop window; only actual OS-dropped paths are authorized. Export all documents as a native ZIP file.
 - **Opt-in Windows updates (portable and installed):** Leaf checks official GitHub Releases, including prereleases, once at startup and on request in Settings → About. New versions show release notes and a download button. Only on separate user approvals does the bundled Windows helper download the official ZIP/Setup, verify SHA-256 and asset size, save recovery drafts, then replace/restart portable Leaf or launch per-user Setup after exiting. No silent downloads or forced installation.
 - Web/email links in Markdown previews open in the OS default application; unsafe link schemes are rejected.
 - File operations are restricted to text extensions and exposed through explicit native commands. The browser/PWA remains sandboxed.
 
-**Limits:** The desktop edition currently targets **Windows**. Preview updates are verified through official GitHub HTTPS and the asset's SHA-256, not a separate publisher's digital signature. The signed Tauri updater remains a future task requiring protected signing keys. The current per-user Setup is unsigned. The updater uses built-in Windows PowerShell/.NET; no tools are installed on the Windows build runner.
+**Limits:** The desktop edition currently targets **Windows**. Preview updates are verified through official GitHub HTTPS and the asset's SHA-256, not a separate publisher's digital signature. A separate signed Tauri updater is not planned; the current explicit user-approved GitHub Releases updater is the supported Windows update flow. The current per-user Setup is unsigned. The updater uses built-in Windows PowerShell/.NET; no tools are installed on the Windows build runner.
 
 ### Build with already-provisioned Windows tools
 

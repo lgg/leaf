@@ -1,5 +1,13 @@
 # Leaf — fork changelog
 
+## v1.11.3-lgg.1 — 2026-11-23 (Native storage audit and streamlined distribution)
+
+- Ported selected desktop storage fixes: metadata-only IPC Save response, bounded recovery scheduling during continuous typing, legacy browser persistence suppression, and safe migration of conflict backups as detached drafts.
+- Resolved allowlisted bundled documentation links through canonical GitHub pages; expanded Markdown URL/HTML security regression tests without replacing newer native file/session protections.
+- Removed unused NSIS bundle path and file-association metadata; Windows continues to ship its proven Portable ZIP and .NET per-user Setup. The current opt-in SHA-256-verified GitHub Releases updater is retained without introducing a signed Tauri updater.
+- Corrected the full desktop release workflow to consume the real Windows Setup artifact; consolidated all manual acceptance in #11 and split Linux, macOS and security coding tasks into separate issues.
+
+
 ## v1.11.2-lgg.1 — 2026-11-23 (Welcome restart persistence and About layout)
 
 - Fixed repeated Welcome popup and a Settings dialog appearing behind it on Portable restart. Startup display is now **off by default** across desktop, web and PWA; only a separately persisted explicit opt-in enables it. Legacy auto-enabled preferences from v1.11.1 cannot turn the popup back on.
