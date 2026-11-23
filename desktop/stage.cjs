@@ -5,6 +5,13 @@ const fs = require('node:fs');
 const path = require('node:path');
 const root = path.join(__dirname, '..');
 const out = path.join(__dirname, 'dist');
+// This is a build-time HTML hint; Rust's desktop_platform command is the
+// authoritative OS source used before any Windows-only updater invocation.
+const desktopPlatform = process.env.LEAF_DESKTOP_PLATFORM ||
+  (process.platform === 'win32' ? 'windows' : process.platform === 'darwin' ? 'macos' : 'linux');
+if (!['windows', 'linux', 'macos'].includes(desktopPlatform)) {
+  throw new Error('Unsupported desktop build platform');
+}
 fs.mkdirSync(out, {recursive: true});
 let html = fs.readFileSync(path.join(root, 'editor.html'), 'utf8').replace(/\r\n/g, '\n');
 if (!html.includes('</body>') || !html.includes('async function saveFile()')) {
@@ -17,9 +24,11 @@ html = html.replace(/<link rel="manifest"[^>]*>\s*/i, '');
 const desktopBody = '<body data-theme="parchment" class="crt-on">';
 if (!html.includes(desktopBody)) throw new Error('Desktop body marker insertion point is missing.');
 html = html.replace(desktopBody,
-  '<body data-theme="parchment" class="crt-on" data-leaf-desktop="true">');
+  '<body data-theme="parchment" class="crt-on" data-leaf-desktop="true" data-leaf-platform="' + desktopPlatform + '">');
 html = html.replace('</head>',
-  '<style id="leaf-native-install-guard">body[data-leaf-desktop="true"] #install-group, body[data-leaf-desktop="true"] #btn-install { display:none !important; }</style>\n</head>');
+  '<style id="leaf-native-install-guard">body[data-leaf-desktop="true"] #install-group, body[data-leaf-desktop="true"] #btn-install { display:none !important; }' +
+  'body[data-leaf-desktop="true"]:not([data-leaf-platform="windows"]) #about-desktop-update-slot,' +
+  'body[data-leaf-desktop="true"]:not([data-leaf-platform="windows"]) #desktop-update-notice { display:none !important; }</style>\n</head>');
 
 // Desktop must NEVER mirror private on-disk document content to WebView localStorage.
 // Browser/PWA retain their original storage behavior because editor.html is untouched.

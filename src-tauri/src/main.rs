@@ -154,9 +154,14 @@ fn read_document(path: &Path) -> Result<Document, String> {
     let canonical = fs::canonicalize(path).map_err(|_| "File was moved, removed or cannot be accessed.".to_string())?;
     // Reject oversized files before allocating their complete contents.
     // Recheck after read in case an external process grew the file meanwhile.
-    let size = fs::metadata(&canonical)
-        .map_err(|_| "File metadata is unavailable.".to_string())?.len();
-    if size > 32 * 1024 * 1024 {
+    let metadata = fs::metadata(&canonical)
+        .map_err(|_| "File metadata is unavailable.".to_string())?;
+    // Directories, sockets, pipes and device files are not editable documents.
+    // Reject them before File::open (which may block forever on a named pipe).
+    if !metadata.is_file() {
+        return Err("Only regular Markdown and text files may be opened.".into());
+    }
+    if metadata.len() > 32 * 1024 * 1024 {
         return Err("Document exceeds the 32 MB safety limit.".into());
     }
     // Do not use fs::read here: a file growing after the metadata check may
@@ -379,6 +384,15 @@ fn desktop_open_external(url: String) -> Result<(), String> {
     open::that(url).map_err(|_| "Could not open the default application.".to_string())
 }
 
+// Compile-time source of truth; the same HTML bridge runs on every OS.
+#[tauri::command]
+fn desktop_platform() -> &'static str {
+    if cfg!(target_os = "windows") { "windows" }
+    else if cfg!(target_os = "macos") { "macos" }
+    else if cfg!(target_os = "linux") { "linux" }
+    else { "unsupported" }
+}
+
 #[tauri::command]
 fn desktop_show_releases() -> Result<(), String> {
     // A fixed and reviewed URL. No frontend-provided shell commands or URLs.
@@ -506,7 +520,7 @@ fn main() {
         .manage(DesktopState::default())
         .manage(desktop_updater::UpdaterState::default())
         .invoke_handler(tauri::generate_handler![
-            desktop_open_dialog, desktop_open_path, desktop_export_zip, desktop_open_external, desktop_show_releases, desktop_save, desktop_restore, desktop_save_session,
+            desktop_open_dialog, desktop_open_path, desktop_export_zip, desktop_open_external, desktop_platform, desktop_show_releases, desktop_save, desktop_restore, desktop_save_session,
             desktop_updater::desktop_installation_mode, desktop_updater::desktop_check_update, desktop_updater::desktop_download_update, desktop_updater::desktop_apply_update
         ])
         .run(tauri::generate_context!())
@@ -516,6 +530,25 @@ fn main() {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn platform_identity_is_known_and_matches_the_compilation_target() {
+        assert!(["windows", "macos", "linux"].contains(&desktop_platform()));
+        #[cfg(target_os = "windows")]
+        assert_eq!(desktop_platform(), "windows");
+        #[cfg(target_os = "macos")]
+        assert_eq!(desktop_platform(), "macos");
+        #[cfg(target_os = "linux")]
+        assert_eq!(desktop_platform(), "linux");
+    }
+
+    #[test]
+    fn non_regular_markdown_paths_are_rejected_before_opening() {
+        let dir = tempfile::tempdir().unwrap();
+        let directory_named_document = dir.path().join("not-a-file.md");
+        fs::create_dir(&directory_named_document).unwrap();
+        assert!(read_document(&directory_named_document).is_err());
+    }
+
     #[test]
     fn save_receipt_contains_metadata_but_not_original_document_text() {
         let doc = Document {

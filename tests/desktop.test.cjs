@@ -732,3 +732,38 @@ test('desktop resolves only allowlisted embedded README relative links to GitHub
   assert.ok(bridge.includes('knownDocs.has(target)'));
   assert.ok(bridge.includes("invoke('desktop_open_external', {url:safeTarget})"));
 });
+
+
+test('native runtime identity hides Windows update UI/commands on Linux and macOS', () => {
+  const native = fs.readFileSync(path.join(root,'src-tauri','src','main.rs'),'utf8');
+  const bridge = fs.readFileSync(path.join(root,'desktop','desktop-bridge.js'),'utf8');
+  const stage = fs.readFileSync(path.join(root,'desktop','stage.cjs'),'utf8');
+  assert.ok(native.includes("fn desktop_platform() -> &'static str"));
+  assert.ok(native.includes('desktop_open_external, desktop_platform, desktop_show_releases'));
+  assert.ok(bridge.includes("const desktopPlatform = invoke('desktop_platform')"));
+  assert.ok(bridge.includes("platform === 'macos'"));
+  assert.ok(bridge.includes("platform === 'linux'"));
+  assert.ok(bridge.includes("if (platform === 'windows') return checkUpdates(true)"));
+  assert.ok(bridge.includes("if (platform === 'windows') {\n      setTimeout"));
+  assert.ok(stage.includes('data-leaf-platform="'));
+  assert.ok(stage.includes(':not([data-leaf-platform="windows"]) #about-desktop-update-slot'));
+});
+
+test('native file loader rejects non-regular files before OS file open', () => {
+  const native = fs.readFileSync(path.join(root,'src-tauri','src','main.rs'),'utf8');
+  const metadata = native.indexOf('let metadata = fs::metadata(&canonical)');
+  const reject = native.indexOf('if !metadata.is_file()', metadata);
+  const fileOpen = native.indexOf('let file = fs::File::open(&canonical)', metadata);
+  assert.ok(metadata >= 0 && reject > metadata && fileOpen > reject);
+  assert.ok(native.includes('non_regular_markdown_paths_are_rejected_before_opening'));
+});
+
+test('Tauri direct window destruction is limited to guarded desktop close path', () => {
+  const title = fs.readFileSync(path.join(root,'desktop','desktop-titlebar.js'),'utf8');
+  const bridge = fs.readFileSync(path.join(root,'desktop','desktop-bridge.js'),'utf8');
+  const capability = require('../src-tauri/capabilities/default.json');
+  assert.ok(capability.permissions.includes('core:window:allow-destroy'));
+  assert.ok(title.includes("appWindow.close()"));
+  assert.ok(!title.includes('appWindow.destroy()'));
+  assert.ok(bridge.includes('await flushSession();\n        await win.destroy();'));
+});

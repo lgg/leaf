@@ -59,8 +59,8 @@ jobs:
           [ -f "$deb" ] && [ -f "$appimage" ] || { echo "::error::Linux packages missing"; exit 1; }
           cp "$deb" release-assets/Leaf-linux-x64.deb
           cp "$appimage" release-assets/Leaf-linux-x64.AppImage
-          sha256sum release-assets/* | sed -E 's@  .*@  [package filename redacted]@'
-          echo "Linux packages created"
+          (cd release-assets && sha256sum Leaf-linux-x64.deb Leaf-linux-x64.AppImage > SHA256SUMS.linux.txt)
+          echo "Linux packages and SHA-256 manifest created"
 
       - name: Save Linux release candidates
         uses: actions/upload-artifact@v4

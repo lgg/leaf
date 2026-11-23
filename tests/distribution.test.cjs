@@ -93,3 +93,19 @@ test('full desktop release uses existing Windows Setup and the consolidated manu
   assert.match(release, /leaf-linux-x64-release-candidate/);
   assert.match(release, /leaf-macos-universal-release-candidate/);
 });
+
+
+test('cross-platform build workflows require no installations and verify both macOS binary architectures', () => {
+  const linux = read('.github/workflows/desktop-linux.yml');
+  const mac = read('.github/workflows/desktop-macos.yml');
+  const stage = read('desktop/stage.cjs');
+  assert.match(linux, /workflow_dispatch:/);
+  assert.match(mac, /workflow_dispatch:/);
+  assert.match(mac, /CARGO_NET_OFFLINE: 'true'/);
+  assert.match(mac, /RUSTUP_AUTO_INSTALL: '0'/);
+  assert.match(mac, /lipo "\$appbin" -verify_arch arm64 x86_64/);
+  assert.doesNotMatch(mac, /lipo -verify_arch aarch64/);
+  assert.match(linux, /SHA256SUMS\.linux\.txt/);
+  assert.match(mac, /SHA256SUMS\.macos\.txt/);
+  assert.match(stage, /LEAF_DESKTOP_PLATFORM/);
+});
