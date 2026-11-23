@@ -109,3 +109,21 @@ test('cross-platform build workflows require no installations and verify both ma
   assert.match(mac, /SHA256SUMS\.macos\.txt/);
   assert.match(stage, /LEAF_DESKTOP_PLATFORM/);
 });
+
+
+test('Linux and macOS build candidates are integrity-checked before release', () => {
+  const linux = read('.github/workflows/desktop-linux.yml');
+  const mac = read('.github/workflows/desktop-macos.yml');
+  const release = read('.github/workflows/desktop-release.yml');
+  assert.match(linux, /CARGO_NET_OFFLINE: 'true'/);
+  assert.match(linux, /RUSTUP_AUTO_INSTALL: '0'/);
+  assert.match(linux, /dpkg-deb --info/);
+  assert.match(linux, /sha256sum -c SHA256SUMS\.linux\.txt/);
+  assert.match(mac, /codesign --verify --deep --strict/);
+  assert.match(mac, /hdiutil verify/);
+  assert.match(mac, /shasum -a 256 -c SHA256SUMS\.macos\.txt/);
+  assert.match(release, /Clear old multi-platform staging files/);
+  assert.match(release, /SHA256SUMS\.linux\.txt/);
+  assert.match(release, /SHA256SUMS\.macos\.txt/);
+  assert.match(release, /Producer SHA-256 mismatch; release blocked/);
+});

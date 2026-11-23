@@ -114,6 +114,17 @@ fn digest(bytes: &[u8]) -> String {
 // Hash the on-disk revision in bounded chunks to avoid allocating an entire
 // externally grown file while checking its contents just before replacement.
 fn read_revision_bounded(path: &Path) -> Result<String, String> {
+    // The original file may have been replaced by an external process since
+    // the first revision check. Do not block on a swapped FIFO/device or
+    // accidentally follow a new symlink during the final overwrite guard.
+    let metadata = fs::symlink_metadata(path)
+        .map_err(|_| "Original file disappeared before saving.".to_string())?;
+    if !metadata.file_type().is_file() {
+        return Err("Original file is no longer a regular document. Use Save As.".into());
+    }
+    if metadata.len() > MAX_DOCUMENT_BYTES as u64 {
+        return Err("File grew beyond 32 MB during saving. Your draft is intact.".into());
+    }
     let mut file = fs::File::open(path)
         .map_err(|_| "File became inaccessible during saving.".to_string())?;
     let mut hasher = Sha256::new();
@@ -756,6 +767,26 @@ mod tests {
         fs::remove_file(&path).unwrap();
         assert!(write_checked(&path, "new", Some((&revision, &revision))).is_err());
         assert!(!path.exists());
+    }
+
+    #[test]
+    fn final_revision_guard_rejects_non_regular_files_before_opening() {
+        let directory = tempfile::tempdir().unwrap();
+        let masquerading_folder = directory.path().join("not-a-document.md");
+        fs::create_dir(&masquerading_folder).unwrap();
+        assert!(read_revision_bounded(&masquerading_folder).is_err());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn final_revision_guard_rejects_swapped_symlinks() {
+        let directory = tempfile::tempdir().unwrap();
+        let document = directory.path().join("draft.md");
+        let destination = directory.path().join("external.md");
+        fs::write(&destination, b"existing content").unwrap();
+        std::os::unix::fs::symlink(&destination, &document).unwrap();
+        assert!(read_revision_bounded(&document).is_err());
+        assert_eq!(fs::read(&destination).unwrap(), b"existing content");
     }
 
     #[test]

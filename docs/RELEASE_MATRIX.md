@@ -2,7 +2,7 @@
 
 **Scope decision (2026-11-23):** Keep the proven Windows Portable ZIP and existing .NET per-user Setup EXE. Do **not** build NSIS/MSI installers, register `.md`/`.txt` file associations or implement the separate signed Tauri updater. The current explicit user-approved Windows GitHub Releases updater remains supported (official HTTPS, asset size and SHA-256 verification, no forced downloads or installations).
 
-Windows **v1.11.2-lgg.1-windows-rc.1** is already published as an unsigned prerelease after successful exact-`main` Windows CI and publisher validation. This is not a claim that all real GUI acceptance scenarios have passed. General release may proceed only after complete manual acceptance in **#11**.
+Windows preview releases are published independently after successful exact-`main` CI and publisher validation. See the [latest releases](https://github.com/lgg/leaf/releases). This is not a claim that all real GUI acceptance scenarios have passed. General multi-platform release may proceed only after complete manual acceptance in **#11**.
 
 ## Target assets
 
@@ -43,3 +43,12 @@ Tracking: **#12** is the distribution umbrella. Platform-specific implementation
 The desktop bridge uses a native compile-time `desktop_platform` command to label Linux/macOS editions correctly and suppress Windows PowerShell/update controls outside Windows. Desktop HTML also has a build-time platform marker for CSS-only hiding before the native bridge loads. Windows updater and its exact downloaded-asset verification remain unchanged.
 
 Linux packaging produces `SHA256SUMS.linux.txt` alongside its .deb/AppImage candidates. The macOS workflow uses Mach-O `arm64` (Rust target `aarch64-apple-darwin`) and `x86_64` when verifying both universal slices with `lipo`, and produces `SHA256SUMS.macos.txt`. These are **source/workflow improvements, not proof of completed builds**. Until approved self-hosted platform runs succeed and manual #11 is checked, do not claim Linux/macOS artifacts are ready.
+
+
+## Final packaging and native-save safety checks
+
+The Linux runner now requires preinstalled Rust x64 target and offline Cargo/Rustup mode; it validates the resulting `.deb` metadata, executable AppImage and a local SHA-256 manifest before upload. The macOS workflow similarly verifies the ad-hoc app code signature, both universal Mach-O slices, the DMG and its producer hash manifest. None of these checks authorizes installing or downloading missing tools on the friend's macOS worker. The existing manual-dispatch requirement remains.
+
+The full release workflow first removes old `release-input` / `release-assets` staging directories from its **own workspace** on the Windows self-hosted runner, verifies Linux and macOS producer manifests against their exact named packages and only then builds the six-asset combined SHA-256 manifest. Its stable publication gate remains manual acceptance **#11**.
+
+The native final-revision read guard rejects non-regular paths and symlink replacements before attempting to hash disk contents; this reduces accidental hangs or unsafe overwrite risk if a document is changed externally during Save. Source checks do not replace GUI acceptance in #11.
