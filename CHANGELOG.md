@@ -1,5 +1,13 @@
 # Leaf — fork changelog
 
+## v1.11.4-lgg.1 — 2026-11-23 (Cross-platform preparation and native file safety)
+
+- Desktop now identifies Windows, Linux and macOS using the native runtime rather than labelling every edition Windows. The existing Windows-only GitHub Releases updater is hidden and never invoked on other platforms; Windows Portable/Setup update flow remains unchanged.
+- The native file loader rejects non-regular `.md`/`.txt` paths before opening (including named pipes/devices) and adds focused Rust/Node regression coverage.
+- Improved Linux `.deb`/AppImage and macOS universal `.app`/DMG candidate workflows with per-platform SHA-256 manifests and correct macOS Mach-O `arm64` + `x86_64` validation. These source changes do not imply completed Linux/macOS builds or manual acceptance (#38/#39/#11).
+- Made Windows CI assertions tolerant of `CRLF` checkout line endings.
+
+
 ## v1.11.3-lgg.1 — 2026-11-23 (Native storage audit and streamlined distribution)
 
 - Ported selected desktop storage fixes: metadata-only IPC Save response, bounded recovery scheduling during continuous typing, legacy browser persistence suppression, and safe migration of conflict backups as detached drafts.

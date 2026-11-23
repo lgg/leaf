@@ -11,7 +11,7 @@ test('platform packaging configuration preserves the same product and version', 
   const linux = JSON.parse(read('src-tauri/tauri.linux.conf.json'));
   const mac = JSON.parse(read('src-tauri/tauri.macos.conf.json'));
   assert.equal(base.productName, 'Leaf');
-  assert.equal(base.version, '1.11.3');
+  assert.equal(base.version, '1.11.4');
   assert.ok(!base.bundle.targets || !base.bundle.targets.includes('nsis'));
   assert.ok(!base.bundle.fileAssociations || base.bundle.fileAssociations.length === 0);
   assert.deepEqual(linux.bundle.targets, ['deb','appimage']);
@@ -72,7 +72,7 @@ test('Windows 10/11 preview installer requires no new runner installations and i
   assert.match(release, /Nested artifact folders would hide the actual producer packages/);
   assert.match(release, /byte-identical to a previously published release/);
   assert.match(release, /Published release hash is inconsistent with the successful current Windows build/);
-  assert.match(release, /EXPECTED_TAG: v1\.11\.3-lgg\.1-windows-rc\.1/);
+  assert.match(release, /EXPECTED_TAG: v1\.11\.4-lgg\.1-windows-rc\.1/);
   assert.match(release, /exeText\.Contains\(\$env:EXPECTED_TAG\)/);
   assert.match(release, /Release executable does not contain the exact expected native updater version/);
 
