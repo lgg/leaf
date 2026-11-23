@@ -1,4 +1,4 @@
-const CACHE = 'leaf-lgg-v15';
+const CACHE = 'leaf-lgg-v16';
 const ASSETS = [
   './editor.html',
   './index.html',

@@ -36,7 +36,7 @@ test('Tauri capabilities do not enable unrestricted file system APIs', () => {
 test('Tauri and web release identifiers are coherent', () => {
   const config = require('../src-tauri/tauri.conf.json');
   const cargo = fs.readFileSync(path.join(root, 'src-tauri', 'Cargo.toml'), 'utf8');
-  assert.equal(config.version, '1.11.2');
+  assert.equal(config.version, '1.11.3');
   assert.match(cargo, /version = "1\.11\.2"/);
   assert.match(fs.readFileSync(path.join(root, 'README.md'), 'utf8'), /1\.11\.2-lgg\.1/);
 });
@@ -72,7 +72,7 @@ test('desktop stage creates offline assets without adding web-only service worke
   assert.ok(dist.includes('id="chk-about-show-startup"'));
   assert.ok(dist.includes('id="about-dialog-version"'));
   assert.ok(dist.includes('const SETTINGS_TAB_NAMES = Array.from('), 'all six settings tabs must be interactive');
-  assert.ok(dist.includes('id="about-dialog-version">v1.11.2-lgg.1'), 'welcome popup must have actual new version');
+  assert.ok(dist.includes('id="about-dialog-version">v1.11.3-lgg.1'), 'welcome popup must have actual new version');
   // Regressions seen in v1.11.1: old native startup defaults forced Welcome
   // back on, and Settings remained visible underneath the popup after restart.
   assert.ok(dist.includes("const ABOUT_STARTUP_KEY = 'leaf-about-startup-explicit-v1'"));
@@ -82,7 +82,7 @@ test('desktop stage creates offline assets without adding web-only service worke
   assert.ok(dist.includes("document.getElementById('settings-overlay').style.display='none';"));
   assert.ok(!dist.includes("aboutStartup.checked = document.body.dataset.leafDesktop === 'true'"));
 
-  assert.ok(dist.includes('id="about-current-version">v1.11.2-lgg.1'), 'Settings About must have current version');
+  assert.ok(dist.includes('id="about-current-version">v1.11.3-lgg.1'), 'Settings About must have current version');
   const popup = dist.slice(dist.indexOf('<!-- About Modal -->'),dist.indexOf('<script>',dist.indexOf('<!-- About Modal -->')));
   assert.ok(popup.includes('original repository') && popup.includes('fork repository'), 'welcome popup credits must not regress');
   assert.ok(!popup.includes('Version, repositories and updates are in Settings'));
@@ -664,7 +664,7 @@ test('native Windows updater checks prereleases and requires separate download a
   assert.ok(stage.includes('desktop-updater.css'));
   assert.ok(updateCss.includes('#desktop-update-panel'));
   assert.ok(!fs.readFileSync(path.join(root,'editor.html'),'utf8').includes('id="desktop-update-panel"'));
-  assert.ok(release.includes('TAG_NAME: v1.11.2-lgg.1-windows-rc.1'));
+  assert.ok(release.includes('TAG_NAME: v1.11.3-lgg.1-windows-rc.1'));
   assert.ok(release.includes('Clear release staging directories before downloading'));
   assert.ok(release.includes("Remove-Item -LiteralPath $folder -Recurse -Force"));
   assert.equal(release.split('merge-multiple: true').length-1,2);

@@ -1,6 +1,6 @@
 # Leaf desktop implementation and release gates
 
-**Fork version:** v1.11.2-lgg.1 Windows prerelease (Portable ZIP and existing .NET per-user Setup). Cross-platform Linux/macOS release is pending real build/GUI acceptance.
+**Fork version:** v1.11.3-lgg.1 source / next Windows prerelease (Portable ZIP and existing .NET per-user Setup). Cross-platform Linux/macOS release is pending real build/GUI acceptance.
 
 ## Isolation and persistence
 
