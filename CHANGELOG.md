@@ -1,5 +1,13 @@
 # Leaf — fork changelog
 
+## v1.10.5-lgg.1 — 2026-11-23 (About tab and welcome dialog fixes)
+
+- Fixed the sixth Settings → About tab: both click and keyboard navigation now derive tabs from the rendered settings menu, preventing skipped new tabs.
+- Restored the complete welcome/About window with version, desktop/web edition, author credits, both repository links, changelog, README, Windows downloads, Star on GitHub and coffee link. The About settings tab keeps this information too.
+- Added a reversible Settings → About checkbox to show the welcome window at startup. The popup’s “Don’t show again” updates the same persisted preference; the toolbar About button always opens the popup. Windows desktop defaults to showing on launch; browser/PWA defaults to off unless enabled.
+- Windows portable/Setup edition labels now update both the settings tab and the welcome window.
+- macOS packaging and its runner remain untouched.
+
 ## v1.10.4-lgg.1 — 2026-11-23 (About settings and theme-aware links)
 
 - Fixed WebView2 portable/Setup builds displaying the web-only **Install App** action: desktop staging now marks native builds and hides the PWA control, and install-prompt / service-worker handlers reject native environments. Browser/PWA install prompts remain available.
