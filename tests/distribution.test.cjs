@@ -62,6 +62,15 @@ test('Windows 10/11 preview installer requires no new runner installations and i
   assert.match(release, /steps\.verify-producer\.outputs\.setup_artifact_id/);
   assert.match(release, /artifact-ids:/);
   assert.match(release, /AppendAllText/);
+  // Regression: publisher on persistent self-hosted workspace previously
+  // read leftover release-input/portable/*.zip instead of the actual new
+  // artifact nested one level deeper by download-artifact.
+  assert.match(release, /Clear release staging directories before downloading/);
+  assert.match(release, /Remove-Item -LiteralPath \$folder -Recurse -Force/);
+  assert.equal((release.match(/merge-multiple: true/g) || []).length, 2);
+  assert.match(release, /Nested artifact folders would hide the actual producer packages/);
+  assert.match(release, /byte-identical to a previously published release/);
+  assert.match(release, /Published release hash is inconsistent with the successful current Windows build/);
   assert.doesNotMatch(release, /name: leaf-windows-portable-smoke-test\s*\n\s*run-id:/);
   assert.match(release, /Leaf-Windows-10-11-x64-Portable.zip/);
   assert.match(release, /Leaf-Windows-10-11-x64-Setup.exe/);
