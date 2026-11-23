@@ -902,7 +902,7 @@ test('Settings About has accessible credits, edition, Star link and dismissible 
   const originalRepo=settings.indexOf('Original Leaf by Dan');
   const coffee=settings.indexOf('>buy Dan a coffee</a>');
   assert.ok(originalRepo>=0 && coffee>originalRepo, 'support link belongs beside original repository');
-  assert.ok(coffee-settings.indexOf('Original Leaf by Dan')<500, 'support link is at repository level');
+  assert.ok(coffee-originalRepo<500, 'support link is at repository level');
   assert.ok(settings.includes('href="https://buymeacoffee.com/dandanmian"'));
   assert.ok(!settings.includes('☕'), 'support link has no icon');
   assert.ok(!popup.includes('buy Dan a coffee') && !popup.includes('buy me a coffee'));
