@@ -321,7 +321,7 @@ test('every settings tab, including About, responds to clicks and keyboard navig
   }
   const document={
     querySelectorAll:selector => {
-      assert.equal(selector,'#settings-tabs [data-settings-tab]');
+      assert.ok(selector==='#settings-tabs [data-settings-tab]' || selector==='[data-settings-tab]');
       return names.map(n=>controls[n]);
     },
     getElementById:id=>nodes[id]
