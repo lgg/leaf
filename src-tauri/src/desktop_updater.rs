@@ -7,7 +7,7 @@ use sha2::{Digest, Sha256};
 use std::{fs, io::Read, path::{Path, PathBuf}, process::{Command, Stdio}, sync::Mutex};
 use tauri::{Manager, State};
 
-const CURRENT_TAG: &str = "v1.10.5-lgg.1-windows-rc.1";
+const CURRENT_TAG: &str = "v1.11.0-lgg.1-windows-rc.1";
 const ASSET_PORTABLE: &str = "Leaf-Windows-10-11-x64-Portable.zip";
 const ASSET_SETUP: &str = "Leaf-Windows-10-11-x64-Setup.exe";
 const HELPER: &str = include_str!("../../desktop/windows-update-agent.ps1");
