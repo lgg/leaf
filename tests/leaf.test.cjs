@@ -614,7 +614,7 @@ test('GitHub Pages service worker prefers fresh HTML and keeps an offline fallba
 });
 
 test('fork version matches README, changelog and visible About version', () => {
-  const version='1.11.4-lgg.1';
+  const version='1.11.5-lgg.1';
   const readme=fs.readFileSync(path.join(__dirname,'..','README.md'),'utf8').replace(/\r\n/g, '\n');
   const changelog=fs.readFileSync(path.join(__dirname,'..','CHANGELOG.md'),'utf8');
   assert.ok(html.includes('id="about-current-version">v'+version+'</strong>'));

@@ -1,6 +1,6 @@
 # Leaf — fork changelog
 
-## v1.11.4-lgg.1 — 2026-11-23 (Cross-platform preparation and native file safety)
+## v1.11.5-lgg.1 — 2026-11-23 (Cross-platform preparation and native file safety)
 
 - Desktop now identifies Windows, Linux and macOS using the native runtime rather than labelling every edition Windows. The existing Windows-only GitHub Releases updater is hidden and never invoked on other platforms; Windows Portable/Setup update flow remains unchanged.
 - The native file loader rejects non-regular `.md`/`.txt` paths before opening (including named pipes/devices) and adds focused Rust/Node regression coverage.

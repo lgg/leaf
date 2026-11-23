@@ -13,7 +13,7 @@ use std::os::windows::process::CommandExt;
 #[cfg(target_os="windows")]
 const CREATE_NO_WINDOW: u32 = 0x0800_0000;
 
-const CURRENT_TAG: &str = "v1.11.4-lgg.1-windows-rc.1";
+const CURRENT_TAG: &str = "v1.11.5-lgg.1-windows-rc.1";
 const ASSET_PORTABLE: &str = "Leaf-Windows-10-11-x64-Portable.zip";
 const ASSET_SETUP: &str = "Leaf-Windows-10-11-x64-Setup.exe";
 const HELPER: &str = include_str!("../../desktop/windows-update-agent.ps1");
