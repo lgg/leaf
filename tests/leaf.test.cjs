@@ -351,7 +351,10 @@ test('welcome startup preference and manual About action are independent', () =>
   const source=between('function showAboutDialog() {',
     "document.getElementById('chk-welcome').addEventListener");
   const nodes={};
-  const create=(id)=>nodes[id]||(nodes[id]={checked:false,style:{display:'none'},textContent:''});
+  const create=(id)=>nodes[id]||(nodes[id]={
+    checked:false,style:{display:'none'},textContent:'',listeners:{},
+    addEventListener(type,handler){this.listeners[type]=handler}
+  });
   const hooks={};const selected=[],saves={count:0},reads={count:0};
   const document={
     body:{dataset:{leafDesktop:'true'}},
